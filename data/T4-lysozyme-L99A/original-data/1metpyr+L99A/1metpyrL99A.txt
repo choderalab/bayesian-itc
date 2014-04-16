@@ -1,0 +1,50 @@
+ITC Run Parameters
+VPITC07.03.479
+
+Number of Injections:          30
+Run Temperature:               10
+Reference Power:               10
+Initial Delay:                 60
+Syringe Concentration:         3
+Cell Concentration:            0.122
+Stirring Speed:                300
+No Check Temp.:                Off
+Fast Equil.:                   On
+Auto:                          On
+Data File Name:                1metpyL99A.itc
+Data File Data File Comments:
+
+
+Injections Parameters:
+
+ #   Volume  Duration  Spacing   FP
+  1    2       4       240        2
+  2   10      20       240        2
+  3   10      20       240        2
+  4   10      20       240        2
+  5   10      20       240        2
+  6   10      20       240        2
+  7   10      20       240        2
+  8   10      20       240        2
+  9   10      20       240        2
+ 10   10      20       240        2
+ 11   10      20       240        2
+ 12   10      20       240        2
+ 13   10      20       240        2
+ 14   10      20       240        2
+ 15   10      20       240        2
+ 16   10      20       240        2
+ 17   10      20       240        2
+ 18   10      20       240        2
+ 19   10      20       240        2
+ 20   10      20       240        2
+ 21   10      20       240        2
+ 22   10      20       240        2
+ 23   10      20       240        2
+ 24   10      20       240        2
+ 25   10      20       240        2
+ 26   10      20       240        2
+ 27   10      20       240        2
+ 28   10      20       240        2
+ 29   10      20       240        2
+ 30   10      20       240        2

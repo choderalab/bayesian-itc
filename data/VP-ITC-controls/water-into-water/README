@@ -1,0 +1,20 @@
+Titration of ddH2O into ddH2O, with reference cell filled with ddH2O.
+The ddH2O (milliQ) was filtered again with 0.22 um filters prior to use.
+
+PROTOCOL
+
+An equilibration period of 3600 s, during which stirring and power measurement takes place, occured prior to first injection.
+26 injections of 10 ul were carried out, with 20 s for the injection, and a spacing of 600 s between injection start times.
+
+
+EXPERIMENTALIST
+
+Sarah E. Boyce <sarah.boyce@berkeley.edu>
+
+MANIFEST
+
+050911a.itc - VP-ITC .itc file for titration
+A050911a.DAT - Origin integrated heats 
+A050911aRAW.DAT - Origin power measurements 
+050911a-RawITC.PDF - Origin plot of baseline fit
+

@@ -1,0 +1,17 @@
+062012a - water into water at 25 C
+062012b - water into water at 15 C
+062012c - water into water at 20 C
+062112c - water into water at 10 C
+
+room temperature is thermostatted to 68 F (20 C)
+
+All runs:
+
+307 rpm
+600s initial delay
+10 uL injections
+6 inj @ 1 s/uL 400 s betw inj
+6 inj @ 2 s/uL 400 s betw inj
+6 inj @ 1 uL/s 200 s betw inj
+6 inj @ 2 s/uL 200 s betw inj
+

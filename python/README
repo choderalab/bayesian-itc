@@ -1,0 +1,8 @@
+Python tool for the Bayesian analysis of ITC data.
+
+Note that these tools currently are not in working order.
+
+MANIFEST
+
+ITC.py - ITC analysis class
+attic/ - older (unused) files

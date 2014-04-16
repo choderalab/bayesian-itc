@@ -1,0 +1,22 @@
+Carbonic anhydrase II (CAII) + carboxybenzenesulfonamide (CBS)
+
+These experiments try to explore different protocols following the Myszka et al. ABRF MIRG'02 experiments.
+
+For the 10 injection protocol the concentration was 38.4uM, uncorrected for the % purity of the protein stock. 
+For the 15 injection protocol the concentration was 38.9uM. 
+The concentration CBS was 1.950mM, w/o correcting for 97% purity (given by the supplier) using an extinction coefficient of 1307 M-1/cm at 272nm. 
+
+Protocols:
+
+10inject-40uM.inj - 10 injections of 10 uL
+15inject-40uM.inj - 15 injections of 6.7 uL
+20inject-40uM.inj - 20 injections of 5 uL
+
+Experiment log:
+
+042711a.itc - 10 injections of 10 uL
+042711b.itc - 15 injections of 6.7 uL
+042711c.itc - aborted blank titration (ligand into buffer) for 15 injection protocol
+042711d.itc - blank titration (ligand into buffer) for 15 injection protocol
+042711e.itc - 20 injections of 5 uL (bubble issues)
+

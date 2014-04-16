@@ -1,0 +1,30 @@
+---------- Forwarded message ----------
+From: David Minh <daveminh@gmail.com>
+Date: Tue, Sep 28, 2010 at 9:34 AM
+Subject: ITC Data
+To: John Chodera <jchodera@gmail.com>
+
+
+Hi John,
+
+Here's all my ITC data for titrating Magnesium Chloride into EDTA.
+The file names are formatted with
+Mg(number)EDTA(number)(label)(extension). The first number is the
+Magnesium Chloride concentration in the syringe, in mM. The second
+number is the EDTA concentration in the cell, in mM. The label starts
+at 'a' and goes to 'j' for the final protocol. The extension is .inj
+for the injection protocol, .itc for the raw data in MicroCal's
+format, .OPJ for an Origin project, .DAT for the integrated heats,
+RAW.DAT for the thermogram without baseline correction, and PDF for
+the model fit to the integrated heat.
+
+Do you want to take it from here?
+
+David
+
+--
+David Minh
+Director's Postdoctoral Fellow
+Biosciences Division
+Argonne National Laboratory
+

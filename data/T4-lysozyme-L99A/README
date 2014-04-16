@@ -1,0 +1,21 @@
+The subdirectories here contain ITC data collected for the paper:
+
+Mobley DL, Graves AP, Chodera JD, McReynolds AC, Shoichet BK, and Dill KA.  "Predicting absolute ligand binding free energies to a simple model site," Journal of Molecular Biology 371(4):1118-1134 (2007).
+http://dx.doi.org/10.1016/j.jmb.2007.06.002
+
+by Alan P. Graves, then of Shoichet lab, UCSF.
+
+A copy of this reference is provided as reference.pdf.
+
+MANIFEST
+
+README - this file
+reference.pdf - the paper cited above
+toluene.itc - ITC titration for toluene binding to T4 lysozyme L99A
+1-methylpyrrole.itc - ITC titration for 1-methylpyrrole binding to T4 lysozyme L99A
+N-methylaniline.itc 
+1,2-dicholorobenzene-1.itc - ITC titration for 1,2-dicholobenzene binding to T4 lysozyme L99A, 25 injections
+1,2-dicholorobenzene-2.itc - terminated after 5 injections (of 25 planned)
+1,2-dicholorobenzene-3.itc - 30 injections
+original-data/ - original data from Alan Graves
+

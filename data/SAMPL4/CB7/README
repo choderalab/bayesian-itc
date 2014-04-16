@@ -1,0 +1,10 @@
+SAMPL4 data
+
+MANIFEST
+compounds.pdf - prepared concentrations and safety information
+
+NOTES
+
+We used the protocol you sent us to prepare the buffer using non-deuterated reagents.  The pH may be off by up to 0.1 pH units due to the flaky pH meter we were borrowing---we resorted to pH strips to check our pH to confirm.
+
+We assume 1:1 complexation in our fitting, and do not admit a site parameter n.  I increased the MW if CB7 by 1.0/0.8 to account for your statement that 80% of the material is typically CB7.  The true concentrations of host and guest can both vary.  We set the guest concentration (uncorrected for purity) to that of the HCl salt with our estimated gravimetric preparation uncertainty, and let the purity vary between 95-100% with uniform probability.  We set the host concentration error to be 10% to account for the fact that the hydration state is not precisely known.  There's likely a less cumbersome way to handle this in the future, but this was the simplest way I could accommodate the information you've given us on MW and purity.

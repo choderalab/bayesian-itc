@@ -1,0 +1,10 @@
+Bayesian ITC outline
+
+== Introduction ==
+ * ITC is a powerful tool for probing the thermodynamics of molecular interactions.
+ * How ITC works.
+ * Sources of error
+ * Bayesian treatment of error can give full joint posterior
+ 
+ * Designing experiments based on expected information content.  (Choose concentrations, volumes, etc.) (e.g. choose injection volume for competition assay given weak direct ITC curve)
+ "The Bayesian framework presented here can also be used to aid in the design of subsequent experiments based on previously-collected experimental data or prior expectations."

@@ -1,0 +1,17 @@
+water-blanks-10C - water into water at 10 C
+water-blanks-15C - water into water at 15 C
+water-blanks-20C - water into water at 20 C
+water-blanks-25C - water into water at 25 C
+
+room temperature is thermostatted to 68 F (20 C)
+
+All runs:
+
+307 rpm
+600s initial delay
+10 uL injections
+6 inj @ 1 s/uL 400 s betw inj
+6 inj @ 2 s/uL 400 s betw inj
+6 inj @ 1 uL/s 200 s betw inj
+6 inj @ 2 s/uL 200 s betw inj
+
