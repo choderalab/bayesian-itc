@@ -1,0 +1,336 @@
+A;Water;;Trough 100ml;2;;400.000000;;;2
+D;DestinationPlate;;ITC Plate;1;;400.000000;;;2
+W;
+A;Water;;Trough 100ml;4;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;2;;400.000000;;;8
+W;
+B;
+A;Water;;Trough 100ml;2;;400.000000;;;2
+D;DestinationPlate;;ITC Plate;3;;400.000000;;;2
+W;
+A;Water;;Trough 100ml;4;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;4;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;2;;400.000000;;;2
+D;DestinationPlate;;ITC Plate;5;;400.000000;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;6;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;2;;400.000000;;;2
+D;DestinationPlate;;ITC Plate;7;;400.000000;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;8;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.123425;;;1
+D;DestinationPlate;;ITC Plate;9;;321.123425;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;78.876575;;;2
+D;DestinationPlate;;ITC Plate;9;;78.876575;;;2
+W;
+A;Buffer;;Trough 100ml;4;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;10;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.123425;;;1
+D;DestinationPlate;;ITC Plate;11;;321.123425;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;78.876575;;;2
+D;DestinationPlate;;ITC Plate;11;;78.876575;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;12;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;320.613886;;;1
+D;DestinationPlate;;ITC Plate;13;;320.613886;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;3;;79.386114;;;2
+D;DestinationPlate;;ITC Plate;13;;79.386114;;;2
+W;
+A;Buffer;;Trough 100ml;4;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;14;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;320.613886;;;1
+D;DestinationPlate;;ITC Plate;15;;320.613886;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;3;;79.386114;;;2
+D;DestinationPlate;;ITC Plate;15;;79.386114;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;16;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.121819;;;1
+D;DestinationPlate;;ITC Plate;17;;321.121819;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;4;;78.878181;;;2
+D;DestinationPlate;;ITC Plate;17;;78.878181;;;2
+W;
+A;Buffer;;Trough 100ml;4;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;18;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.121819;;;1
+D;DestinationPlate;;ITC Plate;19;;321.121819;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;4;;78.878181;;;2
+D;DestinationPlate;;ITC Plate;19;;78.878181;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;20;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.128370;;;1
+D;DestinationPlate;;ITC Plate;21;;321.128370;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;5;;78.871630;;;2
+D;DestinationPlate;;ITC Plate;21;;78.871630;;;2
+W;
+A;Buffer;;Trough 100ml;4;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;22;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.128370;;;1
+D;DestinationPlate;;ITC Plate;23;;321.128370;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;5;;78.871630;;;2
+D;DestinationPlate;;ITC Plate;23;;78.871630;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;24;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.113728;;;1
+D;DestinationPlate;;ITC Plate;25;;321.113728;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;6;;78.886272;;;2
+D;DestinationPlate;;ITC Plate;25;;78.886272;;;2
+W;
+A;Buffer;;Trough 100ml;4;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;26;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.113728;;;1
+D;DestinationPlate;;ITC Plate;27;;321.113728;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;6;;78.886272;;;2
+D;DestinationPlate;;ITC Plate;27;;78.886272;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;28;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.106859;;;1
+D;DestinationPlate;;ITC Plate;29;;321.106859;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;7;;78.893141;;;2
+D;DestinationPlate;;ITC Plate;29;;78.893141;;;2
+W;
+A;Buffer;;Trough 100ml;4;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;30;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.106859;;;1
+D;DestinationPlate;;ITC Plate;31;;321.106859;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;7;;78.893141;;;2
+D;DestinationPlate;;ITC Plate;31;;78.893141;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;32;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.107356;;;1
+D;DestinationPlate;;ITC Plate;33;;321.107356;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;8;;78.892644;;;2
+D;DestinationPlate;;ITC Plate;33;;78.892644;;;2
+W;
+A;Buffer;;Trough 100ml;4;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;34;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.107356;;;1
+D;DestinationPlate;;ITC Plate;35;;321.107356;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;8;;78.892644;;;2
+D;DestinationPlate;;ITC Plate;35;;78.892644;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;36;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.117033;;;1
+D;DestinationPlate;;ITC Plate;37;;321.117033;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;9;;78.882967;;;2
+D;DestinationPlate;;ITC Plate;37;;78.882967;;;2
+W;
+A;Buffer;;Trough 100ml;4;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;38;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.117033;;;1
+D;DestinationPlate;;ITC Plate;39;;321.117033;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;9;;78.882967;;;2
+D;DestinationPlate;;ITC Plate;39;;78.882967;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;40;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.121957;;;1
+D;DestinationPlate;;ITC Plate;41;;321.121957;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;10;;78.878043;;;2
+D;DestinationPlate;;ITC Plate;41;;78.878043;;;2
+W;
+A;Buffer;;Trough 100ml;4;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;42;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.121957;;;1
+D;DestinationPlate;;ITC Plate;43;;321.121957;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;10;;78.878043;;;2
+D;DestinationPlate;;ITC Plate;43;;78.878043;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;44;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.122071;;;1
+D;DestinationPlate;;ITC Plate;45;;321.122071;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;11;;78.877929;;;2
+D;DestinationPlate;;ITC Plate;45;;78.877929;;;2
+W;
+A;Buffer;;Trough 100ml;4;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;46;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.122071;;;1
+D;DestinationPlate;;ITC Plate;47;;321.122071;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;11;;78.877929;;;2
+D;DestinationPlate;;ITC Plate;47;;78.877929;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;48;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.097322;;;1
+D;DestinationPlate;;ITC Plate;49;;321.097322;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;12;;78.902678;;;2
+D;DestinationPlate;;ITC Plate;49;;78.902678;;;2
+W;
+A;Buffer;;Trough 100ml;4;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;50;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.097322;;;1
+D;DestinationPlate;;ITC Plate;51;;321.097322;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;12;;78.902678;;;2
+D;DestinationPlate;;ITC Plate;51;;78.902678;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;52;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.118381;;;1
+D;DestinationPlate;;ITC Plate;53;;321.118381;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;13;;78.881619;;;2
+D;DestinationPlate;;ITC Plate;53;;78.881619;;;2
+W;
+A;Buffer;;Trough 100ml;4;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;54;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.118381;;;1
+D;DestinationPlate;;ITC Plate;55;;321.118381;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;13;;78.881619;;;2
+D;DestinationPlate;;ITC Plate;55;;78.881619;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;56;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.105242;;;1
+D;DestinationPlate;;ITC Plate;57;;321.105242;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;14;;78.894758;;;2
+D;DestinationPlate;;ITC Plate;57;;78.894758;;;2
+W;
+A;Buffer;;Trough 100ml;4;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;58;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.105242;;;1
+D;DestinationPlate;;ITC Plate;59;;321.105242;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;14;;78.894758;;;2
+D;DestinationPlate;;ITC Plate;59;;78.894758;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;60;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.106013;;;1
+D;DestinationPlate;;ITC Plate;61;;321.106013;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;15;;78.893987;;;2
+D;DestinationPlate;;ITC Plate;61;;78.893987;;;2
+W;
+A;Buffer;;Trough 100ml;4;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;62;;400.000000;;;8
+W;
+B;
+A;Buffer;;Trough 100ml;1;;321.106013;;;1
+D;DestinationPlate;;ITC Plate;63;;321.106013;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;15;;78.893987;;;2
+D;DestinationPlate;;ITC Plate;63;;78.893987;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;64;;400.000000;;;8
+W;
+B;
+A;Water;;Trough 100ml;2;;400.000000;;;2
+D;DestinationPlate;;ITC Plate;65;;400.000000;;;2
+W;
+A;Water;;Trough 100ml;4;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;66;;400.000000;;;8
+W;
+B;
+A;Water;;Trough 100ml;2;;400.000000;;;2
+D;DestinationPlate;;ITC Plate;67;;400.000000;;;2
+W;
+A;Water;;Trough 100ml;4;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;68;;400.000000;;;8
+W;
+B;
+A;Water;;Trough 100ml;2;;400.000000;;;2
+D;DestinationPlate;;ITC Plate;69;;400.000000;;;2
+W;
+A;Water;;Trough 100ml;4;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;70;;400.000000;;;8
+W;
+B;
+A;Water;;Trough 100ml;2;;400.000000;;;2
+D;DestinationPlate;;ITC Plate;71;;400.000000;;;2
+W;
+A;Water;;Trough 100ml;4;;400.000000;;;8
+D;DestinationPlate;;ITC Plate;72;;400.000000;;;8
+W;
+B;
