@@ -1485,7 +1485,8 @@ if __name__ == "__main__":
     #directory = '../data/auto-iTC-200/JDC/'
     #directory = '../data/auto-iTC-200/Rockefeller\ AutoiTC\ 082513/'
     #directory = '../data/auto-iTC-200/082713'
-    directory = '../data/SAMPL4/CB7/111213'
+    #directory = '../data/SAMPL4/CB7/111213'
+    directory = '../data/auto-iTC-200/053014/'
 
     filenames = commands.getoutput('ls %s/*.itc' % directory).split('\n')
     #filenames = commands.getoutput('ls %s/0822*b*.itc' % directory).split('\n')
