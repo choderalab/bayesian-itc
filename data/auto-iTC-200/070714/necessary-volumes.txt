@@ -1,0 +1,124 @@
+Experiment: 1
+ Syringe (ul):120.00 [0;0m 
+
+
+Experiment: 2
+ Syringe (ul):120.00 [0;0m 
+
+
+Experiment: 3
+ Syringe (ul):120.00 [0;0m 
+
+
+Experiment: 4
+ Syringe (ul):120.00 [0;0m 
+
+
+Experiment: 5
+ Buffer   (ul):354.45[0;0m 
+ Transfer (ul):45.55[0;0m 
+ Syringe (ul):120.00 [0;0m 
+
+
+Experiment: 6
+ Buffer   (ul):354.45[0;0m 
+ Transfer (ul):45.55[0;0m 
+[5;31m !!! Buffer  (ul):0.00 [0;0m 
+ Syringe (ul):120.00 [0;0m 
+
+ Syringe (ul):120.00 [0;0m 
+
+
+Experiment: 7
+ Buffer   (ul):358.06[0;0m 
+ Transfer (ul):41.94[0;0m 
+ Syringe (ul):120.00 [0;0m 
+
+
+Experiment: 8
+ Buffer   (ul):358.06[0;0m 
+ Transfer (ul):41.94[0;0m 
+[5;31m !!! Buffer  (ul):0.00 [0;0m 
+ Syringe (ul):120.00 [0;0m 
+
+ Syringe (ul):120.00 [0;0m 
+
+
+Experiment: 9
+ Buffer   (ul):387.65[0;0m 
+ Transfer (ul):12.35[0;0m 
+ Syringe (ul):120.00 [0;0m 
+
+
+Experiment: 10
+ Buffer   (ul):387.65[0;0m 
+ Transfer (ul):12.35[0;0m 
+[5;31m !!! Buffer  (ul):0.00 [0;0m 
+ Syringe (ul):120.00 [0;0m 
+
+ Syringe (ul):120.00 [0;0m 
+
+
+Experiment: 11
+ Buffer   (ul):372.61[0;0m 
+ Transfer (ul):27.39[0;0m 
+ Syringe (ul):120.00 [0;0m 
+
+
+Experiment: 12
+ Buffer   (ul):372.61[0;0m 
+ Transfer (ul):27.39[0;0m 
+[5;31m !!! Buffer  (ul):0.00 [0;0m 
+ Syringe (ul):120.00 [0;0m 
+
+ Syringe (ul):120.00 [0;0m 
+
+
+Experiment: 13
+ Buffer   (ul):371.50[0;0m 
+ Transfer (ul):28.50[0;0m 
+ Syringe (ul):120.00 [0;0m 
+
+
+Experiment: 14
+ Buffer   (ul):371.50[0;0m 
+ Transfer (ul):28.50[0;0m 
+[5;31m !!! Buffer  (ul):0.00 [0;0m 
+ Syringe (ul):120.00 [0;0m 
+
+ Syringe (ul):120.00 [0;0m 
+
+
+Experiment: 15
+ Buffer   (ul):377.25[0;0m 
+ Transfer (ul):22.75[0;0m 
+ Syringe (ul):120.00 [0;0m 
+
+
+Experiment: 16
+ Buffer   (ul):377.25[0;0m 
+ Transfer (ul):22.75[0;0m 
+[5;31m !!! Buffer  (ul):0.00 [0;0m 
+ Syringe (ul):120.00 [0;0m 
+
+ Syringe (ul):120.00 [0;0m 
+
+
+Experiment: 17
+ Syringe (ul):120.00 [0;0m 
+
+
+Experiment: 18
+ Syringe (ul):120.00 [0;0m 
+
+
+Necessary volumes:
+                          Buffer        8.043 mL
+                           Water        3.200 mL
+                         guest01        0.091 mL
+                         guest02        0.084 mL
+                         guest03        0.025 mL
+                         guest04        0.055 mL
+                         guest05        0.057 mL
+                         guest06        0.045 mL
+                            host        1.120 mL

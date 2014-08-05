@@ -74,8 +74,8 @@ class VPITC(Instrument):
     """
 
     def __init__(self):
-        self.V0 = 1.4301 * Units.mL # volume of calorimeter sample cell
-        self.V0 = self.V0 - 0.044 * Units.mL # Tellinghuisen volume correction for VP-ITC
+        self.V0 = 1.4301 * Units.ml # volume of calorimeter sample cell
+        self.V0 = self.V0 - 0.044 * Units.ml # Tellinghuisen volume correction for VP-ITC
         return
     
 #=============================================================================================
@@ -1130,10 +1130,13 @@ def buildModel(experiment):
     dP0 = 0.10 * P0_stated # uncertainty in protein stated concentration (M) 
     dLs = 0.01 * Ls_stated # uncertainty in ligand stated concentration (M) 
     
+    # Extract instantaneous heat measurements.
+    differential_power = experiment.differential_power / (Units.ucal/Units.s)
+
     # Extract evolved injection heats.
-    injection_heats = numpy.zeros([N], numpy.float64)
+    injection_heats_guess = numpy.zeros([N], numpy.float64)
     for (n, injection) in enumerate(experiment.injections):
-        injection_heats[n] = injection['evolved_heat']
+        injection_heats_guess[n] = injection['evolved_heat']
         
     print "injection heats"
     print injection_heats / Units.ucal
@@ -1144,7 +1147,7 @@ def buildModel(experiment):
     for n in range(N):
         duration_n[n] = experiment.injections[n]['duration']    
     sigma2 = injection_heats[N-nlast:N].var() / duration_n[N-nlast:N].sum()
-    log_sigma_guess = numpy.log(numpy.sqrt(sigma2 / Units.cal**2 * Units.second)) # cal/s # TODO: Use std of individual filtered measurements instead
+     log_sigma_guess = numpy.log(numpy.sqrt(sigma2 / Units.cal**2 * Units.second)) # cal/s # TODO: Use std of individual filtered measurements instead
 
     try:
         DeltaG_guess = -5.0 * Units.kcal/Units.mol
@@ -1214,9 +1217,20 @@ def buildModel(experiment):
     model['DeltaH'] = pymc.Uniform('DeltaH', lower=DeltaH_min, upper=DeltaH_max, value=DeltaH_guess) # DeltaH (kcal/mol)
     model['DeltaH_0'] = pymc.Uniform('DeltaH_0', lower=DeltaH_0_min, upper=DeltaH_0_max, value=DeltaH_0_guess) # heat of mixing and mechanical injection (cal/volume)
 
+    model['baseline'] = pymc.Normal('baseline', mu=numpy.array()
+
     @pymc.deterministic
     def zero():
         return 0.0
+
+    @pymc.deterministic
+    def compute_integrated_heats(baseline=model['baseline']):
+        """
+        Compute integrated heats given sampled baseline parameters.
+        """
+        # DO WORK HERE.
+
+        return integrated_heats
 
     @pymc.deterministic
     def expected_injection_heats(DeltaG=model['DeltaG'], DeltaH=model['DeltaH'], DeltaH_0=model['DeltaH_0'], P0=model['P0'], Ls=model['Ls']):
