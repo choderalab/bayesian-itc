@@ -189,14 +189,6 @@ class Experiment(object):
         self.stir_rate = int(lines[5][1:].strip()) * Units.RPM # revolutions per minute
         self.reference_power = float(lines[6][1:].strip()) * Units.ucal / Units.s
 
-#        # Injection 0 is just power measurements before first injection begins.
-#        injection = dict()
-#        injection['number'] = 0
-#        injection['volume'] = 0.0 * Units.ul # volume of injection
-#        injection['duration'] = 0.0 * Units.s # duration of injection 
-#        injection['spacing'] = 0.0 * Units.s # time between beginning of injection and beginning of next injection
-#        injection['filter_period'] = 0.0 * Units.s # time over which data channel is averaged to produce a single measurement        
-#        self.injections.append(injection)
         
         # Extract and store metadata about injections.
         injection_number = 0
@@ -208,17 +200,6 @@ class Experiment(object):
                 # Read data about injection.
                 (injection_volume, injection_duration, spacing, filter_period) = line[1:].strip().split(",")
 
-#                # Extract data for injection, applying appropriate unit conversions.
-#                injection = Injection()
-#                injection.number = injection_number # sequence number of injection
-#                injection.volume = float(injection_volume) * Units.ul # volume of injection
-#                injection.duration = float(injection_duration) * Units.s # duration of injection 
-#                injection.spacing = float(spacing) * Units.s # time between beginning of injection and beginning of next injection
-#                injection.filter_period = float(filter_period) * Units.s # time over which data channel is averaged to produce a single measurement
-#
-#                # Store the injection
-#                self.injections.append(injection)
-                
                 # Extract data for injection and apply appropriate unit conversions.                
                 injection = dict()
                 injection['number'] = injection_number
@@ -473,8 +454,7 @@ class Experiment(object):
         string += "INJECTIONS\n"
         string += "\n"
         string += "%16s %24s %24s %24s %24s %24s\n" % ('injection', 'volume (uL)', 'duration (s)', 'collection time (s)', 'time step (s)', 'evolved heat (ucal)')
-#        for injection in range(self.number_of_injections):
-#            string += "%16d %16.3f %16.3f %16.3f %16.3f" % (injection, self.injection_volume[injection] / Units.ul, self.injection_duration[injection] / Units.s, self.collection_time[injection] / Units.s, self.time_step[injection] / Units.s)
+
         for injection in self.injections:
             string += "%16d %24.3f %24.3f %24.3f %24.3f %24.3f\n" % (injection['number'], injection['volume'] / Units.ul, injection['duration'] / Units.s, injection['spacing'] / Units.s, injection['filter_period'] / Units.s, injection['evolved_heat'] / Units.ucal)    
 
@@ -494,12 +474,6 @@ class Experiment(object):
         string = "%12s %5s %12s %12s %12s %12s\n" % ("DH", "INJV", "Xt", "Mt", "XMt", "NDH")
         for (n, injection) in enumerate(self.injections):
             # Instantaneous injection model (perfusion)
-#            d = 1.0 - (DeltaV / V0) # dilution factor (dimensionless)
-#            P = V0 * P0 * d**(n+1) # total quantity of protein in sample cell after n injections (mol)
-#            L = V0 * Ls * (1. - d**(n+1)) # total quantity of ligand in sample cell after n injections (mol)
-#            PLn = 0.5/V0 * ((P + L + Kd*V0) - numpy.sqrt((P + L + Kd*V0)**2 - 4*P*L));  # complex concentration (M)
-#            Pn = P/V0 - PLn; # free protein concentration in sample cell after n injections (M)
-#            Ln = L/V0 - PLn; # free ligand concentration in sample cell after n injections (M)
 
             Pn = 0.0
             Ln = 0.0
@@ -541,10 +515,6 @@ class Experiment(object):
           filename (String) - if specified, the plot will be written to the specified file instead of plotted to the screen.
           
         """
-
-        #import matplotlib
-        #if (filename != None): matplotlib.use('pdf')
-
         import pylab
         pylab.figure()
         fontsize = 8
@@ -924,24 +894,9 @@ def analyze(name, experiment):
     #=============================================================================================
     # Make plots
     #=============================================================================================
-
-#    # Test whether the samples prior to the first injection are normally-distributed.
-#    index = experiment.injections[0]['first_index']
-#    x = experiment.differential_power[0:index]
-#    print x
-#    print "P-value for normality:"
-#    print scipy.stats.normaltest(x)
-#    # DEBUG
-#    import pylab
-#    pylab.figure()
-#    pylab.subplot(111)    
-#    pylab.plot(experiment.filter_period_end_time[0:index] / Units.s, experiment.differential_power[0:index] / (Units.ucal/Units.s), 'k.')
-#    pylab.show()
     
     # Create a LaTeX report file.
     report = Report([experiment])
-    #report.writeLaTeX('report.tex')
-    #exit(1)
 
     # Plot the raw measurements of differential power versus time and the enthalpogram.
     import pylab
@@ -962,11 +917,7 @@ def analyze(name, experiment):
     pylab.hold(True)    
     [xmin, xmax, ymin, ymax] = pylab.axis()
 
-    # DEBUG
-#    ymax = experiment.differential_power.max() / (Units.ucal/Units.s)
-#    ymin = ymax - 0.3
-#    pylab.axis([xmin, xmax, ymin, ymax]) 
-    
+ 
     for injection in experiment.injections:
         last_index = injection['first_index'] # timepoint at start of syringe injection
         t = experiment.filter_period_end_time[last_index] / Units.s
@@ -1029,7 +980,7 @@ def analyze(name, experiment):
     [xmin_new, xmax_new, ymin, ymax] = pylab.axis()
     pylab.axis([xmin, xmax, ymin, ymax])    
     pylab.hold(False)
-    #pylab.title('evolved heat per injection')
+    
     xlabel = pylab.xlabel('time / s')
     xlabel.set_fontsize(fontsize)
     ylabel = pylab.ylabel('cell temperature / C')
@@ -1049,7 +1000,7 @@ def analyze(name, experiment):
     [xmin_new, xmax_new, ymin, ymax] = pylab.axis()
     pylab.axis([xmin, xmax, ymin, ymax])    
     pylab.hold(False)
-    #pylab.title('evolved heat per injection')
+    
     xlabel = pylab.xlabel('time / s')
     xlabel.set_fontsize(fontsize)
     ylabel = pylab.ylabel('jacket temperature / C')
@@ -1062,28 +1013,8 @@ def analyze(name, experiment):
         tick.label1.set_fontsize(fontsize)
 
     # show plot
-    #pylab.show()
-    pylab.savefig('%s.pdf' % name, orientation='landscape', papertype='letter', format='pdf')
-
-    #=============================================================================================
-    # Binding model.
-    #=============================================================================================
-
-#    import models
-
-#    #model = TwoComponentBindingModel(Ls_stated, P0_stated, q_n, DeltaV, temperature, V0)
-#    model = models.CompetitiveBindingModel(experiments, '148_w_DD1', experiment.cell_volume, verbose=True)
     
-    #=============================================================================================
-    # Run MCMC inference on model.
-    #=============================================================================================
-
-#    niters = 10000 # number of iterations
-#    nburn = 1000 # number of burn-in iterations
-#    nthin = 1 # thinning period
-#    
-#    model.mcmc.isample(iter=niters, burn=nburn, thin=nthin)
-#    pymc.Matplot.plot(model.mcmc)
+    pylab.savefig('%s.pdf' % name, orientation='landscape', papertype='letter', format='pdf')
 
     return
 
@@ -1308,7 +1239,6 @@ def buildModel(experiment):
     print expected_injection_heats
     print tau
     print injection_heats
-    #model['q_n'] = pymc.Normal('q_n', size=[N], mu=expected_injection_heats, tau=tau, observed=True, value=injection_heats)
     model['q_n'] = pymc.Normal('q_n', mu=expected_injection_heats, tau=tau, observed=True, value=injection_heats)
 
     return model              
@@ -1429,7 +1359,6 @@ class RescalingStep(pymc.StepMethod):
          
    def reject(self):
       for stochastic in self.stochastics:
-         # stochastic.value = stochastic.last_value
          stochastic.revert()
 
    def tune(self, verbose):
@@ -1470,61 +1399,21 @@ if __name__ == "__main__":
     experiments = list()
 
     # Create a new ITC experiment object from the VP-ITC file.
-    #filename = '../examples/two-component-binding/T4-lysozyme-L99A/toluene.itc'
-    #filename = '../examples/111108/BenzamineTrypsin1.itc'
-    #filename = '../examples/gudrun-spitzer/141_w_A3T3.itc'    
-    #filename = '../examples/gudrun-spitzer/149_w_DD1.itc'
-    #filename = '../examples/gudrun-spitzer/148_w_DD1.itc'
-
-    # Create an Experiment object from VP-ITC data.
-    #filename = '../data/Mg2-EDTA/Mg2EDTA/Mg1EDTAp08a.itc' # Mg2+:EDTA sample dataset
-    #names = ['Mg1EDTAp1a', 'Mg1EDTAp1b', 'Mg1EDTAp1c', 'Mg1EDTAp1d', 'Mg1EDTAp1e']
-    #names = ['Mgp5EDTAp05a', 'Mgp5EDTAp05b', 'Mgp5EDTAp05c', 'Mgp5EDTAp05d', 'Mgp5EDTAp05e', 'Mgp5EDTAp05f', 'Mgp5EDTAp05g', 'Mgp5EDTAp05h', 'Mgp5EDTAp05i', 'Mgp5EDTAp05j']    
-    #names = ['Mg1EDTAp1a']
-    #directory = '../data/NAD2ADh'
-    #directory = '../data/CaM'
-    #directory = '../data/CAII-CBS/'
-    #directory = '../data/'
     import commands
-    #filenames = commands.getoutput('ls %s/Mgp5EDTAp05*.itc' % directory).split('\n')
-    #filenames = commands.getoutput('ls %s/042711*.itc' % directory).split('\n')
-    #filenames = commands.getoutput('ls %s/CAII-10uM/original-data/*.itc' % directory).split('\n')
-    #filenames = commands.getoutput('ls %s/VP-ITC-controls/pbs-into-pbs/*.itc' % directory).split('\n')
-    #directory = '../data/Mg2-EDTA/Mg2EDTA'
-    #directory = '../data/hCAII-CBS/hCAII-10uM/'
-    #directory = '../data/CAII-CBS/062111/'
-    #directory = '../data/SAMPL3/'
-    #directory = '../data/VP-ITC-controls/tris-buffer-mismatch'
-    #directory = '../data/CAII-CBS/CAII-40uM'
-    #directory = '../data/auto-iTC-200/JDC/'
-    #directory = '../data/auto-iTC-200/Rockefeller\ AutoiTC\ 082513/'
-    #directory = '../data/auto-iTC-200/082713'
-    #directory = '../data/SAMPL4/CB7/111213'
     directory = '../data/auto-iTC-200/070714/'
 
     filenames = commands.getoutput('ls %s/*.itc' % directory).split('\n')
-    #filenames = commands.getoutput('ls %s/0822*b*.itc' % directory).split('\n')
-
-    # DEBUG
-    #filenames = ['../data/SAMPL3//PIIIB08vstrypsin2203114.itc']
-    #filenames = ['../data/VP-ITC-controls/tris-buffer-mismatch/022912a.itc']
-
     print filenames
     for filename in filenames:
 
         # Close all figure windows.
         import pylab
         pylab.close('all')
-        
-        #filename = '../data/Mg2-EDTA/Mg2EDTA/%s.itc' % name # Mg2+:EDTA sample dataset
-        #filename = os.path.join(directory, name)
-
         name = os.path.splitext(os.path.split(filename)[1])[0]
-
         print "\n"
         print "Reading ITC data from %s" % filename
         experiment = Experiment(filename)
-        #experiments.append(experiment)
+
         print experiment
         analyze(name, experiment)
 
@@ -1562,15 +1451,7 @@ if __name__ == "__main__":
         nburn  = 500000 # number of burn-in iterations
         nthin  = 250 # thinning period
         
-        #niters = 200000
-        #nburn = 500
-        #nthin = 10
-
-        #mcmc = pymc.MCMC(model, db='pickle')
-        #mcmc = pymc.MCMC(model, db='sqlite')
-        #mcmc = pymc.MCMC(model, db='hdf5')
         mcmc = pymc.MCMC(model, db='ram')
-
         mcmc.use_step_method(pymc.Metropolis, model['DeltaG'])
         mcmc.use_step_method(pymc.Metropolis, model['DeltaH'])
         mcmc.use_step_method(pymc.Metropolis, model['DeltaH_0'])
@@ -1586,7 +1467,6 @@ if __name__ == "__main__":
         
         print "Sampling..."
         mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
-        #pymc.Matplot.plot(mcmc)
 
         # Plot individual terms.
         if (experiment.cell_concentration > 0.0):
