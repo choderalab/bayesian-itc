@@ -171,7 +171,7 @@ class Experiment(object):
             raise "The file '%s' cannot be opened." % data_filename
         
         # Open the file and read is contents.
-        infile = open(filename, 'r')
+        infile = open(data_filename, 'r')
         lines = infile.readlines()
         infile.close()
 
