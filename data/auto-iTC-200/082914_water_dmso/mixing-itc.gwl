@@ -1,0 +1,177 @@
+A;SourcePlate;;5x3 Vial Holder;1;;400.000000;;;1
+D;DestinationPlate;;ITC Plate;1;;400.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;120.000000;;;1
+D;DestinationPlate;;ITC Plate;2;;120.000000;;;1
+W;
+B;
+A;SourcePlate;;5x3 Vial Holder;1;;400.000000;;;1
+D;DestinationPlate;;ITC Plate;3;;400.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;120.000000;;;1
+D;DestinationPlate;;ITC Plate;4;;120.000000;;;1
+W;
+B;
+A;SourcePlate;;5x3 Vial Holder;1;;0.000000;;;1
+D;DestinationPlate;;ITC Plate;5;;0.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;400.000000;;;2
+D;DestinationPlate;;ITC Plate;5;;400.000000;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;0.000000;;;1
+D;DestinationPlate;;ITC Plate;6;;0.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;120.000000;;;2
+D;DestinationPlate;;ITC Plate;6;;120.000000;;;2
+W;
+B;
+A;SourcePlate;;5x3 Vial Holder;1;;80.000000;;;1
+D;DestinationPlate;;ITC Plate;7;;80.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;320.000000;;;2
+D;DestinationPlate;;ITC Plate;7;;320.000000;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;0.000000;;;1
+D;DestinationPlate;;ITC Plate;8;;0.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;120.000000;;;2
+D;DestinationPlate;;ITC Plate;8;;120.000000;;;2
+W;
+B;
+A;SourcePlate;;5x3 Vial Holder;1;;160.000000;;;1
+D;DestinationPlate;;ITC Plate;9;;160.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;240.000000;;;2
+D;DestinationPlate;;ITC Plate;9;;240.000000;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;0.000000;;;1
+D;DestinationPlate;;ITC Plate;10;;0.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;120.000000;;;2
+D;DestinationPlate;;ITC Plate;10;;120.000000;;;2
+W;
+B;
+A;SourcePlate;;5x3 Vial Holder;1;;240.000000;;;1
+D;DestinationPlate;;ITC Plate;11;;240.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;160.000000;;;2
+D;DestinationPlate;;ITC Plate;11;;160.000000;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;0.000000;;;1
+D;DestinationPlate;;ITC Plate;12;;0.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;120.000000;;;2
+D;DestinationPlate;;ITC Plate;12;;120.000000;;;2
+W;
+B;
+A;SourcePlate;;5x3 Vial Holder;1;;320.000000;;;1
+D;DestinationPlate;;ITC Plate;13;;320.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;80.000000;;;2
+D;DestinationPlate;;ITC Plate;13;;80.000000;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;0.000000;;;1
+D;DestinationPlate;;ITC Plate;14;;0.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;120.000000;;;2
+D;DestinationPlate;;ITC Plate;14;;120.000000;;;2
+W;
+B;
+A;SourcePlate;;5x3 Vial Holder;1;;400.000000;;;1
+D;DestinationPlate;;ITC Plate;15;;400.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;0.000000;;;2
+D;DestinationPlate;;ITC Plate;15;;0.000000;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;0.000000;;;1
+D;DestinationPlate;;ITC Plate;16;;0.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;120.000000;;;2
+D;DestinationPlate;;ITC Plate;16;;120.000000;;;2
+W;
+B;
+A;SourcePlate;;5x3 Vial Holder;1;;0.000000;;;1
+D;DestinationPlate;;ITC Plate;17;;0.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;400.000000;;;2
+D;DestinationPlate;;ITC Plate;17;;400.000000;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;120.000000;;;1
+D;DestinationPlate;;ITC Plate;18;;120.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;0.000000;;;2
+D;DestinationPlate;;ITC Plate;18;;0.000000;;;2
+W;
+B;
+A;SourcePlate;;5x3 Vial Holder;1;;80.000000;;;1
+D;DestinationPlate;;ITC Plate;19;;80.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;320.000000;;;2
+D;DestinationPlate;;ITC Plate;19;;320.000000;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;120.000000;;;1
+D;DestinationPlate;;ITC Plate;20;;120.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;0.000000;;;2
+D;DestinationPlate;;ITC Plate;20;;0.000000;;;2
+W;
+B;
+A;SourcePlate;;5x3 Vial Holder;1;;160.000000;;;1
+D;DestinationPlate;;ITC Plate;21;;160.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;240.000000;;;2
+D;DestinationPlate;;ITC Plate;21;;240.000000;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;120.000000;;;1
+D;DestinationPlate;;ITC Plate;22;;120.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;0.000000;;;2
+D;DestinationPlate;;ITC Plate;22;;0.000000;;;2
+W;
+B;
+A;SourcePlate;;5x3 Vial Holder;1;;240.000000;;;1
+D;DestinationPlate;;ITC Plate;23;;240.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;160.000000;;;2
+D;DestinationPlate;;ITC Plate;23;;160.000000;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;120.000000;;;1
+D;DestinationPlate;;ITC Plate;24;;120.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;0.000000;;;2
+D;DestinationPlate;;ITC Plate;24;;0.000000;;;2
+W;
+B;
+A;SourcePlate;;5x3 Vial Holder;1;;320.000000;;;1
+D;DestinationPlate;;ITC Plate;25;;320.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;80.000000;;;2
+D;DestinationPlate;;ITC Plate;25;;80.000000;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;120.000000;;;1
+D;DestinationPlate;;ITC Plate;26;;120.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;0.000000;;;2
+D;DestinationPlate;;ITC Plate;26;;0.000000;;;2
+W;
+B;
+A;SourcePlate;;5x3 Vial Holder;1;;400.000000;;;1
+D;DestinationPlate;;ITC Plate;27;;400.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;0.000000;;;2
+D;DestinationPlate;;ITC Plate;27;;0.000000;;;2
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;120.000000;;;1
+D;DestinationPlate;;ITC Plate;28;;120.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;2;;0.000000;;;2
+D;DestinationPlate;;ITC Plate;28;;0.000000;;;2
+W;
+B;
+A;SourcePlate;;5x3 Vial Holder;1;;400.000000;;;1
+D;DestinationPlate;;ITC Plate;29;;400.000000;;;1
+W;
+A;SourcePlate;;5x3 Vial Holder;1;;120.000000;;;1
+D;DestinationPlate;;ITC Plate;30;;120.000000;;;1
+W;
+B;
