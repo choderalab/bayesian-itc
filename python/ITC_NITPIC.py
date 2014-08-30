@@ -1217,11 +1217,25 @@ def buildModel(experiment):
     model['DeltaH'] = pymc.Uniform('DeltaH', lower=DeltaH_min, upper=DeltaH_max, value=DeltaH_guess) # DeltaH (kcal/mol)
     model['DeltaH_0'] = pymc.Uniform('DeltaH_0', lower=DeltaH_0_min, upper=DeltaH_0_max, value=DeltaH_0_guess) # heat of mixing and mechanical injection (cal/volume)
 
-    model['baseline'] = pymc.Normal('baseline', mu=numpy.array()
+    model['baseline'] = pymc.Normal('baseline', mu=numpy.array())
 
     @pymc.deterministic
     def zero():
         return 0.0
+
+    def nitpic_heats(filename):
+        """Reads a .dat file from NITPIC and returns the integrated heats for each injection as an array.
+        """
+        integrated_heats = numpy.array()
+        
+        with open(filename, "r") as fileobject:
+            for line in fileobject.readlines():
+                print line
+        
+        
+        
+
+        return integrated_heats 
 
     @pymc.deterministic
     def compute_integrated_heats(baseline=model['baseline']):
