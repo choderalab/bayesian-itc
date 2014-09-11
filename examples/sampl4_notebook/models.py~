@@ -792,7 +792,7 @@ class CompetitiveBindingModel(BindingModel):
       return q_n
 
 #=============================================================================================
-# Competitive binding model
+# Competitive binding model for a racemic mixture
 #=============================================================================================
 
 class RacemicMixtureBindingModel(BindingModel):
