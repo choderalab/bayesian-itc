@@ -60,30 +60,12 @@ def analyze(name, experiment):
         print "EXPERIMENT %d" % index
         print str(experiment)
 
-    # DEBUG: Write power
-    #experiment.write_power('realtime.dat')
-
     #=============================================================================================
     # Make plots
     #=============================================================================================
-
-#    # Test whether the samples prior to the first injection are normally-distributed.
-#    index = experiment.injections[0]['first_index']
-#    x = experiment.differential_power[0:index]
-#    print x
-#    print "P-value for normality:"
-#    print scipy.stats.normaltest(x)
-#    # DEBUG
-#    import pylab
-#    pylab.figure()
-#    pylab.subplot(111)    
-#    pylab.plot(experiment.filter_period_end_time[0:index] / Units.s, experiment.differential_power[0:index] / (Units.ucal/Units.s), 'k.')
-#    pylab.show()
     
     # Create a LaTeX report file.
     report = Report([experiment])
-    #report.writeLaTeX('report.tex')
-    #exit(1)
 
     # Plot the raw measurements of differential power versus time and the enthalpogram.
     import pylab
@@ -104,11 +86,6 @@ def analyze(name, experiment):
     pylab.hold(True)    
     [xmin, xmax, ymin, ymax] = pylab.axis()
 
-    # DEBUG
-#    ymax = experiment.differential_power.max() / (Units.ucal/Units.s)
-#    ymin = ymax - 0.3
-#    pylab.axis([xmin, xmax, ymin, ymax]) 
-    
     for injection in experiment.injections:
         last_index = injection['first_index'] # timepoint at start of syringe injection
         t = experiment.filter_period_end_time[last_index] / Units.s
@@ -598,61 +575,23 @@ if __name__ == "__main__":
     experiments = list()
 
     # Create a new ITC experiment object from the VP-ITC file.
-    #filename = '../examples/two-component-binding/T4-lysozyme-L99A/toluene.itc'
-    #filename = '../examples/111108/BenzamineTrypsin1.itc'
-    #filename = '../examples/gudrun-spitzer/141_w_A3T3.itc'    
-    #filename = '../examples/gudrun-spitzer/149_w_DD1.itc'
-    #filename = '../examples/gudrun-spitzer/148_w_DD1.itc'
 
-    # Create an Experiment object from VP-ITC data.
-    #filename = '../data/Mg2-EDTA/Mg2EDTA/Mg1EDTAp08a.itc' # Mg2+:EDTA sample dataset
-    #names = ['Mg1EDTAp1a', 'Mg1EDTAp1b', 'Mg1EDTAp1c', 'Mg1EDTAp1d', 'Mg1EDTAp1e']
-    #names = ['Mgp5EDTAp05a', 'Mgp5EDTAp05b', 'Mgp5EDTAp05c', 'Mgp5EDTAp05d', 'Mgp5EDTAp05e', 'Mgp5EDTAp05f', 'Mgp5EDTAp05g', 'Mgp5EDTAp05h', 'Mgp5EDTAp05i', 'Mgp5EDTAp05j']    
-    #names = ['Mg1EDTAp1a']
-    #directory = '../data/NAD2ADh'
-    #directory = '../data/CaM'
-    #directory = '../data/CAII-CBS/'
-    #directory = '../data/'
     import commands
-    #filenames = commands.getoutput('ls %s/Mgp5EDTAp05*.itc' % directory).split('\n')
-    #filenames = commands.getoutput('ls %s/042711*.itc' % directory).split('\n')
-    #filenames = commands.getoutput('ls %s/CAII-10uM/original-data/*.itc' % directory).split('\n')
-    #filenames = commands.getoutput('ls %s/VP-ITC-controls/pbs-into-pbs/*.itc' % directory).split('\n')
-    #directory = '../data/Mg2-EDTA/Mg2EDTA'
-    #directory = '../data/hCAII-CBS/hCAII-10uM/'
-    #directory = '../data/CAII-CBS/062111/'
-    #directory = '../data/SAMPL3/'
-    #directory = '../data/VP-ITC-controls/tris-buffer-mismatch'
-    #directory = '../data/CAII-CBS/CAII-40uM'
-    #directory = '../data/auto-iTC-200/JDC/'
-    #directory = '../data/auto-iTC-200/Rockefeller\ AutoiTC\ 082513/'
-    #directory = '../data/auto-iTC-200/082713'
-    #directory = '../data/SAMPL4/CB7/111213'
     directory = '../data/auto-iTC-200/053014/'
 
     filenames = commands.getoutput('ls %s/*.itc' % directory).split('\n')
-    #filenames = commands.getoutput('ls %s/0822*b*.itc' % directory).split('\n')
-
-    # DEBUG
-    #filenames = ['../data/SAMPL3//PIIIB08vstrypsin2203114.itc']
-    #filenames = ['../data/VP-ITC-controls/tris-buffer-mismatch/022912a.itc']
-
+    
+    print "Reading these files:"
     print filenames
     for filename in filenames:
-
         # Close all figure windows.
         import pylab
         pylab.close('all')
-        
-        #filename = '../data/Mg2-EDTA/Mg2EDTA/%s.itc' % name # Mg2+:EDTA sample dataset
-        #filename = os.path.join(directory, name)
 
         name = os.path.splitext(os.path.split(filename)[1])[0]
-
-        print "\n"
+        print
         print "Reading ITC data from %s" % filename
         experiment = Experiment(filename)
-        #experiments.append(experiment)
         print experiment
         analyze(name, experiment)
 
@@ -690,13 +629,6 @@ if __name__ == "__main__":
         nburn  = 500000 # number of burn-in iterations
         nthin  = 250 # thinning period
         
-        #niters = 200000
-        #nburn = 500
-        #nthin = 10
-
-        #mcmc = pymc.MCMC(model, db='pickle')
-        #mcmc = pymc.MCMC(model, db='sqlite')
-        #mcmc = pymc.MCMC(model, db='hdf5')
         mcmc = pymc.MCMC(model, db='ram')
 
         mcmc.use_step_method(pymc.Metropolis, model['DeltaG'])
