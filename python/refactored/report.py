@@ -1,3 +1,4 @@
+"""Contains Report class for presenting summary of data in organized fashion."""
 class Report(object):
     """
     Report summary of Bayesian inference procedure applied to ITC data.
