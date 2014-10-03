@@ -184,26 +184,6 @@ def analyze(name, experiment):
     #pylab.show()
     pylab.savefig('%s.pdf' % name, orientation='landscape', papertype='letter', format='pdf')
 
-    #=============================================================================================
-    # Binding model.
-    #=============================================================================================
-
-#    import models
-
-#    #model = TwoComponentBindingModel(Ls_stated, P0_stated, q_n, DeltaV, temperature, V0)
-#    model = models.CompetitiveBindingModel(experiments, '148_w_DD1', experiment.cell_volume, verbose=True)
-    
-    #=============================================================================================
-    # Run MCMC inference on model.
-    #=============================================================================================
-
-#    niters = 10000 # number of iterations
-#    nburn = 1000 # number of burn-in iterations
-#    nthin = 1 # thinning period
-#    
-#    model.mcmc.isample(iter=niters, burn=nburn, thin=nthin)
-#    pymc.Matplot.plot(model.mcmc)
-
     return
 
 
@@ -220,7 +200,6 @@ def buildModel(experiment):
 
     RETURNS
         model (pymc.model) - a PyMC model
-
     """
 
     # Determine number of injections.
@@ -347,7 +326,6 @@ def buildModel(experiment):
         DeltaG - free energy of binding (kcal/mol)
         DeltaH - enthalpy of binding (kcal/mol)
         DeltaH_0 - heat of injection (cal/mol)
-
         """
 
         debug = False
@@ -603,6 +581,7 @@ if __name__ == "__main__":
         filename = name + '-baseline.png'
         experiment.plot_baseline(filename)
 
+        # Comment out to proceed with PYMC sampling
         continue # DEBUG        
 
         #=============================================================================================
