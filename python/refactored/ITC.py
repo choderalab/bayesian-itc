@@ -84,8 +84,7 @@ if __name__ == "__main__":
     vpitc = VPITC()
     experiments = list()
 
-    # Create a new ITC experiment object from the VP-ITC file.
-
+    # Obtain list of .itc data files to be processed
     from glob import glob
     from os.path import basename, splitext
     
@@ -94,6 +93,8 @@ if __name__ == "__main__":
     
     print "Reading these files:"
     print filenames
+
+    # Create Experiment instance from .itc files and analyze the data
     for filename in filenames:
         # Close all figure windows.
         import pylab
