@@ -88,9 +88,9 @@ if __name__ == "__main__":
 
     # Create a new ITC experiment object from the VP-ITC file.
 
-    import commands
+    from glob import glob
     directory = '../data/auto-iTC-200/053014/'
-    filenames = commands.getoutput('ls %s/*.itc' % directory).split('\n')
+    filenames = glob('%s/*.itc' % directory)
     
     print "Reading these files:"
     print filenames
