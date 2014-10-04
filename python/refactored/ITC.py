@@ -41,8 +41,6 @@
 
 import os
 from simtk import unit
-import Units
-import Constants
 import numpy
 import scipy.stats
 import pymc
@@ -89,7 +87,9 @@ if __name__ == "__main__":
     # Create a new ITC experiment object from the VP-ITC file.
 
     from glob import glob
-    directory = '../data/auto-iTC-200/053014/'
+    from os.path import basename, splitext
+    
+    directory = '../../data/auto-iTC-200/053014/'
     filenames = glob('%s/*.itc' % directory)
     
     print "Reading these files:"
@@ -99,19 +99,20 @@ if __name__ == "__main__":
         import pylab
         pylab.close('all')
 
-        name = os.path.splitext(os.path.split(filename)[1])[0]
-        print
+        experiment_name, file_extension = splitext(basename(filename))
+
         print "Reading ITC data from %s" % filename
+        continue
         experiment = Experiment(filename)
         print experiment
-        analyze(name, experiment)
+        analyze(experiment_name, experiment)
 
         # Write Origin-style integrated heats.
-        filename = name + '-integrated.txt'
+        filename = experiment_name + '-integrated.txt'
         experiment.write_integrated_heats(filename)
         
         # Write baseline fit information.
-        filename = name + '-baseline.png'
+        filename = experiment_name + '-baseline.png'
         experiment.plot_baseline(filename)
 
         # Comment out to proceed with PYMC sampling
@@ -162,20 +163,20 @@ if __name__ == "__main__":
 
         # Plot individual terms.
         if experiment.cell_concentration > 0.0:
-            pymc.Matplot.plot(mcmc.trace('P0')[:] / Units.uM, '%s-P0' % name)
+            pymc.Matplot.plot(mcmc.trace('P0')[:] / Units.uM, '%s-P0' % experiment_name)
         if experiment.syringe_concentration > 0.0:
-            pymc.Matplot.plot(mcmc.trace('Ls')[:] / Units.uM, '%s-Ls' % name)
-        pymc.Matplot.plot(mcmc.trace('DeltaG')[:] / (Units.kcal/Units.mol), '%s-DeltaG' % name)
-        pymc.Matplot.plot(mcmc.trace('DeltaH')[:] / (Units.kcal/Units.mol), '%s-DeltaH' % name)
-        pymc.Matplot.plot(mcmc.trace('DeltaH_0')[:] / (Units.ucal/Units.ul), '%s-DeltaH_0' % name)
-        pymc.Matplot.plot(numpy.exp(mcmc.trace('log_sigma')[:]) * Units.cal / Units.second**0.5, '%s-sigma' % name)
+            pymc.Matplot.plot(mcmc.trace('Ls')[:] / Units.uM, '%s-Ls' % experiment_name)
+        pymc.Matplot.plot(mcmc.trace('DeltaG')[:] / (Units.kcal/Units.mol), '%s-DeltaG' % experiment_name)
+        pymc.Matplot.plot(mcmc.trace('DeltaH')[:] / (Units.kcal/Units.mol), '%s-DeltaH' % experiment_name)
+        pymc.Matplot.plot(mcmc.trace('DeltaH_0')[:] / (Units.ucal/Units.ul), '%s-DeltaH_0' % experiment_name)
+        pymc.Matplot.plot(numpy.exp(mcmc.trace('log_sigma')[:]) * Units.cal / Units.second**0.5, '%s-sigma' % experiment_name)
         
         # TODO: Plot fits to enthalpogram.
-        experiment.plot(model=mcmc, filename='sampl4/%s-enthalpogram.png' % name)
+        experiment.plot(model=mcmc, filename='sampl4/%s-enthalpogram.png' % experiment_name)
         
         # Compute confidence intervals in thermodynamic parameters.
         outfile = open('sampl4/confidence-intervals.out','a')
-        outfile.write('%s\n' % name)        
+        outfile.write('%s\n' % experiment_name)
         [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('DeltaG')[:] / (Units.kcal/Units.mol))         
         outfile.write('DG:     %8.2f +- %8.2f kcal/mol     [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
         [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('DeltaH')[:] / (Units.kcal/Units.mol))         
