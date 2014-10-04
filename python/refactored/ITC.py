@@ -59,11 +59,6 @@ from models import RescalingStep, TwoComponentBindingModel
   
 def analyze(name, experiment):
     
-    # Write text-based rendering of experimental data.
-    for (index, experiment) in enumerate(experiments):
-        print "EXPERIMENT %d" % index
-        print str(experiment)
-
     #=============================================================================================
     # Make plots
     #=============================================================================================
