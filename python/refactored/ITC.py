@@ -32,7 +32,7 @@
 #=============================================================================================
 # TODO
 # * Use simtk.unit instead of Units.py?
-# * Create subclass of Instrument for VP-ITC.
+#
 #=============================================================================================
 
 #=============================================================================================
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     #=============================================================================================
     # Load experimental data.
     #=============================================================================================
-
+    vpitc = VPITC()
     experiments = list()
 
     # Create a new ITC experiment object from the VP-ITC file.
@@ -148,9 +148,9 @@ if __name__ == "__main__":
         mcmc.use_step_method(pymc.Metropolis, model['DeltaH_0'])
         mcmc.use_step_method(pymc.Metropolis, model['log_sigma'])
         
-        if (experiment.cell_concentration > 0.0):
+        if experiment.cell_concentration > 0.0:
             mcmc.use_step_method(pymc.Metropolis, model['P0'])
-        if (experiment.syringe_concentration > 0.0):
+        if experiment.syringe_concentration > 0.0:
             mcmc.use_step_method(pymc.Metropolis, model['Ls'])
         
         if (experiment.cell_concentration > 0.0) and (experiment.syringe_concentration > 0.0):
@@ -161,9 +161,9 @@ if __name__ == "__main__":
         #pymc.Matplot.plot(mcmc)
 
         # Plot individual terms.
-        if (experiment.cell_concentration > 0.0):
+        if experiment.cell_concentration > 0.0:
             pymc.Matplot.plot(mcmc.trace('P0')[:] / Units.uM, '%s-P0' % name)
-        if (experiment.syringe_concentration > 0.0):
+        if experiment.syringe_concentration > 0.0:
             pymc.Matplot.plot(mcmc.trace('Ls')[:] / Units.uM, '%s-Ls' % name)
         pymc.Matplot.plot(mcmc.trace('DeltaG')[:] / (Units.kcal/Units.mol), '%s-DeltaG' % name)
         pymc.Matplot.plot(mcmc.trace('DeltaH')[:] / (Units.kcal/Units.mol), '%s-DeltaH' % name)
