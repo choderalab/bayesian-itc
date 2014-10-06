@@ -203,18 +203,18 @@ class Experiment(object):
         print "There are %d power measurements." % nmeasurements
 
         # Store data about measured heat liberated during each injection.
-        self.filter_period_end_time = numpy.zeros(
+        self.filter_period_end_time = unit.Quantity(numpy.zeros(
             [nmeasurements],
-            numpy.float64)  # time at end of filtering period (s)
-        self.differential_power = numpy.zeros(
+            numpy.float64), unit.second)  # time at end of filtering period (s)
+        self.differential_power = unit.Quantity(numpy.zeros(
             [nmeasurements],
-            numpy.float64)  # "differential" power applied to sample cell (ucal/s)
-        self.cell_temperature = numpy.zeros(
+            numpy.float64), unit.microcalorie / unit.second)  # "differential" power applied to sample cell (ucal/s)
+        self.cell_temperature = unit.Quantity(numpy.zeros(
             [nmeasurements],
-            numpy.float64)  # cell temperature (K)
-        self.jacket_temperature = numpy.zeros(
+            numpy.float64), unit.kelvin)  # cell temperature (K)
+        self.jacket_temperature = unit.Quantity(numpy.zeros(
             [nmeasurements],
-            numpy.float64)  # adiabatic jacket temperature (K)
+            numpy.float64), unit.kelvin)  # adiabatic jacket temperature (K)
 
         # Process data.
         nmeasurements = 0
@@ -255,14 +255,17 @@ class Experiment(object):
                         (time, power, temperature) = line.strip().split(",")
 
                 # Store data about this measurement.
+                print type(nmeasurements)
+                print type(self.filter_period_end_time)
+                print type(float(time) * unit.second)
                 self.filter_period_end_time[
                     nmeasurements] = float(time) * unit.second
                 self.differential_power[nmeasurements] = float(
                     power) * unit.microcalorie / unit.second
-                self.cell_temperature[nmeasurements] = float(
-                    temperature + 273.15) * unit.kelvin  # in Kelvin
-                self.jacket_temperature[nmeasurements] = float(
-                    jacket_temperature + 273.15) * unit.kelvin  # in Kelvin
+                self.cell_temperature[nmeasurements] = (float(
+                    temperature) + 273.15) * unit.kelvin  # in Kelvin
+                self.jacket_temperature[nmeasurements] = (float(
+                    jacket_temperature) + 273.15) * unit.kelvin  # in Kelvin
 
                 nmeasurements += 1
         # number of injections read, not including @0
@@ -346,16 +349,16 @@ class Experiment(object):
         fit_indices = list()
         # Add data prior to first injection
         for index in range(0, self.injections[0]['first_index']):
-            x.append(self.filter_period_end_time[index])
-            y.append(self.differential_power[index])
+            x.append(self.filter_period_end_time[index] / unit.second)
+            y.append(self.differential_power[index] / (unit.microcalorie / unit.second ))
         # Add last 5% of each injection.
         for injection in self.injections:
             start_index = injection['first_index']
             end_index = injection['last_index'] + 1
             start_index = end_index - int((end_index - start_index) * 0.05)
             for index in range(start_index, end_index):
-                x.append(self.filter_period_end_time[index])
-                y.append(self.differential_power[index])
+                x.append(self.filter_period_end_time[index] / unit.second )
+                y.append(self.differential_power[index] / (unit.microcalorie / unit.second))
                 fit_indices.append(index)
         x = numpy.array(x)
         y = numpy.array(y)
@@ -389,7 +392,7 @@ class Experiment(object):
         p = p_fits[minimal_error_index]
         # Unpack fit parameters
         [x0, y0, c, k] = p
-        xfit = self.filter_period_end_time[:]
+        xfit = self.filter_period_end_time[:] / unit.second
         yfit = _eNegX_(p, xfit)
 
         # DEBUG
@@ -400,7 +403,7 @@ class Experiment(object):
         self.baseline_fit_parameters = p
 
         # Store baseline
-        self.baseline_power = numpy.array(yfit)
+        self.baseline_power = unit.Quantity(numpy.array(yfit), unit.microcalorie / unit.second)
 
         return
 
@@ -807,171 +810,5 @@ class Experiment(object):
         else:
             # Show plot.
             pylab.show()
-
-        return
-
-
-#=========================================================================
-# Report class
-#=========================================================================
-
-class Report(object):
-
-    """
-    Report summary of Bayesian inference procedure applied to ITC data.
-
-    """
-
-    # LaTeX report source template.
-    latex_template = \
-        r"""
-\documentclass[11pt]{report}
-\usepackage{graphicx}
-\usepackage{cite}
-\usepackage{url}
-\usepackage{ifthen}
-\usepackage{multicol}
-
-\setlength{\topmargin}{0.0cm} \setlength{\textheight}{21.5cm}
-\setlength{\oddsidemargin}{0cm}  \setlength{\textwidth}{16.5cm}
-\setlength{\columnsep}{0.6cm}
-
-\urlstyle{rm}
-\newboolean{publ}
-
-\newcommand{\Prob}{\mathrm{Pr}}
-
-\newenvironment{report}{\fussy\setboolean{publ}{true}}{\fussy}
-
-%% \renewcommand{\section}{\@startsection{section}{1}{\vspace{0.2cm}}}
-
-%% Different font in captions
-\newcommand{\captionfonts}{\small \sffamily}
-
-\makeatletter
-\long\def\@makecaption#1#2{
-  \vskip\abovecaptionskip
-  \sbox\@tempboxa{{\captionfonts #1: #2}}
-  \ifdim \wd\@tempboxa >\hsize
-    {\captionfonts #1: #2\par}
-  \else
-    \hbox to\hsize{\hfil\box\@tempboxa\hfil}
-  \fi
-  \vskip\belowcaptionskip}
-\makeatother
-
-\begin{document}
-
-\begin{report}
-
-\title{Bayesian ITC analysis report}
-\author{Project {\bf %(project_name)s}, created by user {\bf \tt %(user_name)s}, \today\\Created with {\sc bayesian-itc} version %(version_string)s.\\{\sc bayesian-itc} is freely available from \url{http://www.simtk.org/home/bayesian-itc}}
-\address{}
-\maketitle
-\vspace{-1cm}
-\begin{abstract}
-This document is an automatically-generated summary report for the Bayesian analysis of one or more ITC datasets by the {\sc bayesian-itc} package.
-\end{abstract}
-\vspace*{-1.5cm}
-\section*{References}
-\vspace*{0.2cm}
-If you use {\sc bayesian-itc}, please cite reference \ref{chodera:2008:bayesian-itc}.
-
-{\sffamily
-\tableofcontents
-}
-\section{ITC datasets}
-\vspace*{0.2cm}
-\begin{table}[t]
-  \begin{center}
-  \begin{tabular}[t]{ll}
-  %(table_overview_datasets)s
-  \hline
-  \end{tabular}
-  \caption{{\bf ITC datasets used in the Bayesian inference calculation.}}
-  \label{table:overview-datasets}
-\end{center}
-\end{table}
-This section summarises the datasets that have been used during the calculation. Table \ref{table:overview-datasets} gives an overview.
-
-\begin{thebibliography}{1}
-\bibitem{chodera:2008:bayesian-itc}
-J.~D.~Chodera, P.~A.~Novick, K.~Branson, and V.~S.~Pande.
-\newblock {Bayesian analysis of isothermal titration calorimetry data}.
-\newblock {\em In preparation}, 2008
-
-\end{thebibliography}
-\bibliographystyle{unsrt}
-\end{report}
-\end{document}
-"""
-    experiments = list()  # list of experiments to be described in this report
-
-    #=========================================================================
-    # Methods.
-    #=========================================================================
-
-    def __init__(self, experiments):
-        """
-        Initialize report with one or more experiments.
-
-        @param experiments one or more experiments to include in report
-        @paramtype experiments either a single Experiment or a list of Experiment objects
-
-        """
-
-        # Store experiments in list.
-        if isinstance(experiments, list):
-            # TODO: Deep copy.
-            self.experiments += experiments
-        else:
-            self.experiments = [experiments]
-
-        return
-
-    def writeLaTeX(self, filename):
-        """
-        Generate LaTeX source for report.
-
-        @param filename name of LaTeX file to be written
-        @paramtype filename Python string
-
-        """
-
-        # Populate LaTeX report template.
-        project_name = 'test project'
-        user_name = 'jchodera'
-        version_string = '0.1'
-
-        # Construct entries or table of datasets
-        dataset_summary_template = r"""\
-\hline datafile & {\tt %(data_filename)s} \\
-number of injections & %(number_of_injections)s \\
-target temperature & %(target_temperature).3f C \\
-equilibration time & %(equilibration_time).1f s \\
-syringe concentration & %(syringe_concentration).3f mM \\
-cell concentration & %(cell_concentration).3f mM \\
-cell volume & %(cell_volume).3f mL \\
-reference power & %(reference_power).3f $\mu$cal/s \\
-"""
-        table_overview_datasets = ""
-        for experiment in self.experiments:
-            dataset_name = experiment.data_filename
-            table_overview_datasets += dataset_summary_template % {
-                'data_filename': experiment.data_filename,
-                'number_of_injections': experiment.number_of_injections,
-                'target_temperature': ((experiment.target_temperature - 273.15 ) / unit.kelvin),
-                'equilibration_time': (experiment.equilibration_time / unit.second),
-                'syringe_concentration': (experiment.syringe_concentration / unit.millimolar),
-                'cell_concentration': (experiment.cell_concentration / unit.millimolar),
-                'cell_volume': (experiment.cell_volume / unit.milliliter),
-                'reference_power': (experiment.reference_power / (unit.microcalorie / unit.second))}
-
-        latex_source = self.latex_template % vars()
-
-        # Create report file.
-        report_file = open(filename, 'w')
-        report_file.write(latex_source)
-        report_file.close()
 
         return
