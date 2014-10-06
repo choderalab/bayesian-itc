@@ -4,6 +4,8 @@ Contains Experiment and Injection classes.
 import os
 from simtk import unit
 from math import pi
+import numpy
+
 #=========================================================================
 # Injection class.
 #=========================================================================
@@ -119,7 +121,7 @@ class Experiment(object):
         # Check the header to make sure it is a VP-ITC text-formatted .itc
         # file.
         if lines[0][0:4] != '$ITC':
-            raise "File '%s' doesn't appear to be a Microcal VP-ITC data file." % filename
+            raise "File '%s' doesn't appear to be a Microcal VP-ITC data file." % data_filename
 
         # Store the datafile filename.
         self.data_filename = data_filename
@@ -694,7 +696,7 @@ class Experiment(object):
         # Send plot to appropriate output device.
         #
 
-        if (filename is not None):
+        if filename is not None:
             # Save the plot to the specified file.
             pylab.savefig(filename, dpi=150)
         else:

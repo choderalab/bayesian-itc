@@ -103,8 +103,9 @@ if __name__ == "__main__":
         experiment_name, file_extension = splitext(basename(filename))
 
         print "Reading ITC data from %s" % filename
-        continue
+
         experiment = Experiment(filename)
+        continue
         print experiment
         analyze(experiment_name, experiment)
 
