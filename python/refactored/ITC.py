@@ -105,8 +105,8 @@ if __name__ == "__main__":
         print "Reading ITC data from %s" % filename
 
         experiment = Experiment(filename)
-        continue
         print experiment
+        continue
         analyze(experiment_name, experiment)
 
         # Write Origin-style integrated heats.
