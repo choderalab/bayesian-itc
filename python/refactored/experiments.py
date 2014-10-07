@@ -431,7 +431,7 @@ class Experiment(object):
                     first_index:(
                         last_index + 1)] - self.baseline_power[
                     first_index:(
-                        last_index + 1)]).sum() * (unit.microcalorie / unit.second) # TODO: extra unit added because of SimTk.openmm issue #642 with sum
+                        last_index + 1)]).sum()
 
             # DEBUG
             print "injection %d, filter period %f s, integrating sample %d to %d" % (injection['number'], injection['filter_period'] / unit.second, first_index, last_index)
