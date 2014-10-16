@@ -52,7 +52,6 @@ r"""
 
 \title{Bayesian ITC analysis report}
 \author{Project {\bf %(project_name)s}, created by user {\bf \tt %(user_name)s}, \today\\Created with {\sc bayesian-itc} version %(version_string)s.\\{\sc bayesian-itc} is freely available from \url{http://www.simtk.org/home/bayesian-itc}}
-\address{}
 \maketitle
 \vspace{-1cm}
 \begin{abstract}
@@ -289,5 +288,6 @@ def analyze(name, experiment):
     # show plot
     #pylab.show()
     pylab.savefig('%s.pdf' % name, orientation='landscape', papertype='letter', format='pdf')
-
+    # It seems that the Report class currently is broken (won't compile to pdf).
+    # report.writeLaTeX("%s.tex" % name)
     return

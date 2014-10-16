@@ -511,9 +511,9 @@ class Experiment(object):
             # Ln = L/V0 - PLn; # free ligand concentration in sample cell after
             # n injections (M)
 
-            Pn = 0.0
-            Ln = 0.0
-            PLn = 0.0
+            Pn = 0.0 * unit.millimolar
+            Ln = 0.0 * unit.millimolar
+            PLn = 0.0 * unit.millimolar
             NDH = 0.0  # Not sure what this is
 
             # Form string.
@@ -522,7 +522,7 @@ class Experiment(object):
                 unit.microliter, Pn / unit.millimolar, Ln / unit.millimolar, PLn / unit.millimolar, NDH)
 
         # Final line.
-        string += "        --      %12.5f %12.5f --\n" % (Pn, Ln)
+        string += "        --      %12.5f %12.5f --\n" % (Pn / unit.millimolar , Ln / unit.millimolar)
 
         # Write file contents.
         outfile = open(filename, 'w')

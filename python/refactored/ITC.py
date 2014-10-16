@@ -108,11 +108,10 @@ if __name__ == "__main__":
         print experiment
 
         analyze(experiment_name, experiment)
-        continue
         # Write Origin-style integrated heats.
         filename = experiment_name + '-integrated.txt'
         experiment.write_integrated_heats(filename)
-        
+        continue
         # Write baseline fit information.
         filename = experiment_name + '-baseline.png'
         experiment.plot_baseline(filename)
