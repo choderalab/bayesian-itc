@@ -24,14 +24,12 @@
 
 #=============================================================================================
 # NOTES
-# * Throughout, quantities with associated units employ the Units.py class to store quantities
+# * Throughout, quantities with associated units employ the simtk.unit.Quantity class to store quantities
 # in references units.  Multiplication or division by desired units should ALWAYS be used to
 # store or extract quantities in the desired units.
 #=============================================================================================
 
 #=============================================================================================
-# TODO
-# * Use simtk.unit instead of Units.py?
 #
 #=============================================================================================
 
@@ -111,13 +109,12 @@ if __name__ == "__main__":
         # Write Origin-style integrated heats.
         filename = experiment_name + '-integrated.txt'
         experiment.write_integrated_heats(filename)
-        continue
+
         # Write baseline fit information.
         filename = experiment_name + '-baseline.png'
         experiment.plot_baseline(filename)
 
         # Comment out to proceed with PYMC sampling
-        continue # DEBUG        
 
         #=============================================================================================
         # MCMC inference
@@ -164,13 +161,13 @@ if __name__ == "__main__":
 
         # Plot individual terms.
         if experiment.cell_concentration > 0.0:
-            pymc.Matplot.plot(mcmc.trace('P0')[:] / Units.uM, '%s-P0' % experiment_name)
+            pymc.Matplot.plot(mcmc.trace('P0')[:] / unit.millimolar, '%s-P0' % experiment_name)
         if experiment.syringe_concentration > 0.0:
-            pymc.Matplot.plot(mcmc.trace('Ls')[:] / Units.uM, '%s-Ls' % experiment_name)
-        pymc.Matplot.plot(mcmc.trace('DeltaG')[:] / (Units.kcal/Units.mol), '%s-DeltaG' % experiment_name)
-        pymc.Matplot.plot(mcmc.trace('DeltaH')[:] / (Units.kcal/Units.mol), '%s-DeltaH' % experiment_name)
-        pymc.Matplot.plot(mcmc.trace('DeltaH_0')[:] / (Units.ucal/Units.ul), '%s-DeltaH_0' % experiment_name)
-        pymc.Matplot.plot(numpy.exp(mcmc.trace('log_sigma')[:]) * Units.cal / Units.second**0.5, '%s-sigma' % experiment_name)
+            pymc.Matplot.plot(mcmc.trace('Ls')[:] / unit.micromolar, '%s-Ls' % experiment_name)
+        pymc.Matplot.plot(mcmc.trace('DeltaG')[:] / (unit.kilocalorie/unit.mole), '%s-DeltaG' % experiment_name)
+        pymc.Matplot.plot(mcmc.trace('DeltaH')[:] / (unit.kilocalorie/unit.mole), '%s-DeltaH' % experiment_name)
+        pymc.Matplot.plot(mcmc.trace('DeltaH_0')[:] / (unit.microcalorie/unit.microliter), '%s-DeltaH_0' % experiment_name)
+        pymc.Matplot.plot(numpy.exp(mcmc.trace('log_sigma')[:]) * unit.calorie / unit.second**0.5, '%s-sigma' % experiment_name)
         
         # TODO: Plot fits to enthalpogram.
         experiment.plot(model=mcmc, filename='sampl4/%s-enthalpogram.png' % experiment_name)
@@ -178,17 +175,17 @@ if __name__ == "__main__":
         # Compute confidence intervals in thermodynamic parameters.
         outfile = open('sampl4/confidence-intervals.out','a')
         outfile.write('%s\n' % experiment_name)
-        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('DeltaG')[:] / (Units.kcal/Units.mol))         
+        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('DeltaG')[:] / (unit.kilocalorie/unit.mole))
         outfile.write('DG:     %8.2f +- %8.2f kcal/mol     [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('DeltaH')[:] / (Units.kcal/Units.mol))         
+        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('DeltaH')[:] / (unit.kilocalorie/unit.mole))
         outfile.write('DH:     %8.2f +- %8.2f kcal/mol     [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('DeltaH_0')[:] / (Units.ucal/Units.ul))         
+        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('DeltaH_0')[:] / (unit.microcalorie/unit.microliter))
         outfile.write('DH0:    %8.2f +- %8.2f ucal         [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('Ls')[:] / Units.uM)         
+        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('Ls')[:] / unit.micromolar)
         outfile.write('Ls:     %8.2f +- %8.2f uM           [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('P0')[:] / Units.uM)         
+        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('P0')[:] / unit.micromolar)
         outfile.write('P0:     %8.2f +- %8.2f uM           [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_statistics(numpy.exp(mcmc.trace('log_sigma')[:]) * Units.cal / Units.second**0.5)
+        [x, dx, xlow, xhigh] = compute_statistics(numpy.exp(mcmc.trace('log_sigma')[:]) * unit.calorie / unit.second**0.5)
         outfile.write('sigma:  %8.5f +- %8.5f ucal/s^(1/2) [%8.5f, %8.5f] \n' % (x, dx, xlow, xhigh))        
         outfile.write('\n')
         outfile.close()
