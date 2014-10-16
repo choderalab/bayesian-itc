@@ -256,9 +256,6 @@ class Experiment(object):
                         (time, power, temperature) = line.strip().split(",")
 
                 # Store data about this measurement.
-                print type(nmeasurements)
-                print type(self.filter_period_end_time)
-                print type(float(time) * unit.second)
                 self.filter_period_end_time[
                     nmeasurements] = float(time) * unit.second
                 self.differential_power[nmeasurements] = float(
@@ -272,7 +269,7 @@ class Experiment(object):
         # number of injections read, not including @0
         number_of_injections_read = len(injection_labels) - 1
 
-        print injection_labels
+        #print injection_labels
 
         # Perform a self-consistency check on the data to make sure all
         # injections are accounted for.
@@ -432,6 +429,14 @@ class Experiment(object):
                         last_index + 1)] - self.baseline_power[
                     first_index:(
                         last_index + 1)]).sum()
+
+            # Making sure that pre-SimTk/openmm#643 users don't experience a bug.
+
+            if not excess_energy_input.unit == unit.microcalorie:
+                excess_energy_input = excess_energy_input._value * unit.microcalorie
+                print "WARNING, you seem to be using an older version of SimTk.unit."
+                print "Please verify that your data has the right units."
+
 
             # DEBUG
             print "injection %d, filter period %f s, integrating sample %d to %d" % (injection['number'], injection['filter_period'] / unit.second, first_index, last_index)
