@@ -13,7 +13,7 @@ class Instrument(object):
     An instrument object consists of several types of data:
 
     * the manufacturer and model of the instrument
-    * properites of the instrument (sample cell volume)
+    * properties of the instrument (sample cell volume)
     """
 
     def __init__(self):

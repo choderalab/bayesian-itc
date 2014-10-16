@@ -106,9 +106,9 @@ if __name__ == "__main__":
 
         experiment = Experiment(filename)
         print experiment
-        continue
-        analyze(experiment_name, experiment)
 
+        analyze(experiment_name, experiment)
+        continue
         # Write Origin-style integrated heats.
         filename = experiment_name + '-integrated.txt'
         experiment.write_integrated_heats(filename)

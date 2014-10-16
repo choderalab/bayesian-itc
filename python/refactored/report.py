@@ -1,11 +1,14 @@
 """Contains Report class for presenting summary of data in organized fashion."""
+
+from simtk import unit
+
+
 class Report(object):
     """
     Report summary of Bayesian inference procedure applied to ITC data.
 
     """
 
-    # LaTeX report source template.
     latex_template = \
 r"""
 \documentclass[11pt]{report}
@@ -143,12 +146,13 @@ reference power & %(reference_power).3f $\mu$cal/s \\
             table_overview_datasets += dataset_summary_template % {
                 'data_filename' : experiment.data_filename,
                 'number_of_injections' : experiment.number_of_injections,
-                'target_temperature' : (experiment.target_temperature / Units.K - Constants.absolute_zero),
-                'equilibration_time' : (experiment.equilibration_time / Units.s),
-                'syringe_concentration' : (experiment.syringe_concentration / Units.mM),
-                'cell_concentration' : (experiment.cell_concentration / Units.mM),
-                'cell_volume' : (experiment.cell_volume / Units.ml),
-                'reference_power' : (experiment.reference_power / (Units.ucal/Units.s)) }
+                'target_temperature' : (experiment.target_temperature / unit.kelvin - 273.15),
+                'equilibration_time' : (experiment.equilibration_time / unit.second),
+                'syringe_concentration' : (experiment.syringe_concentration / unit.millimolar),
+                'cell_concentration' : (experiment.cell_concentration / unit.millimolar),
+                'cell_volume' : (experiment.cell_volume / unit.milliliter),
+                'reference_power' : (experiment.reference_power / (unit.microcalorie/unit.second)),
+            }
              
         latex_source = self.latex_template % vars()
 
@@ -180,17 +184,17 @@ def analyze(name, experiment):
 
     # plot baseline fit
     pylab.hold(True)
-    pylab.plot(experiment.filter_period_end_time / Units.s, experiment.baseline_power / (Units.ucal/Units.s), 'g-') # plot baseline fit
+    pylab.plot(experiment.filter_period_end_time / unit.second, experiment.baseline_power / (unit.microcalorie/unit.second), 'g-') # plot baseline fit
 
     # differential power
-    pylab.plot(experiment.filter_period_end_time / Units.s, experiment.differential_power / (Units.ucal/Units.s), 'k.', markersize=1)
+    pylab.plot(experiment.filter_period_end_time / unit.second, experiment.differential_power / (unit.microcalorie/unit.second), 'k.', markersize=1)
     # plot red vertical line to mark injection times
     pylab.hold(True)
     [xmin, xmax, ymin, ymax] = pylab.axis()
 
     for injection in experiment.injections:
         last_index = injection['first_index'] # timepoint at start of syringe injection
-        t = experiment.filter_period_end_time[last_index] / Units.s
+        t = experiment.filter_period_end_time[last_index] / unit.second
         pylab.plot([t, t], [ymin, ymax], 'r-')
     pylab.hold(False)
     xlabel = pylab.xlabel('time / s')
@@ -216,9 +220,9 @@ def analyze(name, experiment):
         first_index = injection['first_index'] # index of timepoint for first filtered differential power measurement
         last_index  = injection['last_index']  # index of timepoint for last filtered differential power measurement
         # determine time at end of injection period
-        t = experiment.filter_period_end_time[last_index] / Units.s
+        t = experiment.filter_period_end_time[last_index] / unit.second
         # plot a point there to represent total heat evolved in injection period
-        y = injection['evolved_heat'] / Units.ucal
+        y = injection['evolved_heat'] / unit.microcalorie
         pylab.plot([t, t], [0, y], 'k-')
         # label injection
         pylab.text(t, y, '%d' % injection['number'], fontsize=6)
@@ -233,7 +237,7 @@ def analyze(name, experiment):
     ylabel.set_fontsize(fontsize)
     # plot zero
     pylab.hold(True)
-    pylab.plot(experiment.filter_period_end_time / Units.s, 0.0*experiment.filter_period_end_time / (Units.ucal/Units.s), 'g-') # plot zero line
+    pylab.plot(experiment.filter_period_end_time / unit.second, 0.0*experiment.filter_period_end_time / (unit.microcalorie/unit.second), 'g-') # plot zero line
 
 
     ax = pylab.gca()
@@ -245,7 +249,7 @@ def analyze(name, experiment):
     # Plot cell temperature.
     pylab.subplot(413)
     pylab.hold(True)
-    pylab.plot(experiment.filter_period_end_time / Units.s, experiment.cell_temperature/Units.K - Constants.absolute_zero, 'r.', markersize=1)
+    pylab.plot(experiment.filter_period_end_time / unit.second, experiment.cell_temperature/unit.kelvin - 273.15, 'r.', markersize=1)
     # adjust axes to match first plot
     [xmin_new, xmax_new, ymin, ymax] = pylab.axis()
     pylab.axis([xmin, xmax, ymin, ymax])
@@ -265,7 +269,7 @@ def analyze(name, experiment):
     # Plot adiabatic jacket temperature.
     pylab.subplot(414)
     pylab.hold(True)
-    pylab.plot(experiment.filter_period_end_time / Units.s, experiment.jacket_temperature/Units.K - Constants.absolute_zero, 'b.', markersize=1)
+    pylab.plot(experiment.filter_period_end_time / unit.second, experiment.jacket_temperature/unit.kelvin - 273.15, 'b.', markersize=1)
     # adjust axes to match first plot
     [xmin_new, xmax_new, ymin, ymax] = pylab.axis()
     pylab.axis([xmin, xmax, ymin, ymax])
