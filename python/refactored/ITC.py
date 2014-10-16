@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 #=============================================================================================
-# A module implementing Bayesian analysis of isothermal titration calorimentry (ITC) experiments
+# A module implementing Bayesian analysis of isothermal titration calorimetry (ITC) experiments
 #
 # Written by John D. Chodera <jchodera@gmail.com>, Pande lab, Stanford, 2008.
 #
@@ -123,7 +123,8 @@ if __name__ == "__main__":
         # Construct a Model from Experiment object.
         import traceback
         try:
-            model = buildModel(experiment)
+            from models import TwoComponentBindingModel
+            model = TwoComponentBindingModel(experiment,vpitc)
         except Exception as e:
             print str(e)
             print traceback.format_exc()
