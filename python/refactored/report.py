@@ -192,7 +192,7 @@ def analyze(name, experiment):
     [xmin, xmax, ymin, ymax] = pylab.axis()
 
     for injection in experiment.injections:
-        last_index = injection['first_index'] # timepoint at start of syringe injection
+        last_index = injection.first_index # timepoint at start of syringe injection
         t = experiment.filter_period_end_time[last_index] / unit.second
         pylab.plot([t, t], [ymin, ymax], 'r-')
     pylab.hold(False)
@@ -216,15 +216,15 @@ def analyze(name, experiment):
     pylab.hold(True)
     for injection in experiment.injections:
         # determine initial and final samples for injection i
-        first_index = injection['first_index'] # index of timepoint for first filtered differential power measurement
-        last_index  = injection['last_index']  # index of timepoint for last filtered differential power measurement
+        first_index = injection.first_index # index of timepoint for first filtered differential power measurement
+        last_index  = injection.last_index  # index of timepoint for last filtered differential power measurement
         # determine time at end of injection period
         t = experiment.filter_period_end_time[last_index] / unit.second
         # plot a point there to represent total heat evolved in injection period
-        y = injection['evolved_heat'] / unit.microcalorie
+        y = injection.evolved_heat / unit.microcalorie
         pylab.plot([t, t], [0, y], 'k-')
         # label injection
-        pylab.text(t, y, '%d' % injection['number'], fontsize=6)
+        pylab.text(t, y, '%d' % injection.number, fontsize=6)
     # adjust axes to match first plot
     [xmin_new, xmax_new, ymin, ymax] = pylab.axis()
     pylab.axis([xmin, xmax, ymin, ymax])

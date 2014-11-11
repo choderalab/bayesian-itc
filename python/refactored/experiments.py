@@ -26,24 +26,21 @@ class Injection(object):
 
     EXAMPLES
 
-    TODO: Actually put something in this class.
     """
 
-    #=========================================================================
-    # Class data.
-    #=========================================================================
 
-    number = None  # sequence number of injection
-    volume = None  # programmed volume of injection
-    duration = None  # duration of injection
-    # time between beginning of injection and beginning of next injection
-    spacing = None
-    # time over which data channel is averaged to produce a single measurement
-    # of applied power
-    filter_period = None
-
-    def __init__(self):
-        pass
+    def __init__(self, number, volume, duration, spacing, filter_period):
+        # sequence number of injection
+        self.number = number
+        # programmed volume of injection
+        self.volume = volume
+        # duration of injection
+        self.duration = duration
+        # time between beginning of injection and beginning of next injection
+        self.spacing = spacing
+        # time over which data channel is averaged to produce a single measurement
+        # of applied power
+        self.filter_period = filter_period
 
 
 #=========================================================================
@@ -154,21 +151,21 @@ class Experiment(object):
 
                 # Extract data for injection and apply appropriate unit
                 # conversions.
-                injection = dict()
-                injection['number'] = injection_number
-                injection['volume'] = float(
+                injectiondict = dict()
+                injectiondict['number'] = injection_number
+                injectiondict['volume'] = float(
                     injection_volume) * unit.microliter  # volume of injection
-                injection['duration'] = float(
+                injectiondict['duration'] = float(
                     injection_duration) * unit.second  # duration of injection
                 # time between beginning of injection and beginning of next
                 # injection
-                injection['spacing'] = float(spacing) * unit.second
+                injectiondict['spacing'] = float(spacing) * unit.second
                 # time over which data channel is averaged to produce a single
                 # measurement
-                injection['filter_period'] = float(filter_period) * unit.second
+                injectiondict['filter_period'] = float(filter_period) * unit.second
 
                 # Store injection.
-                self.injections.append(injection)
+                self.injections.append(Injection(**injectiondict))
 
             else:
                 break
@@ -288,14 +285,14 @@ class Experiment(object):
 
         # Annotate list of injections.
         for injection in self.injections:
-            injection_number = injection['number']
+            injection_number = injection.number
             print "%5d %8d" % (injection_number, injection_labels[injection_number])
-            injection['first_index'] = injection_labels[injection_number]
+            injection.first_index = injection_labels[injection_number]
             if (injection_number < len(injection_labels) - 1):
-                injection['last_index'] = injection_labels[
+                injection.last_index = injection_labels[
                     injection_number + 1] - 1
             else:
-                injection['last_index'] = nmeasurements - 1
+                injection.last_index = nmeasurements - 1
 
         # Fit baseline.
         self.fit_baseline()
@@ -346,13 +343,13 @@ class Experiment(object):
         y = list()
         fit_indices = list()
         # Add data prior to first injection
-        for index in range(0, self.injections[0]['first_index']):
+        for index in range(0, self.injections[0].first_index):
             x.append(self.filter_period_end_time[index] / unit.second)
             y.append(self.differential_power[index] / (unit.microcalorie / unit.second ))
         # Add last 5% of each injection.
         for injection in self.injections:
-            start_index = injection['first_index']
-            end_index = injection['last_index'] + 1
+            start_index = injection.first_index
+            end_index = injection.last_index + 1
             start_index = end_index - int((end_index - start_index) * 0.05)
             for index in range(start_index, end_index):
                 x.append(self.filter_period_end_time[index] / unit.second )
@@ -416,14 +413,14 @@ class Experiment(object):
             # determine initial and final samples for injection i
             # index of timepoint for first filtered differential power
             # measurement
-            first_index = injection['first_index']
+            first_index = injection.first_index
             # index of timepoint for last filtered differential power
             # measurement
-            last_index = injection['last_index']
+            last_index = injection.last_index
 
             # Determine excess energy input into sample cell (with respect to reference cell) throughout this injection and measurement period.
             #excess_energy_input = injection['filter_period'] * (self.differential_power[first_index:(last_index+1)] - self.reference_power + self.baseline_power[first_index:(last_index+1)]).sum()
-            excess_energy_input = injection['filter_period'] * (
+            excess_energy_input = injection.filter_period * (
                 self.differential_power[
                     first_index:(
                         last_index + 1)] - self.baseline_power[
@@ -439,13 +436,13 @@ class Experiment(object):
 
 
             # DEBUG
-            print "injection %d, filter period %f s, integrating sample %d to %d" % (injection['number'], injection['filter_period'] / unit.second, first_index, last_index)
+            print "injection %d, filter period %f s, integrating sample %d to %d" % (injection.number, injection.filter_period / unit.second, first_index, last_index)
 
             # Determine total heat evolved.
             evolved_heat = - excess_energy_input
 
             # Store heat evolved from this injection.
-            injection['evolved_heat'] = evolved_heat
+            injection.evolved_heat = evolved_heat
 
         return
 
@@ -482,10 +479,10 @@ class Experiment(object):
 #            string += "%16d %16.3f %16.3f %16.3f %16.3f" % (injection, self.injection_volume[injection] / unit.microliter, self.injection_duration[injection] / unit.second, self.collection_time[injection] / unit.second, self.time_step[injection] / unit.second)
         for injection in self.injections:
             string += "%16d %24.3f %24.3f %24.3f %24.3f %24.3f\n" % (
-                injection['number'],
-                injection['volume'] / unit.microliter, injection['duration'] / unit.second,
-                injection['spacing'] / unit.second, injection['filter_period'] /
-                unit.second, injection['evolved_heat'] / unit.microcalorie)
+                injection.number,
+                injection.volume / unit.microliter, injection.duration / unit.second,
+                injection.spacing / unit.second, injection.filter_period /
+                unit.second, injection.evolved_heat / unit.microcalorie)
 
         return string
 
@@ -494,7 +491,7 @@ class Experiment(object):
         Write integrated heats in a format similar to that used by Origin.
         """
 
-        DeltaV = self.injections[0]['volume']
+        DeltaV = self.injections[0].volume
         V0 = self.cell_volume
         P0 = self.cell_concentration
         Ls = self.syringe_concentration
@@ -518,7 +515,7 @@ class Experiment(object):
 
             # Form string.
             string += "%12.5f %5.1f %12.5f %12.5f %12.5f %12.5f\n" % (
-                injection['evolved_heat'] / unit.microcalorie, injection['volume'] /
+                injection.evolved_heat / unit.microcalorie, injection.volume /
                 unit.microliter, Pn / unit.millimolar, Ln / unit.millimolar, PLn / unit.millimolar, NDH)
 
         # Final line.
@@ -592,7 +589,7 @@ class Experiment(object):
         [xmin, xmax, ymin, ymax] = pylab.axis()
         for injection in self.injections:
             # timepoint at start of syringe injection
-            last_index = injection['first_index']
+            last_index = injection.first_index
             t = self.filter_period_end_time[last_index] / unit.second
             pylab.plot([t, t], [ymin, ymax], 'r-')
 
@@ -630,10 +627,10 @@ class Experiment(object):
             # determine initial and final samples for injection
             # index of timepoint for first filtered differential power
             # measurement
-            first_index = injection['first_index']
+            first_index = injection.first_index
             # index of timepoint for last filtered differential power
             # measurement
-            last_index = injection['last_index']
+            last_index = injection.last_index
             # determine time at end of injection period
             injection_end_times[index] = self.filter_period_end_time[
                 last_index] / unit.second
@@ -668,11 +665,11 @@ class Experiment(object):
             t = injection_end_times[index] / unit.second
             # plot a point there to represent total heat evolved in injection
             # period
-            y = injection['evolved_heat'] / unit.microcalorie
+            y = injection.evolved_heat / unit.microcalorie
             pylab.plot(t, y, 'k.', markersize=markersize)
             # pylab.plot([t, t], [0, y], 'k-') # plot bar from zero line
             # label injection
-            pylab.text(t, y, '%d' % injection['number'], fontsize=6)
+            pylab.text(t, y, '%d' % injection.number, fontsize=6)
 
         # Adjust axes to match first plot.
         [xmin_new, xmax_new, ymin, ymax] = pylab.axis()
@@ -775,7 +772,7 @@ class Experiment(object):
         [xmin, xmax, ymin, ymax] = pylab.axis()
         for injection in self.injections:
             # timepoint at start of syringe injection
-            last_index = injection['first_index']
+            last_index = injection.first_index
             t = self.filter_period_end_time[last_index] / unit.second
             pylab.plot([t, t], [ymin, ymax], 'r-')
 

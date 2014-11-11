@@ -54,7 +54,7 @@ class RescalingStep(pymc.StepMethod):
 
         self._current_iter = 0
         self.interval = interval
-
+    
         self.accepted = 0
         self.rejected = 0
 
@@ -165,16 +165,16 @@ class BindingModel(object):
 #=============================================================================================
 
 class TwoComponentBindingModel(BindingModel):
-    def __init__(self, q_n_observed, DeltaVn, temperature, experiment, instrument):
+    def __init__(self, experiment, instrument):
 
         # Determine number of observations.
-        self.N = q_n_observed.size
+        self.N = experiment.number_of_injections
 
+        self.DeltaVn = list()
         # Store injection volumes
-        if not numpy.iterable(DeltaVn):
-            self.DeltaVn = numpy.ones([self.N], numpy.float64) * DeltaVn
-        else:
-            self.DeltaVn = numpy.array(DeltaVn)
+        for injection in experiment.injections:
+            print "FDSCDPVSDVSSVEDVSFSDFSADHLL:OPOP:KPCDSVKCPKCCKPVCK", injection
+            self.DeltaVn.append(injection.volume)
 
         # Store calorimeter properties.
         self.V0 = instrument.V0
@@ -193,6 +193,7 @@ class TwoComponentBindingModel(BindingModel):
         dLs = 0.10 * Ls_stated # uncertainty in ligand stated concentration (M) - 10% error
 
         # Determine guesses for initial values
+        # TODO need to calculate injection heats,
         log_sigma_guess = log(q_n[-4:].std()) # cal/injection
         DeltaG_guess = -8.3 # kcal/mol
         DeltaH_guess = -12.0 # kcal/mol
@@ -229,7 +230,7 @@ class TwoComponentBindingModel(BindingModel):
         tau = pymc.Lambda('tau', lambda log_sigma=self.log_sigma : self.tau(log_sigma))
 
         # Define observed data.
-        self.q_n_obs = pymc.Normal('q_n', mu=q_n_model, tau=tau, observed=True, value=q_n_observed)
+        self.q_n_obs = pymc.Normal('q_n', mu=q_n_model, tau=tau, observed=True, value=experiment.number_of_injections)
 
         # Create sampler.
         mcmc = pymc.MCMC(self, db='ram')

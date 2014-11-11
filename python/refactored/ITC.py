@@ -114,8 +114,6 @@ if __name__ == "__main__":
         filename = experiment_name + '-baseline.png'
         experiment.plot_baseline(filename)
 
-        # Comment out to proceed with PYMC sampling
-
         #=============================================================================================
         # MCMC inference
         #=============================================================================================
@@ -124,11 +122,11 @@ if __name__ == "__main__":
         import traceback
         try:
             from models import TwoComponentBindingModel
-            model = TwoComponentBindingModel(experiment,vpitc)
+            model = TwoComponentBindingModel(experiment, vpitc)
         except Exception as e:
             print str(e)
             print traceback.format_exc()
-            stop
+            raise Exception(e)
             continue
 
         # First fit the model.
