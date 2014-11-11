@@ -12,7 +12,7 @@ A test of pymc for ITC.
 import numpy
 import pymc
 import copy
-
+from simtk import unit
 import scipy.optimize
 import scipy.integrate
 
@@ -173,7 +173,6 @@ class TwoComponentBindingModel(BindingModel):
         self.DeltaVn = list()
         # Store injection volumes
         for injection in experiment.injections:
-            print "FDSCDPVSDVSSVEDVSFSDFSADHLL:OPOP:KPCDSVKCPKCCKPVCK", injection
             self.DeltaVn.append(injection.volume)
 
         # Store calorimeter properties.
@@ -193,7 +192,11 @@ class TwoComponentBindingModel(BindingModel):
         dLs = 0.10 * Ls_stated # uncertainty in ligand stated concentration (M) - 10% error
 
         # Determine guesses for initial values
-        # TODO need to calculate injection heats,
+        q_n = numpy.array([])
+        for injection in experiment.injections:
+            print injection.evolved_heat
+            q_n = numpy.append(q_n, injection.evolved_heat)
+
         log_sigma_guess = log(q_n[-4:].std()) # cal/injection
         DeltaG_guess = -8.3 # kcal/mol
         DeltaH_guess = -12.0 # kcal/mol
@@ -215,6 +218,7 @@ class TwoComponentBindingModel(BindingModel):
         # Define priors for concentrations.
         #self.P0 = pymc.Normal('P0', mu=P0_stated, tau=1.0/dP0**2, value=P0_stated)
         #self.Ls = pymc.Normal('Ls', mu=Ls_stated, tau=1.0/dLs**2, value=Ls_stated)
+        # TODO Eliminate units from pymc input
         self.P0 = pymc.Lognormal('P0', mu=log(P0_stated), tau=1.0/log(1.0+(dP0/P0_stated)**2), value=P0_stated)
         self.Ls = pymc.Lognormal('Ls', mu=log(Ls_stated), tau=1.0/log(1.0+(dLs/Ls_stated)**2), value=Ls_stated)
 

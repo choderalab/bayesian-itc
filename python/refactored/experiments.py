@@ -807,7 +807,7 @@ class Experiment(object):
         # Send plot to appropriate output device.
         #
 
-        if (filename is not None):
+        if filename is not None:
             # Save the plot to the specified file.
             pylab.savefig(filename, dpi=150)
         else:
