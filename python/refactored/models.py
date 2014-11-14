@@ -12,8 +12,7 @@ A test of pymc for ITC.
 import numpy
 import pymc
 import copy
-from simtk import unit
-import scipy.optimize
+from units import ureg,Quantity
 import scipy.integrate
 
 from math import sqrt, exp, log

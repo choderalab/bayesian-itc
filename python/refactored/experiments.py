@@ -2,7 +2,7 @@
 Contains Experiment and Injection classes.
 """
 import os
-from simtk import unit
+from units import ureg,Quantity
 from math import pi
 import numpy
 
@@ -127,14 +127,14 @@ class Experiment(object):
         # Extract and store data about the experiment.
         self.number_of_injections = int(lines[1][1:].strip())
         self.target_temperature = (
-            int(lines[3][1:].strip()) + 273.15 ) * unit.kelvin   # convert from C to K
-        self.equilibration_time = int(lines[4][1:].strip()) * unit.second
+            int(lines[3][1:].strip()) + 273.15 ) * ureg.kelvin   # convert from C to K
+        self.equilibration_time = int(lines[4][1:].strip()) * ureg.second
         self.stir_rate = int(
             lines[5][
-                1:].strip()) * pi * unit.radian / unit.minute  # revolutions per minute converted to radians per minute
+                1:].strip()) * ureg.revolutions_per_minute
         self.reference_power = float(
             lines[6][
-                1:].strip()) * unit.microcalorie / unit.seconds
+                1:].strip()) * ureg.microcalorie / ureg.second
 
         # Extract and store metadata about injections.
         injection_number = 0
@@ -154,15 +154,15 @@ class Experiment(object):
                 injectiondict = dict()
                 injectiondict['number'] = injection_number
                 injectiondict['volume'] = float(
-                    injection_volume) * unit.microliter  # volume of injection
+                    injection_volume) * ureg.microliter  # volume of injection
                 injectiondict['duration'] = float(
-                    injection_duration) * unit.second  # duration of injection
+                    injection_duration) * ureg.second  # duration of injection
                 # time between beginning of injection and beginning of next
                 # injection
-                injectiondict['spacing'] = float(spacing) * unit.second
+                injectiondict['spacing'] = float(spacing) * ureg.second
                 # time over which data channel is averaged to produce a single
                 # measurement
-                injectiondict['filter_period'] = float(filter_period) * unit.second
+                injectiondict['filter_period'] = float(filter_period) * ureg.second
 
                 # Store injection.
                 self.injections.append(Injection(**injectiondict))
@@ -174,12 +174,12 @@ class Experiment(object):
         parsecline = 11 + self.number_of_injections
         self.syringe_concentration = float(
             lines[parsecline][
-                1:].strip()) * unit.millimolar  # supposed concentration of compound in syringe
+                1:].strip()) * ureg.millimole / ureg.liter  # supposed concentration of compound in syringe
         # supposed concentration of receptor in cell
         self.cell_concentration = float(
-            lines[parsecline + 1][1:].strip()) * unit.millimolar
+            lines[parsecline + 1][1:].strip()) * ureg.millimole / ureg.liter
         self.cell_volume = float(
-            lines[parsecline + 2][1:].strip()) * unit.milliliter  # cell volume
+            lines[parsecline + 2][1:].strip()) * ureg.milliliter  # cell volume
         self.injection_tick = [0]
 
         # Allocate storage for power measurements.
@@ -201,18 +201,18 @@ class Experiment(object):
         print "There are %d power measurements." % nmeasurements
 
         # Store data about measured heat liberated during each injection.
-        self.filter_period_end_time = unit.Quantity(numpy.zeros(
+        self.filter_period_end_time = ureg.Quantity(numpy.zeros(
             [nmeasurements],
-            numpy.float64), unit.second)  # time at end of filtering period (s)
-        self.differential_power = unit.Quantity(numpy.zeros(
+            numpy.float64), ureg.second)  # time at end of filtering period (s)
+        self.differential_power = ureg.Quantity(numpy.zeros(
             [nmeasurements],
-            numpy.float64), unit.microcalorie / unit.second)  # "differential" power applied to sample cell (ucal/s)
-        self.cell_temperature = unit.Quantity(numpy.zeros(
+            numpy.float64), ureg.microcalorie / ureg.second)  # "differential" power applied to sample cell (ucal/s)
+        self.cell_temperature = ureg.Quantity(numpy.zeros(
             [nmeasurements],
-            numpy.float64), unit.kelvin)  # cell temperature (K)
-        self.jacket_temperature = unit.Quantity(numpy.zeros(
+            numpy.float64), ureg.kelvin)  # cell temperature (K)
+        self.jacket_temperature = ureg.Quantity(numpy.zeros(
             [nmeasurements],
-            numpy.float64), unit.kelvin)  # adiabatic jacket temperature (K)
+            numpy.float64), ureg.kelvin)  # adiabatic jacket temperature (K)
 
         # Process data.
         nmeasurements = 0
@@ -254,13 +254,13 @@ class Experiment(object):
 
                 # Store data about this measurement.
                 self.filter_period_end_time[
-                    nmeasurements] = float(time) * unit.second
+                    nmeasurements] = float(time) * ureg.second
                 self.differential_power[nmeasurements] = float(
-                    power) * unit.microcalorie / unit.second
+                    power) * ureg.microcalorie / ureg.second
                 self.cell_temperature[nmeasurements] = (float(
-                    temperature) + 273.15) * unit.kelvin  # in Kelvin
+                    temperature) + 273.15) * ureg.kelvin  # in Kelvin
                 self.jacket_temperature[nmeasurements] = (float(
-                    jacket_temperature) + 273.15) * unit.kelvin  # in Kelvin
+                    jacket_temperature) + 273.15) * ureg.kelvin  # in Kelvin
 
                 nmeasurements += 1
         # number of injections read, not including @0
@@ -344,16 +344,16 @@ class Experiment(object):
         fit_indices = list()
         # Add data prior to first injection
         for index in range(0, self.injections[0].first_index):
-            x.append(self.filter_period_end_time[index] / unit.second)
-            y.append(self.differential_power[index] / (unit.microcalorie / unit.second ))
+            x.append(self.filter_period_end_time[index] / ureg.second)
+            y.append(self.differential_power[index] / (ureg.microcalorie / ureg.second ))
         # Add last 5% of each injection.
         for injection in self.injections:
             start_index = injection.first_index
             end_index = injection.last_index + 1
             start_index = end_index - int((end_index - start_index) * 0.05)
             for index in range(start_index, end_index):
-                x.append(self.filter_period_end_time[index] / unit.second )
-                y.append(self.differential_power[index] / (unit.microcalorie / unit.second))
+                x.append(self.filter_period_end_time[index] / ureg.second )
+                y.append(self.differential_power[index] / (ureg.microcalorie / ureg.second))
                 fit_indices.append(index)
         x = numpy.array(x)
         y = numpy.array(y)
@@ -387,7 +387,7 @@ class Experiment(object):
         p = p_fits[minimal_error_index]
         # Unpack fit parameters
         [x0, y0, c, k] = p
-        xfit = self.filter_period_end_time[:] / unit.second
+        xfit = self.filter_period_end_time[:] / ureg.second
         yfit = _eNegX_(p, xfit)
 
         # DEBUG
@@ -398,7 +398,7 @@ class Experiment(object):
         self.baseline_fit_parameters = p
 
         # Store baseline
-        self.baseline_power = unit.Quantity(numpy.array(yfit), unit.microcalorie / unit.second)
+        self.baseline_power = ureg.Quantity(numpy.array(yfit), ureg.microcalorie / ureg.second)
 
         return
 
@@ -427,16 +427,8 @@ class Experiment(object):
                     first_index:(
                         last_index + 1)]).sum()
 
-            # Making sure that pre-SimTk/openmm#643 users don't experience a bug.
-
-            if not excess_energy_input.unit == unit.microcalorie:
-                excess_energy_input = excess_energy_input._value * unit.microcalorie
-                print "WARNING, you seem to be using an older version of SimTk.unit."
-                print "Please verify that your data has the right units."
-
-
             # DEBUG
-            print "injection %d, filter period %f s, integrating sample %d to %d" % (injection.number, injection.filter_period / unit.second, first_index, last_index)
+            print "injection %d, filter period %f s, integrating sample %d to %d" % (injection.number, injection.filter_period / ureg.second, first_index, last_index)
 
             # Determine total heat evolved.
             evolved_heat = - excess_energy_input
@@ -458,16 +450,16 @@ class Experiment(object):
         string += "Source filename: %s\n" % self.data_filename
         string += "Number of injections: %d\n" % self.number_of_injections
         string += "Target temperature: %.1f K\n" % (
-            self.target_temperature / unit.kelvin)
+            self.target_temperature / ureg.kelvin)
         string += "Equilibration time before first injection: %.1f s\n" % (
-            self.equilibration_time / unit.second)
+            self.equilibration_time / ureg.second)
         string += "Syringe concentration: %.3f mM\n" % (
-            self.syringe_concentration / unit.millimolar)
+            self.syringe_concentration / (ureg.millimole / ureg.liter))
         string += "Cell concentration: %.3f mM\n" % (
-            self.cell_concentration / unit.millimolar)
-        string += "Cell volume: %.3f ml\n" % (self.cell_volume / unit.milliliter)
+            self.cell_concentration / (ureg.millimole / ureg.liter))
+        string += "Cell volume: %.3f ml\n" % (self.cell_volume / ureg.milliliter)
         string += "Reference power: %.3f ucal/s\n" % (
-            self.reference_power / (unit.microcalorie / unit.second))
+            self.reference_power / (ureg.microcalorie / ureg.second))
 
         string += "\n"
         string += "INJECTIONS\n"
@@ -480,9 +472,9 @@ class Experiment(object):
         for injection in self.injections:
             string += "%16d %24.3f %24.3f %24.3f %24.3f %24.3f\n" % (
                 injection.number,
-                injection.volume / unit.microliter, injection.duration / unit.second,
-                injection.spacing / unit.second, injection.filter_period /
-                unit.second, injection.evolved_heat / unit.microcalorie)
+                injection.volume / ureg.microliter, injection.duration / ureg.second,
+                injection.spacing / ureg.second, injection.filter_period /
+                ureg.second, injection.evolved_heat / ureg.microcalorie)
 
         return string
 
@@ -508,18 +500,18 @@ class Experiment(object):
             # Ln = L/V0 - PLn; # free ligand concentration in sample cell after
             # n injections (M)
 
-            Pn = 0.0 * unit.millimolar
-            Ln = 0.0 * unit.millimolar
-            PLn = 0.0 * unit.millimolar
+            Pn = 0.0 * (ureg.millimole / ureg.liter)
+            Ln = 0.0 * (ureg.millimole / ureg.liter)
+            PLn = 0.0 * (ureg.millimole / ureg.liter)
             NDH = 0.0  # Not sure what this is
 
             # Form string.
             string += "%12.5f %5.1f %12.5f %12.5f %12.5f %12.5f\n" % (
-                injection.evolved_heat / unit.microcalorie, injection.volume /
-                unit.microliter, Pn / unit.millimolar, Ln / unit.millimolar, PLn / unit.millimolar, NDH)
+                injection.evolved_heat / ureg.microcalorie, injection.volume /
+                ureg.microliter, Pn / (ureg.millimole / ureg.liter), Ln / (ureg.millimole / ureg.liter), PLn / (ureg.millimole / ureg.liter), NDH)
 
         # Final line.
-        string += "        --      %12.5f %12.5f --\n" % (Pn / unit.millimolar , Ln / unit.millimolar)
+        string += "        --      %12.5f %12.5f --\n" % (Pn / (ureg.millimole / ureg.liter) , Ln / (ureg.millimole / ureg.liter))
 
         # Write file contents.
         outfile = open(filename, 'w')
@@ -541,10 +533,10 @@ class Experiment(object):
         for index in range(len(self.filter_period_end_time)):
             outfile.write("%8.1f %16.8f %16.8f\n" %
                           (self.filter_period_end_time[index] /
-                           unit.second, self.differential_power[index] /
-                           (unit.microcalorie /
-                            unit.second), self.cell_temperature[index] /
-                              unit.kelvin))
+                           ureg.second, self.differential_power[index] /
+                           (ureg.microcalorie /
+                            ureg.second), self.cell_temperature[index] /
+                              ureg.kelvin))
         outfile.close()
 
         return
@@ -575,14 +567,14 @@ class Experiment(object):
 
         # Plot baseline fit.
         pylab.plot(
-            self.filter_period_end_time / unit.second, self.baseline_power /
-            (unit.microcalorie / unit.second),
+            self.filter_period_end_time / ureg.second, self.baseline_power /
+            (ureg.microcalorie / ureg.second),
             'g-')
 
         # Plot differential power.
         pylab.plot(
-            self.filter_period_end_time / unit.second, self.differential_power /
-            (unit.microcalorie / unit.second),
+            self.filter_period_end_time / ureg.second, self.differential_power /
+            (ureg.microcalorie / ureg.second),
             'k.', markersize=markersize)
 
         # Plot injection time markers.
@@ -590,7 +582,7 @@ class Experiment(object):
         for injection in self.injections:
             # timepoint at start of syringe injection
             last_index = injection.first_index
-            t = self.filter_period_end_time[last_index] / unit.second
+            t = self.filter_period_end_time[last_index] / ureg.second
             pylab.plot([t, t], [ymin, ymax], 'r-')
 
         # Label plot axes.
@@ -633,7 +625,7 @@ class Experiment(object):
             last_index = injection.last_index
             # determine time at end of injection period
             injection_end_times[index] = self.filter_period_end_time[
-                last_index] / unit.second
+                last_index] / ureg.second
 
         # Plot model fits, if specified.
         if model:
@@ -653,19 +645,19 @@ class Experiment(object):
                     Ls=Ls_n[n])
                 pylab.plot(
                     injection_end_times /
-                    unit.second,
+                    ureg.second,
                     q_n /
-                    unit.microcalorie,
+                    ureg.microcalorie,
                     'r-',
                     linewidth=1)
 
         # Plot integrated heats.
         for (index, injection) in enumerate(self.injections):
             # determine time at end of injection period
-            t = injection_end_times[index] / unit.second
+            t = injection_end_times[index] / ureg.second
             # plot a point there to represent total heat evolved in injection
             # period
-            y = injection.evolved_heat / unit.microcalorie
+            y = injection.evolved_heat / ureg.microcalorie
             pylab.plot(t, y, 'k.', markersize=markersize)
             # pylab.plot([t, t], [0, y], 'k-') # plot bar from zero line
             # label injection
@@ -684,10 +676,10 @@ class Experiment(object):
 
         # Plot zero line.
         pylab.plot(experiment.filter_period_end_time /
-                   unit.second, 0.0 *
+                   ureg.second, 0.0 *
                    experiment.filter_period_end_time /
-                   (unit.microcalorie /
-                    unit.second), 'g-')  # plot zero line
+                   (ureg.microcalorie /
+                    ureg.second), 'g-')  # plot zero line
 
         # Adjust font sizes for tick labels.
         ax = pylab.gca()
@@ -737,8 +729,8 @@ class Experiment(object):
 
         # Plot baseline fit.
         pylab.plot(
-            self.filter_period_end_time / unit.second, self.baseline_power /
-            (unit.microcalorie / unit.second),
+            self.filter_period_end_time / ureg.second, self.baseline_power /
+            (ureg.microcalorie / ureg.second),
             'g-')
 
         # Plot differential power.
@@ -747,11 +739,11 @@ class Experiment(object):
             set(self.baseline_fit_data['indices']))
         pylab.plot(
             self.filter_period_end_time[indices] /
-            unit.second,
+            ureg.second,
             self.differential_power[indices] /
             (
-                unit.microcalorie /
-                unit.second),
+                ureg.microcalorie /
+                ureg.second),
             'k.',
             markersize=markersize)
 
@@ -759,11 +751,11 @@ class Experiment(object):
         indices = self.baseline_fit_data['indices']
         pylab.plot(
             self.filter_period_end_time[indices] /
-            unit.second,
+            ureg.second,
             self.differential_power[indices] /
             (
-                unit.microcalorie /
-                unit.second),
+                ureg.microcalorie /
+                ureg.second),
             'r.',
             markeredgecolor='r',
             markersize=markersize)
@@ -773,12 +765,12 @@ class Experiment(object):
         for injection in self.injections:
             # timepoint at start of syringe injection
             last_index = injection.first_index
-            t = self.filter_period_end_time[last_index] / unit.second
+            t = self.filter_period_end_time[last_index] / ureg.second
             pylab.plot([t, t], [ymin, ymax], 'r-')
 
         # Adjust axis to zoom in on baseline.
-        ymax = self.baseline_power.max() / (unit.microcalorie / unit.second)
-        ymin = self.baseline_power.min() / (unit.microcalorie / unit.second)
+        ymax = self.baseline_power.max() / (ureg.microcalorie / ureg.second)
+        ymin = self.baseline_power.min() / (ureg.microcalorie / ureg.second)
         width = ymax - ymin
         ymax += width / 2
         ymin -= width / 2

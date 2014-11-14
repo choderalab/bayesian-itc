@@ -3,8 +3,7 @@
 #=========================================================================
 # Isothermal titration calorimeter instrument class.
 #=========================================================================
-from simtk import unit
-
+from units import ureg,Quantity
 
 class Instrument(object):
 
@@ -28,7 +27,7 @@ class VPITC(Instrument):
     """
 
     def __init__(self):
-        self.V0 = 1.4301 * unit.milliliter  # volume of calorimeter sample cell
+        self.V0 = 1.4301 * ureg.milliliter  # volume of calorimeter sample cell
         # Tellinghuisen volume correction for VP-ITC
-        self.V0 = self.V0 - 0.044 * unit.milliliter
+        self.V0 = self.V0 - 0.044 * ureg.milliliter
         return

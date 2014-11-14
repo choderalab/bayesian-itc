@@ -38,8 +38,7 @@
 #=============================================================================================
 
 import os
-from simtk import unit
-import numpy
+from units import ureg, Quantity
 import scipy.stats
 import pymc
 from report import Report, analyze
@@ -160,13 +159,13 @@ if __name__ == "__main__":
 
         # Plot individual terms.
         if experiment.cell_concentration > 0.0:
-            pymc.Matplot.plot(mcmc.trace('P0')[:] / unit.millimolar, '%s-P0' % experiment_name)
+            pymc.Matplot.plot(mcmc.trace('P0')[:] / (ureg.millimole/ ureg.liter), '%s-P0' % experiment_name)
         if experiment.syringe_concentration > 0.0:
-            pymc.Matplot.plot(mcmc.trace('Ls')[:] / unit.micromolar, '%s-Ls' % experiment_name)
-        pymc.Matplot.plot(mcmc.trace('DeltaG')[:] / (unit.kilocalorie/unit.mole), '%s-DeltaG' % experiment_name)
-        pymc.Matplot.plot(mcmc.trace('DeltaH')[:] / (unit.kilocalorie/unit.mole), '%s-DeltaH' % experiment_name)
-        pymc.Matplot.plot(mcmc.trace('DeltaH_0')[:] / (unit.microcalorie/unit.microliter), '%s-DeltaH_0' % experiment_name)
-        pymc.Matplot.plot(numpy.exp(mcmc.trace('log_sigma')[:]) * unit.calorie / unit.second**0.5, '%s-sigma' % experiment_name)
+            pymc.Matplot.plot(mcmc.trace('Ls')[:] / (ureg.micromole/ ureg.liter), '%s-Ls' % experiment_name)
+        pymc.Matplot.plot(mcmc.trace('DeltaG')[:] / (ureg.kilocalorie/ureg.mole), '%s-DeltaG' % experiment_name)
+        pymc.Matplot.plot(mcmc.trace('DeltaH')[:] / (ureg.kilocalorie/ureg.mole), '%s-DeltaH' % experiment_name)
+        pymc.Matplot.plot(mcmc.trace('DeltaH_0')[:] / (ureg.microcalorie/ureg.microliter), '%s-DeltaH_0' % experiment_name)
+        pymc.Matplot.plot(numpy.exp(mcmc.trace('log_sigma')[:]) * ureg.calorie / ureg.second**0.5, '%s-sigma' % experiment_name)
         
         # TODO: Plot fits to enthalpogram.
         experiment.plot(model=mcmc, filename='sampl4/%s-enthalpogram.png' % experiment_name)
@@ -174,17 +173,17 @@ if __name__ == "__main__":
         # Compute confidence intervals in thermodynamic parameters.
         outfile = open('sampl4/confidence-intervals.out','a')
         outfile.write('%s\n' % experiment_name)
-        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('DeltaG')[:] / (unit.kilocalorie/unit.mole))
+        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('DeltaG')[:] / (ureg.kilocalorie/ureg.mole))
         outfile.write('DG:     %8.2f +- %8.2f kcal/mol     [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('DeltaH')[:] / (unit.kilocalorie/unit.mole))
+        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('DeltaH')[:] / (ureg.kilocalorie/ureg.mole))
         outfile.write('DH:     %8.2f +- %8.2f kcal/mol     [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('DeltaH_0')[:] / (unit.microcalorie/unit.microliter))
+        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('DeltaH_0')[:] / (ureg.microcalorie/ureg.microliter))
         outfile.write('DH0:    %8.2f +- %8.2f ucal         [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('Ls')[:] / unit.micromolar)
+        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('Ls')[:] / (ureg.micromole/ ureg.liter))
         outfile.write('Ls:     %8.2f +- %8.2f uM           [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('P0')[:] / unit.micromolar)
+        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('P0')[:] / (ureg.micromole / ureg.liter))
         outfile.write('P0:     %8.2f +- %8.2f uM           [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_statistics(numpy.exp(mcmc.trace('log_sigma')[:]) * unit.calorie / unit.second**0.5)
+        [x, dx, xlow, xhigh] = compute_statistics(numpy.exp(mcmc.trace('log_sigma')[:]) * ureg.calorie / ureg.second**0.5)
         outfile.write('sigma:  %8.5f +- %8.5f ucal/s^(1/2) [%8.5f, %8.5f] \n' % (x, dx, xlow, xhigh))        
         outfile.write('\n')
         outfile.close()
