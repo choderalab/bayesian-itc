@@ -21,7 +21,7 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <http://www.gnu.org/licenses/>.
 
 NOTES
-* Throughout, quantities with associated units employ the simtk.unit.Quantity class to store quantities
+* Throughout, quantities with associated units employ the pint Quantity class to store quantities
 in references units.  Multiplication or division by desired units should ALWAYS be used to
 store or extract quantities in the desired units.
 
@@ -66,23 +66,25 @@ def compute_normal_statistics(x_t):
 # MAIN AND TESTS
 #=============================================================================================
 
-__usage__ = """Bayesian Analysis of Microcal iTC200 data
+__usage__ = """
+Bayesian analysis of Microcal iTC200 data.
 
 Usage:
   ITC.py analyze <file> [-q <file> | --heats=<file>] [-m <model> | --model=<model>]
   ITC.py analyze mcmc <file> [-q <file> | --heats=<file>] [options]
   ITC.py (-h | --help)
+  ITC.py --license
   ITC.py --version
 
 Options:
-  -h, --help    Show this screen
-  --version         Show version
-  --license         Show license
-  -q <file>, --heats=<file>    Integrated heats (q_n) from file
-  -m <model>, --model=<model>  Model to use for experiment [default: TwoComponent]
-  --niters=<n>      No. of iterations for mcmc sampling [default: 2000000]
-  --nburn=<n>       No. of Burn-in iterations for mcmc sampling [default: 500000]
-  --nthin=<n>       Thinning period for mcmc sampling [default: 250]
+  -h, --help                    Show this screen
+  --version                     Show version
+  --license                     Show license
+  -q <file>, --heats=<file>     Integrated heats (q_n) from file
+  -m <model>, --model=<model>   Model to use for experiment                     [default: TwoComponent]
+  --niters=<n>                  No. of iterations for mcmc sampling             [default: 2000000]
+  --nburn=<n>                   No. of Burn-in iterations for mcmc sampling     [default: 500000]
+  --nthin=<n>                   Thinning period for mcmc sampling               [default: 250]
 """
 
 if __name__ == "__main__":
