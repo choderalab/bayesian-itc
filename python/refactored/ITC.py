@@ -43,6 +43,7 @@ logging.basicConfig(format='%(levelname)s::%(pathname)s:L%(lineno)s\n%(message)s
 # Use logger with name of module
 logger = logging.getLogger(__name__)
 
+#TODO Find out if this is still used
 def compute_normal_statistics(x_t):
 
     # Compute mean.
@@ -66,6 +67,7 @@ def compute_normal_statistics(x_t):
 # MAIN AND TESTS
 #=============================================================================================
 
+#  TODO add options for output files
 __usage__ = """
 Bayesian analysis of Microcal iTC200 data.
 
@@ -116,7 +118,7 @@ if __name__ == "__main__":
 
         experiment = Experiment(filename)
         logger.debug(str(experiment))
-
+        #  TODO work on a markdown version for generating reports. Perhaps use sphinx
         analyze(experiment_name, experiment)
         # Write Origin-style integrated heats.
         filename = experiment_name + '-integrated.txt'
@@ -142,6 +144,7 @@ if __name__ == "__main__":
             continue
 
         # First fit the model.
+        # TODO This should be incorporated in the model. Perhaps as a model.getSampler() method?
         print "Fitting model..."
         map = pymc.MAP(model)
         map.fit(iterlim=20000)
@@ -180,7 +183,7 @@ if __name__ == "__main__":
         pymc.Matplot.plot(mcmc.trace('DeltaH_0')[:] / (ureg.microcalorie/ureg.microliter), '%s-DeltaH_0' % experiment_name)
         pymc.Matplot.plot(numpy.exp(mcmc.trace('log_sigma')[:]) * ureg.calorie / ureg.second**0.5, '%s-sigma' % experiment_name)
         
-        # TODO: Plot fits to enthalpogram.
+        #  TODO: Plot fits to enthalpogram.
         experiment.plot(model=mcmc, filename='sampl4/%s-enthalpogram.png' % experiment_name)
         
         # Compute confidence intervals in thermodynamic parameters.

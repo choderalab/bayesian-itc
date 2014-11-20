@@ -15,10 +15,10 @@ class Instrument(object):
     def __init__(self):
         self.V0 = None  # volume of calorimeter sample cell
         pass
-
+    # TODO Expose V0 and V) corrections as optional arguments
+    # TODO Add description or name info
 
 class VPITC(Instrument):
-
     """
     The MicroCal VP-ITC.
     """
@@ -28,3 +28,5 @@ class VPITC(Instrument):
         # Tellinghuisen volume correction for VP-ITC
         self.V0 = self.V0 - 0.044 * ureg.milliliter
         return
+
+# TODO Add ITC200 and AutoITC200

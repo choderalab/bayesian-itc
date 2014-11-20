@@ -24,6 +24,7 @@ Na = 6.02214179e23 # Avogadro's number (number/mol)
 kB = Na * 1.3806504e-23 / 4184.0 # Boltzmann constant (kcal/mol/K)
 C0 = 1.0 # standard concentration (M)
 
+#TODO check if rescaling step is still necessary
 
 class RescalingStep(pymc.StepMethod):
     """
@@ -140,6 +141,7 @@ class RescalingStep(pymc.StepMethod):
     def tune(self, verbose):
         return False
 
+# TODO Move generation of the pymc sampler into a method in this base class: createSampler()?
 
 class BindingModel(object):
     """
@@ -306,7 +308,7 @@ class TwoComponentBindingModel(BindingModel):
         """
         return exp(-2.0*log_sigma)
 
-
+    #TODO Add specific createModel() for this binding model (move from ITC.py).
 #=============================================================================================
 # Competitive binding model
 #=============================================================================================
@@ -756,6 +758,8 @@ class CompetitiveBindingModel(BindingModel):
 #=============================================================================================
 # MAIN AND TESTS
 #=============================================================================================
+
+# TODO get rid of the main and implement it as a test of the library
 
 if __name__ == "__main__":
     # Run doctests.

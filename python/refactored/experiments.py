@@ -27,7 +27,7 @@ class Injection(object):
     EXAMPLES
 
     """
-
+    # TODO Add docstring examples.
 
     def __init__(self, number, volume, duration, spacing, filter_period):
         # sequence number of injection
@@ -58,13 +58,7 @@ class Experiment(object):
 
     """
 
-    #=========================================================================
-    # Class data.
-    #=========================================================================
-
-    #=========================================================================
-    # Methods.
-    #=========================================================================
+    # TODO Add type verification
 
     def __init__(self, data_filename):
         """
@@ -90,6 +84,8 @@ class Experiment(object):
         self.reference_power = None  # power applied to reference cell
         # concentrations of various species in syringe
         self.syringe_contents = list()
+        # TODO syringe and cells could contain chemical contained objects
+        # TODO as in chemicals.SimpleSolution in choderalab/itctools
         # concentrations of various species in sample cell
         self.sample_cell_contents = list()
         self.cell_volume = None  # volume of liquid in sample cell
@@ -174,8 +170,7 @@ class Experiment(object):
         # supposed concentration of receptor in cell
         self.cell_concentration = float(
             lines[parsecline + 1][1:].strip()) * ureg.millimole / ureg.liter
-        print "TESTTETESTESSTE"
-        print self.syringe_concentration
+
         self.cell_volume = float(
             lines[parsecline + 2][1:].strip()) * ureg.milliliter  # cell volume
         self.injection_tick = [0]
@@ -213,6 +208,7 @@ class Experiment(object):
             numpy.float64), ureg.kelvin)  # adiabatic jacket temperature (K)
 
         # Process data.
+        # TODO this is a mess, need to clean up and do proper input verification
         nmeasurements = 0
         injection_labels = list()
         for (index, line) in enumerate(measurement_lines):
@@ -309,7 +305,8 @@ class Experiment(object):
         where parameters (c, k, x0, y0) are fit parameters.
 
         """
-
+        # TODO look for linearly interpolated fits, or @pgrinaway 's implementation using Gaussian process
+        # TODO expose baseline to BindingModel as parameters
         import scipy.optimize
 
         def _eNegX_(p, x):
@@ -434,7 +431,7 @@ class Experiment(object):
         Show details of experiment in human-readable form.
 
         """
-
+        # TODO Clean up this definition
         string = ""
         string += "EXPERIMENT\n"
         string += "\n"
@@ -473,7 +470,7 @@ class Experiment(object):
         """
         Write integrated heats in a format similar to that used by Origin.
         """
-
+        # TODO implement read_integrated_heats function that overrides values
         DeltaV = self.injections[0].volume
         V0 = self.cell_volume
         P0 = self.cell_concentration

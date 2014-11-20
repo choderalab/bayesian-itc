@@ -1,5 +1,6 @@
 """Contains Report class for presenting summary of data in organized fashion."""
 
+# TODO work on a markdown version of the report
 from units import ureg,Quantity
 
 class Report(object):
@@ -161,7 +162,7 @@ reference power & %(reference_power).3f $\mu$cal/s \\
         
         return
   
-
+# TODO this function name is too vague, rename. Make modular
 def analyze(name, experiment):
 
     #=============================================================================================
