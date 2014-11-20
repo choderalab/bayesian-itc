@@ -1,43 +1,36 @@
 #!/usr/bin/python
 
-#=============================================================================================
-# A module implementing Bayesian analysis of isothermal titration calorimetry (ITC) experiments
-#
-# Written by John D. Chodera <jchodera@gmail.com>, Pande lab, Stanford, 2008.
-#
-# Copyright (c) 2008 Stanford University.  All Rights Reserved.
-#
-# All code in this repository is released under the GNU General Public License.
-#
-# This program is free software: you can redistribute it and/or modify it under
-# the terms of the GNU General Public License as published by the Free Software
-# Foundation, either version 3 of the License, or (at your option) any later
-# version.
-#  
-# This program is distributed in the hope that it will be useful, but WITHOUT ANY
-# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-# PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-# 
-# You should have received a copy of the GNU General Public License along with
-# this program.  If not, see <http://www.gnu.org/licenses/>.
-#=============================================================================================
+"""
+A module implementing Bayesian analysis of isothermal titration calorimetry (ITC) experiments
 
-#=============================================================================================
-# NOTES
-# * Throughout, quantities with associated units employ the simtk.unit.Quantity class to store quantities
-# in references units.  Multiplication or division by desired units should ALWAYS be used to
-# store or extract quantities in the desired units.
-#=============================================================================================
+Written by John D. Chodera <jchodera@gmail.com>, Pande lab, Stanford, 2008.
 
-#=============================================================================================
-#
-#=============================================================================================
+Copyright (c) 2008 Stanford University.  All Rights Reserved.
 
-#=============================================================================================
-# IMPORTS
-#=============================================================================================
+All code in this repository is released under the GNU General Public License.
 
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see <http://www.gnu.org/licenses/>.
+
+NOTES
+* Throughout, quantities with associated units employ the simtk.unit.Quantity class to store quantities
+in references units.  Multiplication or division by desired units should ALWAYS be used to
+store or extract quantities in the desired units.
+
+"""
+
+import numpy
 import os
+import logging
 from units import ureg, Quantity
 import scipy.stats
 import pymc
@@ -46,8 +39,12 @@ from experiments import Injection, Experiment
 from instruments import VPITC
 from models import RescalingStep, TwoComponentBindingModel
 
+# debug level logging at the moment
+logging.basicConfig(format='%(levelname)s::%(pathname)s:L%(lineno)s\n%(message)s', level=logging.DEBUG)
+# Use logger with name of module
+logger = logging.getLogger(__name__)
 
-def compute_statistics(x_t):
+def compute_normal_statistics(x_t):
 
     # Compute mean.
     x = x_t.mean()
@@ -84,13 +81,12 @@ if __name__ == "__main__":
     # Obtain list of .itc data files to be processed
     from glob import glob
     from os.path import basename, splitext
-    
-    directory = '../../data/auto-iTC-200/053014/'
+
+    directory = '../../data/SAMPL4/CB7'
     filenames = glob('%s/*.itc' % directory)
     
-    print "Reading these files:"
-    print filenames
-
+    logger.info("Reading these files: \n" +
+                ",\n".join(filenames))
     # Create Experiment instance from .itc files and analyze the data
     for filename in filenames:
         # Close all figure windows.
@@ -99,10 +95,10 @@ if __name__ == "__main__":
 
         experiment_name, file_extension = splitext(basename(filename))
 
-        print "Reading ITC data from %s" % filename
+        logger.info("Reading ITC data from %s" % filename)
 
         experiment = Experiment(filename)
-        print experiment
+        logger.debug(str(experiment))
 
         analyze(experiment_name, experiment)
         # Write Origin-style integrated heats.
@@ -123,9 +119,9 @@ if __name__ == "__main__":
             from models import TwoComponentBindingModel
             model = TwoComponentBindingModel(experiment, vpitc)
         except Exception as e:
-            print str(e)
-            print traceback.format_exc()
-            raise Exception(e)
+            logger.error(str(e))
+            logger.error(traceback.format_exc())
+            # raise Exception(e)
             continue
 
         # First fit the model.
@@ -173,17 +169,17 @@ if __name__ == "__main__":
         # Compute confidence intervals in thermodynamic parameters.
         outfile = open('sampl4/confidence-intervals.out','a')
         outfile.write('%s\n' % experiment_name)
-        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('DeltaG')[:] / (ureg.kilocalorie/ureg.mole))
+        [x, dx, xlow, xhigh] = compute_normal_statistics(mcmc.trace('DeltaG')[:] / (ureg.kilocalorie/ureg.mole))
         outfile.write('DG:     %8.2f +- %8.2f kcal/mol     [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('DeltaH')[:] / (ureg.kilocalorie/ureg.mole))
+        [x, dx, xlow, xhigh] = compute_normal_statistics(mcmc.trace('DeltaH')[:] / (ureg.kilocalorie/ureg.mole))
         outfile.write('DH:     %8.2f +- %8.2f kcal/mol     [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('DeltaH_0')[:] / (ureg.microcalorie/ureg.microliter))
+        [x, dx, xlow, xhigh] = compute_normal_statistics(mcmc.trace('DeltaH_0')[:] / (ureg.microcalorie/ureg.microliter))
         outfile.write('DH0:    %8.2f +- %8.2f ucal         [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('Ls')[:] / (ureg.micromole/ ureg.liter))
+        [x, dx, xlow, xhigh] = compute_normal_statistics(mcmc.trace('Ls')[:] / (ureg.micromole/ ureg.liter))
         outfile.write('Ls:     %8.2f +- %8.2f uM           [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_statistics(mcmc.trace('P0')[:] / (ureg.micromole / ureg.liter))
+        [x, dx, xlow, xhigh] = compute_normal_statistics(mcmc.trace('P0')[:] / (ureg.micromole / ureg.liter))
         outfile.write('P0:     %8.2f +- %8.2f uM           [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_statistics(numpy.exp(mcmc.trace('log_sigma')[:]) * ureg.calorie / ureg.second**0.5)
+        [x, dx, xlow, xhigh] = compute_normal_statistics(numpy.exp(mcmc.trace('log_sigma')[:]) * ureg.calorie / ureg.second**0.5)
         outfile.write('sigma:  %8.5f +- %8.5f ucal/s^(1/2) [%8.5f, %8.5f] \n' % (x, dx, xlow, xhigh))        
         outfile.write('\n')
         outfile.close()

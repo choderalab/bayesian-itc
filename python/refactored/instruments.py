@@ -1,8 +1,5 @@
 """Contains Isothermal titration calorimeter instrument classes."""
 
-#=========================================================================
-# Isothermal titration calorimeter instrument class.
-#=========================================================================
 from units import ureg,Quantity
 
 class Instrument(object):

@@ -5,37 +5,38 @@ A test of pymc for ITC.
 
 """
 
-#=============================================================================================
-# IMPORTS
-#=============================================================================================
+
 
 import numpy
 import pymc
 import copy
-from units import ureg,Quantity
+from units import ureg, Quantity
 import scipy.integrate
+import logging
 
 from math import sqrt, exp, log
 
-#=============================================================================================
-# Physical constants
-#=============================================================================================
+# Use module name for logger
+logger = logging.getLogger(__name__)
+
 
 Na = 6.02214179e23 # Avogadro's number (number/mol)
 kB = Na * 1.3806504e-23 / 4184.0 # Boltzmann constant (kcal/mol/K)
 C0 = 1.0 # standard concentration (M)
 
-#=============================================================================================
-# Rescaling StepMethod for sampling correlated changes in ligand and receptor concentration
-#=============================================================================================
 
 class RescalingStep(pymc.StepMethod):
-    def __init__(self, dictionary, beta, max_scale=1.03, verbose=0, interval=100):
+    """
+    Rescaling StepMethod for sampling correlated changes in ligand and receptor concentration
+
+    """
+
+    def __init__(self, dictionary, beta, max_scale=1.03, interval=100, verbose=0):
         """
         dictionary (dict) - must contain dictionary of objects for Ls, P0, DeltaH, DeltaG
         """
 
-        # Verbosity flag
+        # Verbosity flag for pymc
         self.verbose = verbose
 
         # Store stochastics.
@@ -58,14 +59,14 @@ class RescalingStep(pymc.StepMethod):
         self.rejected = 0
 
         # Report
-        if self.verbose:
-            print "Initialization..."
-            print "max_scale: ", self.max_scale
+        logger.info("Initialization...\n" +
+                    "max_scale: ", self.max_scale)
+
 
     def propose(self):
         # Choose trial scaling factor or its inverse with equal probability, so that proposal move is symmetric.
         factor = (self.max_scale - 1) * numpy.random.rand() + 1;
-        if (numpy.random.rand() < 0.5):
+        if numpy.random.rand() < 0.5:
             factor = 1./factor;
 
         # Scale thermodynamic parameters and variables with this factor.
@@ -80,8 +81,7 @@ class RescalingStep(pymc.StepMethod):
         # Probability and likelihood for stochastic's current value:
         logp = sum([stochastic.logp for stochastic in self.stochastics])
         loglike = self.loglike
-        if self.verbose > 1:
-            print 'Current likelihood: ', logp+loglike
+        logger.info('Current likelihood: ' + logp+loglike)
 
         # Sample a candidate value
         self.propose()
@@ -92,36 +92,32 @@ class RescalingStep(pymc.StepMethod):
             # Probability and likelihood for stochastic's proposed value:
             logp_p = sum([stochastic.logp for stochastic in self.stochastics])
             loglike_p = self.loglike
-            if self.verbose > 2:
-                print 'Current likelihood: ', logp+loglike
+            logger.debug('Current likelihood: ' + logp+loglike)
 
             if numpy.log(numpy.random.rand()) < logp_p + loglike_p - logp - loglike:
                 accept = True
                 self.accepted += 1
-                if self.verbose > 2:
-                    print 'Accepted'
+                logger.debug('Accepted')
             else:
                 self.rejected += 1
-                if self.verbose > 2:
-                    print 'Rejected'
+                logger.debug('Rejected')
         except pymc.ZeroProbability:
             self.rejected += 1
             logp_p = None
             loglike_p = None
-            if self.verbose > 2:
-                print 'Rejected with ZeroProbability error.'
+            logger.debug('Rejected with ZeroProbability error.')
 
-        if (not self._current_iter % self.interval) and self.verbose > 1:
-            print "Step ", self._current_iter
-            print "\tLogprobability (current, proposed): ", logp, logp_p
-            print "\tloglike (current, proposed):      : ", loglike, loglike_p
+        if (not self._current_iter % self.interval):
+            logger.info("Step ", self._current_iter +
+                        "\tLogprobability (current, proposed): %f, %f " % ( logp , logp_p ) +
+                        "\tloglike (current, proposed):      : " + loglike, loglike_p)
             for stochastic in self.stochastics:
-                print "\t", stochastic.__name__, stochastic.last_value, stochastic.value
+                logger.info("\t" + str(stochastic.__name__) + str(stochastic.last_value) + str(stochastic.value))
             if accept:
-                print "\tAccepted\t*******\n"
+                logger.info("\tAccepted\t*******\n")
             else:
-                print "\tRejected\n"
-            print "\tAcceptance ratio: ", self.accepted/(self.accepted+self.rejected)
+                logger.info("\tRejected\n")
+            logger.info("\tAcceptance ratio: " + str(self.accepted/(self.accepted+self.rejected)))
 
         if not accept:
             self.reject()
@@ -145,11 +141,6 @@ class RescalingStep(pymc.StepMethod):
         return False
 
 
-#=============================================================================================
-# Binding models
-#=============================================================================================
-
-
 class BindingModel(object):
     """
     Abstract base class for reaction models.
@@ -159,11 +150,12 @@ class BindingModel(object):
     def __init__(self):
         pass
     
-#=============================================================================================
-# Two-component binding model
-#=============================================================================================
+
 
 class TwoComponentBindingModel(BindingModel):
+    """
+    A binding model with two components (e.g. Protein and Ligand)
+    """
     def __init__(self, experiment, instrument):
 
         # Determine number of observations.
@@ -191,35 +183,39 @@ class TwoComponentBindingModel(BindingModel):
         dLs = 0.10 * Ls_stated # uncertainty in ligand stated concentration (M) - 10% error
 
         # Determine guesses for initial values
-        q_n = numpy.array([])
+        q_n = list()
         for injection in experiment.injections:
-            print injection.evolved_heat
-            q_n = numpy.append(q_n, injection.evolved_heat)
+            q_n.append(injection.evolved_heat / ureg.microcalorie )
 
-        log_sigma_guess = log(q_n[-4:].std()) # cal/injection
-        DeltaG_guess = -8.3 # kcal/mol
-        DeltaH_guess = -12.0 # kcal/mol
-        DeltaH_0_guess = q_n[-1] # cal/injection
+        # Fix for voodoo that occurs when adding Quantities to a numpy array, which would drop units
+        q_n = Quantity(numpy.asarray(q_n), ureg.microcalorie)
+
+        log_sigma_guess = log(q_n[-4:].std() / ureg.microcal ) # cal/injection
+        DeltaG_guess = -8.3 * ureg.kilocalorie / ureg.mol
+        DeltaH_guess = -12.0 * ureg.kilocalorie / ureg.mol
+
+        #Assume the last injection has the best guess for H0
+        DeltaH_0_guess = q_n[-1] * ureg.calorie # cal/injection
 
         # Determine min and max range for log_sigma
         log_sigma_min = log_sigma_guess - 10
         log_sigma_max = log_sigma_guess + 5
 
         # Determine range for priors for thermodynamic parameters.
-        DeltaG_min = -40. # (kcal/mol)
-        DeltaG_max = +40. # (kcal/mol)
-        DeltaH_min = -100. # (kcal/mol)
-        DeltaH_max = +100. # (kcal/mol)
+        DeltaG_min = -40. * ureg.kilocalorie / ureg.mol  # (kcal/mol)
+        DeltaG_max = +40. * ureg.kilocalorie / ureg.mol  # (kcal/mol)
+        DeltaH_min = -100. * ureg.kilocalorie / ureg.mol  # (kcal/mol)
+        DeltaH_max = +100. * ureg.kilocalorie / ureg.mol  # (kcal/mol)
         heat_interval = q_n.max() - q_n.min()
-        DeltaH_0_min = q_n.min() - heat_interval # (cal/mol)
-        DeltaH_0_max = q_n.max() + heat_interval # (cal/mol)
+        DeltaH_0_min = q_n.min() - heat_interval  # (cal/mol)
+        DeltaH_0_max = q_n.max() + heat_interval  # (cal/mol)
 
         # Define priors for concentrations.
         #self.P0 = pymc.Normal('P0', mu=P0_stated, tau=1.0/dP0**2, value=P0_stated)
         #self.Ls = pymc.Normal('Ls', mu=Ls_stated, tau=1.0/dLs**2, value=Ls_stated)
         # TODO Eliminate units from pymc input
-        self.P0 = pymc.Lognormal('P0', mu=log(P0_stated), tau=1.0/log(1.0+(dP0/P0_stated)**2), value=P0_stated)
-        self.Ls = pymc.Lognormal('Ls', mu=log(Ls_stated), tau=1.0/log(1.0+(dLs/Ls_stated)**2), value=Ls_stated)
+        self.P0 = pymc.Lognormal('P0', mu=log(P0_stated / ureg.molar ), tau=1.0/log(1.0+(dP0/P0_stated)**2), value=P0_stated / ureg.molar)
+        self.Ls = pymc.Lognormal('Ls', mu=log(Ls_stated / ureg.molar ), tau=1.0/log(1.0+(dLs/Ls_stated)**2), value=Ls_stated / ureg.molar )
 
         # Define priors for thermodynamic quantities.
         self.log_sigma = pymc.Uniform('log_sigma', lower=log_sigma_min, upper=log_sigma_max, value=log_sigma_guess)

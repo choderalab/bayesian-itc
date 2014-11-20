@@ -4,11 +4,11 @@ Contains Experiment and Injection classes.
 import os
 from units import ureg,Quantity
 from math import pi
+import logging
 import numpy
 
-#=========================================================================
-# Injection class.
-#=========================================================================
+# Use logger with name of module
+logger = logging.getLogger(__name__)
 
 
 class Injection(object):
@@ -42,10 +42,6 @@ class Injection(object):
         # of applied power
         self.filter_period = filter_period
 
-
-#=========================================================================
-# ITC Experiment class
-#=========================================================================
 
 class Experiment(object):
 
@@ -178,6 +174,8 @@ class Experiment(object):
         # supposed concentration of receptor in cell
         self.cell_concentration = float(
             lines[parsecline + 1][1:].strip()) * ureg.millimole / ureg.liter
+        print "TESTTETESTESSTE"
+        print self.syringe_concentration
         self.cell_volume = float(
             lines[parsecline + 2][1:].strip()) * ureg.milliliter  # cell volume
         self.injection_tick = [0]
@@ -198,7 +196,7 @@ class Experiment(object):
         for line in measurement_lines:
             if line[0] != '@':
                 nmeasurements += 1
-        print "There are %d power measurements." % nmeasurements
+        logger.info("There are %d power measurements." % nmeasurements)
 
         # Store data about measured heat liberated during each injection.
         self.filter_period_end_time = ureg.Quantity(numpy.zeros(
@@ -271,24 +269,24 @@ class Experiment(object):
         # Perform a self-consistency check on the data to make sure all
         # injections are accounted for.
         if (number_of_injections_read != self.number_of_injections):
-            print 'WARNING'
-            print 'Number of injections read (%d) is not equal to number of injections declared (%d).' % (number_of_injections_read, self.number_of_injections)
-            print 'This is usually a sign that the experimental run was terminated prematurely.'
-            print 'The analysis will not include the final %d injections declared.' % (self.number_of_injections - number_of_injections_read)
+            logger.warning("Number of injections read (%d) is not equal to number of injections declared (%d)." % (number_of_injections_read, self.number_of_injections) +
+                           "This is usually a sign that the experimental run was terminated prematurely." +
+                           "The analysis will not include the final %d injections declared." % (self.number_of_injections - number_of_injections_read),
+                   q        )
 
             # Remove extra injections.
             self.injections = self.injections[0:number_of_injections_read]
             self.number_of_injections = number_of_injections_read
 
         # DEBUG
-        print "self.injections has %d elements" % (len(self.injections))
+        logger.debug("self.injections has %d elements" % (len(self.injections)))
 
         # Annotate list of injections.
         for injection in self.injections:
             injection_number = injection.number
-            print "%5d %8d" % (injection_number, injection_labels[injection_number])
+            logger.debug("%5d %8d" % (injection_number, injection_labels[injection_number]))
             injection.first_index = injection_labels[injection_number]
-            if (injection_number < len(injection_labels) - 1):
+            if injection_number < len(injection_labels) - 1:
                 injection.last_index = injection_labels[
                     injection_number + 1] - 1
             else:
@@ -361,9 +359,7 @@ class Experiment(object):
         # Store list of data to which base line was fitted.
         self.baseline_fit_data = {'x': x, 'y': y, 'indices': fit_indices}
 
-        print "Fitting data:"
-        print x
-        print y
+        logger.info("Fitting data:\n%s\n%s" % (x, y))
 
         # Perform nonlinear fit using multiple guesses.
         # Parameters are [x0, y0, c, k].
@@ -381,7 +377,7 @@ class Experiment(object):
         minimal_error_index = 0
         for index in range(1, len(p_fits)):
             error = _eNegX_error(p_fits[index], x, y)
-            if (error < minimal_error):
+            if error < minimal_error:
                 minimal_error = error
                 minimal_error_index = index
         p = p_fits[minimal_error_index]
@@ -390,9 +386,7 @@ class Experiment(object):
         xfit = self.filter_period_end_time[:] / ureg.second
         yfit = _eNegX_(p, xfit)
 
-        # DEBUG
-        print "Fit parameters: [x0, y0, c, k]"
-        print p
+        logger.debug("Fit parameters: [x0, y0, c, k]\n%s" % p)
 
         # Store baseline fit parameters.
         self.baseline_fit_parameters = p
@@ -426,16 +420,13 @@ class Experiment(object):
                         last_index + 1)] - self.baseline_power[
                     first_index:(
                         last_index + 1)]).sum()
-
-            # DEBUG
-            print "injection %d, filter period %f s, integrating sample %d to %d" % (injection.number, injection.filter_period / ureg.second, first_index, last_index)
+            logger.debug("injection %d, filter period %f s, integrating sample %d to %d" % (injection.number, injection.filter_period / ureg.second, first_index, last_index))
 
             # Determine total heat evolved.
             evolved_heat = - excess_energy_input
 
             # Store heat evolved from this injection.
             injection.evolved_heat = evolved_heat
-
         return
 
     def __str__(self):
