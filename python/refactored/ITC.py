@@ -1,5 +1,4 @@
 #!/usr/bin/python
-
 """
 A module implementing Bayesian analysis of isothermal titration calorimetry (ITC) experiments
 
@@ -67,14 +66,29 @@ def compute_normal_statistics(x_t):
 # MAIN AND TESTS
 #=============================================================================================
 
-if __name__ == "__main__":
-    # Run doctests.
-    import doctest
-    doctest.testmod()
+__usage__ = """Bayesian Analysis of Microcal iTC200 data
 
-    #=============================================================================================
-    # Load experimental data.
-    #=============================================================================================
+Usage:
+  ITC.py analyze <file> [-q <file> | --heats=<file>]
+  ITC.py analyze mcmc <file> [-q <file> | --heats=<file>] [options]
+  ITC.py (-h | --help)
+  ITC.py --version
+
+Options:
+  -h, --help    Show this screen
+  --version         Show version
+  --license         Show license
+  -q <file>, --heats=<file>    Integrated heats (q_n) from file
+  --niters=<n>      No. of iterations for mcmc sampling [default: 2000000]
+  --nburn=<n>       No. of Burn-in iterations for mcmc sampling [default: 500000]
+  --nthin=<n>       Thinning period for mcmc sampling [default: 250]
+"""
+
+if __name__ == "__main__":
+    from docopt import docopt
+    arguments = docopt(__usage__, version='ITC.py development version, early pre-alpha')
+    print(arguments)
+    exit(0)
     vpitc = VPITC()
     experiments = list()
 
