@@ -69,7 +69,7 @@ def compute_normal_statistics(x_t):
 __usage__ = """Bayesian Analysis of Microcal iTC200 data
 
 Usage:
-  ITC.py analyze <file> [-q <file> | --heats=<file>]
+  ITC.py analyze <file> [-q <file> | --heats=<file>] [-m <model> | --model=<model>]
   ITC.py analyze mcmc <file> [-q <file> | --heats=<file>] [options]
   ITC.py (-h | --help)
   ITC.py --version
@@ -79,6 +79,7 @@ Options:
   --version         Show version
   --license         Show license
   -q <file>, --heats=<file>    Integrated heats (q_n) from file
+  -m <model>, --model=<model>  Model to use for experiment [default: TwoComponent]
   --niters=<n>      No. of iterations for mcmc sampling [default: 2000000]
   --nburn=<n>       No. of Burn-in iterations for mcmc sampling [default: 500000]
   --nthin=<n>       Thinning period for mcmc sampling [default: 250]
