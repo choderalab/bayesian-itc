@@ -68,12 +68,16 @@ def compute_normal_statistics(x_t):
 #=============================================================================================
 
 #  TODO add options for output files
+#  TODO make use of .itc
+#  TODO make use of heats file
+#  TODO make use of model argument
+#  TODO make use of niters, nburn,nthin arguments
 __usage__ = """
-Bayesian analysis of Microcal iTC200 data.
+Bayesian analysis of MicroCal .itc file data.
 
 Usage:
-  ITC.py analyze <file> [-q <file> | --heats=<file>]
-  ITC.py analyze mcmc <file> [-q <file> | --heats=<file>] [-m <model> | --model=<model>] [options]
+  ITC.py analyze <datafile> <workdir> [-n <name> | --name=<name>] [-q <file> | --heats=<file>]  [-v | -vv | -vvv] [-r <file> | --report=<file>]
+  ITC.py analyze mcmc <datafile> <workdir> [-n <name> | --name=<name>] [-q <file> | --heats=<file>] [-m <model> | --model=<model>] [-v | -vv | -vvv] [-r <file> | --report=<file>] [options]
   ITC.py (-h | --help)
   ITC.py --license
   ITC.py --version
@@ -82,17 +86,41 @@ Options:
   -h, --help                    Show this screen
   --version                     Show version
   --license                     Show license
+  -v, -vv, -vvv                 Verbose output level. Multiple flags increase verbosity. [default: 0]
+  <datafile>                    A .itc file to perform the analysis on
+  <workdir>                     Directory for output files
+  -n <name>, --name=<name>      Name for the experiment. Will be used for output files. [default: experiment]
   -q <file>, --heats=<file>     Integrated heats (q_n) from file
   -m <model>, --model=<model>   Model to use for mcmc sampling                  [default: TwoComponent]
   --niters=<n>                  No. of iterations for mcmc sampling             [default: 2000000]
   --nburn=<n>                   No. of Burn-in iterations for mcmc sampling     [default: 500000]
   --nthin=<n>                   Thinning period for mcmc sampling               [default: 250]
+  -r <file>, --report=<file>    Output file with summary in markdown
 """
 
 if __name__ == "__main__":
     from docopt import docopt
-    arguments = docopt(__usage__, version='ITC.py development version, early pre-alpha')
-    print(arguments)
+    from schema import Schema, And, Or, Use
+    import os
+
+    arguments = docopt(__usage__, argv='analyze mcmc datafile.itc julie -q heats.txt -m TwoComponent', version='ITC.py, pre-alpha')
+    schema = Schema({'--heats': Or(None, Use(open)),  # Open a file, with reading permissions
+                    '--help': bool,  # True or False are accepted
+                    '--license': bool,  # True or False are accepted
+                    '-v':And(int, lambda n: 0 <= n <= 3),  # integer between 0 and 3
+                    '--model': And(str, lambda m: m in ['TwoComponent', 'Competitive']),  # str and found in this list
+                    '--nburn': And(Use(int), lambda n: n > 0),  # Convert str to int, make sure that it is larger than 0
+                    '--niters': And(Use(int), lambda n: n > 0),  # Convert str to int, make sure that it is larger than 0
+                    '--nthin': And(Use(int), lambda n: n > 0),  # Convert str to int, make sure that it is larger than 0
+                    '--name': And(str, len),  # Not an empty string
+                    '--version': bool,  # True or False are accepted
+                    '<workdir>':  Or(os.path.exists, Use(lambda p: os.mkdir(p))),  # Check if directory exists, or make the directory
+                    '<datafile>':  Use(open),  # Open a file, with reading permissions
+                    'analyze': bool,  # True or False are accepted
+                    'mcmc': bool,  # True or False are accepted
+                    '--report': Or(None, Use(lambda f: open(f, 'w'))),  # Open file
+                })
+    validated = schema.validate(arguments)
     exit(0)
     vpitc = VPITC()
     experiments = list()
