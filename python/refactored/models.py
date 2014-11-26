@@ -755,6 +755,13 @@ class CompetitiveBindingModel(BindingModel):
 
         return q_n
 
+
+# Container of all models that this module provides for use
+known_models = {'TwoComponent': TwoComponentBindingModel,
+                'Competitive': CompetitiveBindingModel,
+                }
+
+
 #=============================================================================================
 # MAIN AND TESTS
 #=============================================================================================

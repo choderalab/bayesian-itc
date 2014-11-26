@@ -27,23 +27,18 @@ store or extract quantities in the desired units.
 
 """
 
+from os.path import basename, splitext
 import numpy
-import os
 import logging
 from units import ureg, Quantity
-import scipy.stats
 import pymc
 from report import Report, analyze
+from parser import parser
 from experiments import Injection, Experiment
-from instruments import VPITC
-from models import RescalingStep, TwoComponentBindingModel
+from instruments import known_instruments, Instrument
+from models import RescalingStep, known_models
 
-# debug level logging at the moment
-logging.basicConfig(format='%(levelname)s::%(pathname)s:L%(lineno)s\n%(message)s', level=logging.DEBUG)
-# Use logger with name of module
-logger = logging.getLogger(__name__)
-
-#TODO Find out if this is still used
+# TODO Find out if this is still used
 def compute_normal_statistics(x_t):
 
     # Compute mean.
@@ -63,172 +58,147 @@ def compute_normal_statistics(x_t):
 
     return [x, dx, xlow, xhigh]
 
+validated = parser('mcmc ../../data/SAMPL4/CB7/082213b15.itc workdir -q heats.txt -m TwoComponent -vvv')
+
+# Arguments to variables
+# Set the logfile
+if validated['--log']:
+    logfile = '%(<workdir>)s/%(--log)s' % validated
+else:
+    logfile = None
+
+# Level of verbosity
+if validated['-v'] == 3:
+    loglevel = logging.DEBUG
+elif validated['-v'] == 2:
+    loglevel = logging.INFO
+elif validated['-v'] == 1:
+    loglevel = logging.WARNING
+else:
+    loglevel = logging.ERROR
+
+# Set up the logger
+logging.basicConfig(format='%(levelname)s::%(module)s:L%(lineno)s\n%(message)s', level=loglevel, filename=logfile)
+
+# Files for processing
+filename = validated['<datafile>']  # .itc file to process
+working_directory = validated['<workdir>']
+integrated_heats_file = validated['--heats']  # file with integrated heats
+
+if not validated['--name']:
+    # Name of the experiment, and output files
+    experiment_name, file_extension = splitext(basename(filename))
+else:
+    experiment_name = validated['--name']
+
+if validated['mcmc']:
+    # MCMC settings
+    niters = validated['--niters']  # number of iterations
+    nburn = validated['--nburn']    # number of burn-in iterations
+    nthin = validated['--nthin']    # thinning period
+    Model = known_models[validated['--model']]  # Model type for mcmc
+
+if validated['--instrument']:
+    # Use an instrument from the brochure
+    instrument = known_instruments[validated['--instrument']]()
+else:
+    # Read instrument properties from the .itc file
+    instrument = Instrument(itcfile=filename)
+
+logging.debug("Received this input from the user:")
+logging.debug(str(validated))
+logging.debug("Current state:")
+logging.debug(str(locals()))
+
+# TODO update code below this point
+
+# Close all figure windows.
+import pylab
+pylab.close('all')
+logging.info("Reading ITC data from %s" % filename)
+
+experiment = Experiment(filename)
+logging.debug(str(experiment))
+#  TODO work on a markdown version for generating reports. Perhaps use sphinx
+analyze(experiment_name, experiment)
+# Write Origin-style integrated heats.
+filename = experiment_name + '-integrated.txt'
+experiment.write_integrated_heats(filename)
+
+# Write baseline fit information.
+filename = experiment_name + '-baseline.png'
+experiment.plot_baseline(filename)
+
 #=============================================================================================
-# MAIN AND TESTS
+# MCMC inference
 #=============================================================================================
 
-#  TODO add options for output files
-#  TODO make use of .itc
-#  TODO make use of heats file
-#  TODO make use of model argument
-#  TODO make use of niters, nburn,nthin arguments
-__usage__ = """
-Bayesian analysis of MicroCal .itc file data.
+# Construct a Model from Experiment object.
+import traceback
+try:
+    from models import TwoComponentBindingModel
+    model = TwoComponentBindingModel(experiment, instrument)
+except Exception as e:
+    logging.error(str(e))
+    logging.error(traceback.format_exc())
+    raise Exception(e)
 
-Usage:
-  ITC.py analyze <datafile> <workdir> [-n <name> | --name=<name>] [-q <file> | --heats=<file>]  [-v | -vv | -vvv] [-r <file> | --report=<file>]
-  ITC.py analyze mcmc <datafile> <workdir> [-n <name> | --name=<name>] [-q <file> | --heats=<file>] [-m <model> | --model=<model>] [-v | -vv | -vvv] [-r <file> | --report=<file>] [options]
-  ITC.py (-h | --help)
-  ITC.py --license
-  ITC.py --version
+# First fit the model.
+# TODO This should be incorporated in the model. Perhaps as a model.getSampler() method?
+print "Fitting model..."
+map = pymc.MAP(model)
+map.fit(iterlim=20000)
+print map
 
-Options:
-  -h, --help                    Show this screen
-  --version                     Show version
-  --license                     Show license
-  -v, -vv, -vvv                 Verbose output level. Multiple flags increase verbosity. [default: 0]
-  <datafile>                    A .itc file to perform the analysis on
-  <workdir>                     Directory for output files
-  -n <name>, --name=<name>      Name for the experiment. Will be used for output files. [default: experiment]
-  -q <file>, --heats=<file>     Integrated heats (q_n) from file
-  -m <model>, --model=<model>   Model to use for mcmc sampling                  [default: TwoComponent]
-  --niters=<n>                  No. of iterations for mcmc sampling             [default: 2000000]
-  --nburn=<n>                   No. of Burn-in iterations for mcmc sampling     [default: 500000]
-  --nthin=<n>                   Thinning period for mcmc sampling               [default: 250]
-  -r <file>, --report=<file>    Output file with summary in markdown
-"""
 
-if __name__ == "__main__":
-    from docopt import docopt
-    from schema import Schema, And, Or, Use
-    import os
 
-    arguments = docopt(__usage__, argv='analyze mcmc datafile.itc julie -q heats.txt -m TwoComponent', version='ITC.py, pre-alpha')
-    schema = Schema({'--heats': Or(None, Use(open)),  # Open a file, with reading permissions
-                    '--help': bool,  # True or False are accepted
-                    '--license': bool,  # True or False are accepted
-                    '-v':And(int, lambda n: 0 <= n <= 3),  # integer between 0 and 3
-                    '--model': And(str, lambda m: m in ['TwoComponent', 'Competitive']),  # str and found in this list
-                    '--nburn': And(Use(int), lambda n: n > 0),  # Convert str to int, make sure that it is larger than 0
-                    '--niters': And(Use(int), lambda n: n > 0),  # Convert str to int, make sure that it is larger than 0
-                    '--nthin': And(Use(int), lambda n: n > 0),  # Convert str to int, make sure that it is larger than 0
-                    '--name': And(str, len),  # Not an empty string
-                    '--version': bool,  # True or False are accepted
-                    '<workdir>':  Or(os.path.exists, Use(lambda p: os.mkdir(p))),  # Check if directory exists, or make the directory
-                    '<datafile>':  Use(open),  # Open a file, with reading permissions
-                    'analyze': bool,  # True or False are accepted
-                    'mcmc': bool,  # True or False are accepted
-                    '--report': Or(None, Use(lambda f: open(f, 'w'))),  # Open file
-                })
-    validated = schema.validate(arguments)
-    exit(0)
-    vpitc = VPITC()
-    experiments = list()
+mcmc = pymc.MCMC(model, db='ram')
 
-    # Obtain list of .itc data files to be processed
-    from glob import glob
-    from os.path import basename, splitext
+mcmc.use_step_method(pymc.Metropolis, model['DeltaG'])
+mcmc.use_step_method(pymc.Metropolis, model['DeltaH'])
+mcmc.use_step_method(pymc.Metropolis, model['DeltaH_0'])
+mcmc.use_step_method(pymc.Metropolis, model['log_sigma'])
 
-    directory = '../../data/SAMPL4/CB7'
-    filenames = glob('%s/*.itc' % directory)
-    
-    logger.info("Reading these files: \n" +
-                ",\n".join(filenames))
-    # Create Experiment instance from .itc files and analyze the data
-    for filename in filenames:
-        # Close all figure windows.
-        import pylab
-        pylab.close('all')
+if experiment.cell_concentration > 0.0:
+    mcmc.use_step_method(pymc.Metropolis, model['P0'])
+if experiment.syringe_concentration > 0.0:
+    mcmc.use_step_method(pymc.Metropolis, model['Ls'])
 
-        experiment_name, file_extension = splitext(basename(filename))
+if (experiment.cell_concentration > 0.0) and (experiment.syringe_concentration > 0.0):
+    mcmc.use_step_method(RescalingStep, [model['Ls'], model['P0'], model['DeltaH'], model['DeltaG'], model['DeltaH_0']], model['beta'])
 
-        logger.info("Reading ITC data from %s" % filename)
+print "Sampling..."
+mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
+#pymc.Matplot.plot(mcmc)
 
-        experiment = Experiment(filename)
-        logger.debug(str(experiment))
-        #  TODO work on a markdown version for generating reports. Perhaps use sphinx
-        analyze(experiment_name, experiment)
-        # Write Origin-style integrated heats.
-        filename = experiment_name + '-integrated.txt'
-        experiment.write_integrated_heats(filename)
+# Plot individual terms.
+if experiment.cell_concentration > 0.0:
+    pymc.Matplot.plot(mcmc.trace('P0')[:] / (ureg.millimole/ ureg.liter), '%s-P0' % experiment_name)
+if experiment.syringe_concentration > 0.0:
+    pymc.Matplot.plot(mcmc.trace('Ls')[:] / (ureg.micromole/ ureg.liter), '%s-Ls' % experiment_name)
+pymc.Matplot.plot(mcmc.trace('DeltaG')[:] / (ureg.kilocalorie/ureg.mole), '%s-DeltaG' % experiment_name)
+pymc.Matplot.plot(mcmc.trace('DeltaH')[:] / (ureg.kilocalorie/ureg.mole), '%s-DeltaH' % experiment_name)
+pymc.Matplot.plot(mcmc.trace('DeltaH_0')[:] / (ureg.microcalorie/ureg.microliter), '%s-DeltaH_0' % experiment_name)
+pymc.Matplot.plot(numpy.exp(mcmc.trace('log_sigma')[:]) * ureg.calorie / ureg.second**0.5, '%s-sigma' % experiment_name)
 
-        # Write baseline fit information.
-        filename = experiment_name + '-baseline.png'
-        experiment.plot_baseline(filename)
+#  TODO: Plot fits to enthalpogram.
+experiment.plot(model=mcmc, filename='sampl4/%s-enthalpogram.png' % experiment_name)
 
-        #=============================================================================================
-        # MCMC inference
-        #=============================================================================================
-
-        # Construct a Model from Experiment object.
-        import traceback
-        try:
-            from models import TwoComponentBindingModel
-            model = TwoComponentBindingModel(experiment, vpitc)
-        except Exception as e:
-            logger.error(str(e))
-            logger.error(traceback.format_exc())
-            # raise Exception(e)
-            continue
-
-        # First fit the model.
-        # TODO This should be incorporated in the model. Perhaps as a model.getSampler() method?
-        print "Fitting model..."
-        map = pymc.MAP(model)
-        map.fit(iterlim=20000)
-        print map
-
-        niters = 2000000 # number of iterations
-        nburn  = 500000 # number of burn-in iterations
-        nthin  = 250 # thinning period
-        
-        mcmc = pymc.MCMC(model, db='ram')
-
-        mcmc.use_step_method(pymc.Metropolis, model['DeltaG'])
-        mcmc.use_step_method(pymc.Metropolis, model['DeltaH'])
-        mcmc.use_step_method(pymc.Metropolis, model['DeltaH_0'])
-        mcmc.use_step_method(pymc.Metropolis, model['log_sigma'])
-        
-        if experiment.cell_concentration > 0.0:
-            mcmc.use_step_method(pymc.Metropolis, model['P0'])
-        if experiment.syringe_concentration > 0.0:
-            mcmc.use_step_method(pymc.Metropolis, model['Ls'])
-        
-        if (experiment.cell_concentration > 0.0) and (experiment.syringe_concentration > 0.0):
-            mcmc.use_step_method(RescalingStep, [model['Ls'], model['P0'], model['DeltaH'], model['DeltaG'], model['DeltaH_0']], model['beta'])
-        
-        print "Sampling..."
-        mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
-        #pymc.Matplot.plot(mcmc)
-
-        # Plot individual terms.
-        if experiment.cell_concentration > 0.0:
-            pymc.Matplot.plot(mcmc.trace('P0')[:] / (ureg.millimole/ ureg.liter), '%s-P0' % experiment_name)
-        if experiment.syringe_concentration > 0.0:
-            pymc.Matplot.plot(mcmc.trace('Ls')[:] / (ureg.micromole/ ureg.liter), '%s-Ls' % experiment_name)
-        pymc.Matplot.plot(mcmc.trace('DeltaG')[:] / (ureg.kilocalorie/ureg.mole), '%s-DeltaG' % experiment_name)
-        pymc.Matplot.plot(mcmc.trace('DeltaH')[:] / (ureg.kilocalorie/ureg.mole), '%s-DeltaH' % experiment_name)
-        pymc.Matplot.plot(mcmc.trace('DeltaH_0')[:] / (ureg.microcalorie/ureg.microliter), '%s-DeltaH_0' % experiment_name)
-        pymc.Matplot.plot(numpy.exp(mcmc.trace('log_sigma')[:]) * ureg.calorie / ureg.second**0.5, '%s-sigma' % experiment_name)
-        
-        #  TODO: Plot fits to enthalpogram.
-        experiment.plot(model=mcmc, filename='sampl4/%s-enthalpogram.png' % experiment_name)
-        
-        # Compute confidence intervals in thermodynamic parameters.
-        outfile = open('sampl4/confidence-intervals.out','a')
-        outfile.write('%s\n' % experiment_name)
-        [x, dx, xlow, xhigh] = compute_normal_statistics(mcmc.trace('DeltaG')[:] / (ureg.kilocalorie/ureg.mole))
-        outfile.write('DG:     %8.2f +- %8.2f kcal/mol     [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_normal_statistics(mcmc.trace('DeltaH')[:] / (ureg.kilocalorie/ureg.mole))
-        outfile.write('DH:     %8.2f +- %8.2f kcal/mol     [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_normal_statistics(mcmc.trace('DeltaH_0')[:] / (ureg.microcalorie/ureg.microliter))
-        outfile.write('DH0:    %8.2f +- %8.2f ucal         [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_normal_statistics(mcmc.trace('Ls')[:] / (ureg.micromole/ ureg.liter))
-        outfile.write('Ls:     %8.2f +- %8.2f uM           [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_normal_statistics(mcmc.trace('P0')[:] / (ureg.micromole / ureg.liter))
-        outfile.write('P0:     %8.2f +- %8.2f uM           [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_normal_statistics(numpy.exp(mcmc.trace('log_sigma')[:]) * ureg.calorie / ureg.second**0.5)
-        outfile.write('sigma:  %8.5f +- %8.5f ucal/s^(1/2) [%8.5f, %8.5f] \n' % (x, dx, xlow, xhigh))        
-        outfile.write('\n')
-        outfile.close()
+# Compute confidence intervals in thermodynamic parameters.
+outfile = open('sampl4/confidence-intervals.out','a')
+outfile.write('%s\n' % experiment_name)
+[x, dx, xlow, xhigh] = compute_normal_statistics(mcmc.trace('DeltaG')[:] / (ureg.kilocalorie/ureg.mole))
+outfile.write('DG:     %8.2f +- %8.2f kcal/mol     [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
+[x, dx, xlow, xhigh] = compute_normal_statistics(mcmc.trace('DeltaH')[:] / (ureg.kilocalorie/ureg.mole))
+outfile.write('DH:     %8.2f +- %8.2f kcal/mol     [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
+[x, dx, xlow, xhigh] = compute_normal_statistics(mcmc.trace('DeltaH_0')[:] / (ureg.microcalorie/ureg.microliter))
+outfile.write('DH0:    %8.2f +- %8.2f ucal         [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
+[x, dx, xlow, xhigh] = compute_normal_statistics(mcmc.trace('Ls')[:] / (ureg.micromole/ ureg.liter))
+outfile.write('Ls:     %8.2f +- %8.2f uM           [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
+[x, dx, xlow, xhigh] = compute_normal_statistics(mcmc.trace('P0')[:] / (ureg.micromole / ureg.liter))
+outfile.write('P0:     %8.2f +- %8.2f uM           [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
+[x, dx, xlow, xhigh] = compute_normal_statistics(numpy.exp(mcmc.trace('log_sigma')[:]) * ureg.calorie / ureg.second**0.5)
+outfile.write('sigma:  %8.5f +- %8.5f ucal/s^(1/2) [%8.5f, %8.5f] \n' % (x, dx, xlow, xhigh))
+outfile.write('\n')
+outfile.close()
 
