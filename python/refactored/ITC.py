@@ -58,7 +58,7 @@ def compute_normal_statistics(x_t):
 
     return [x, dx, xlow, xhigh]
 
-validated = parser('mcmc ../../data/SAMPL4/CB7/082213b15.itc workdir -q heats.txt -m TwoComponent -vvv')
+validated = parser('mcmc ../../data/SAMPL4/CB7/082213b15.itc workdir -q heats.txt -m TwoComponent -vvv -n test.exp')
 
 # Arguments to variables
 # Set the logfile
@@ -67,7 +67,7 @@ if validated['--log']:
 else:
     logfile = None
 
-# Level of verbosity
+# Level of verbosity in log
 if validated['-v'] == 3:
     loglevel = logging.DEBUG
 elif validated['-v'] == 2:
@@ -136,8 +136,8 @@ experiment.plot_baseline(filename)
 # Construct a Model from Experiment object.
 import traceback
 try:
-    from models import TwoComponentBindingModel
-    model = TwoComponentBindingModel(experiment, instrument)
+
+    model = Model(experiment, instrument)
 except Exception as e:
     logging.error(str(e))
     logging.error(traceback.format_exc())
