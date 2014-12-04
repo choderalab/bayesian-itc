@@ -10,6 +10,7 @@ A test of pymc for ITC.
 import numpy
 import pymc
 import copy
+from sklearn.ensemble._gradient_boosting import np_bool
 from units import ureg, Quantity
 import scipy.integrate
 import logging
@@ -18,11 +19,6 @@ from math import sqrt, exp, log
 
 # Use module name for logger
 logger = logging.getLogger(__name__)
-
-
-Na = 6.02214179e23 # Avogadro's number (number/mol)
-kB = Na * 1.3806504e-23 / 4184.0 # Boltzmann constant (kcal/mol/K)
-C0 = 1.0 # standard concentration (M)
 
 #TODO check if rescaling step is still necessary
 
@@ -55,7 +51,7 @@ class RescalingStep(pymc.StepMethod):
 
         self._current_iter = 0
         self.interval = interval
-    
+
         self.accepted = 0
         self.rejected = 0
 
@@ -108,9 +104,9 @@ class RescalingStep(pymc.StepMethod):
             loglike_p = None
             logger.debug('Rejected with ZeroProbability error.')
 
-        if (not self._current_iter % self.interval):
+        if not self._current_iter % self.interval:
             logger.info("Step ", self._current_iter +
-                        "\tLogprobability (current, proposed): %f, %f " % ( logp , logp_p ) +
+                        "\tLogprobability (current, proposed): %f, %f " % (logp, logp_p) +
                         "\tloglike (current, proposed):      : " + loglike, loglike_p)
             for stochastic in self.stochastics:
                 logger.info("\t" + str(stochastic.__name__) + str(stochastic.last_value) + str(stochastic.value))
@@ -151,7 +147,7 @@ class BindingModel(object):
 
     def __init__(self):
         pass
-    
+
 
 
 class TwoComponentBindingModel(BindingModel):
@@ -178,26 +174,23 @@ class TwoComponentBindingModel(BindingModel):
 
         # Store temperature.
         self.temperature = experiment.target_temperature # temperature (kelvin)
-        self.beta = 1.0 / (kB * self.temperature) # inverse temperature 1/(kcal/mol)
+        self.beta = 1.0 / ( ureg.molar_gas_constant * self.temperature) # inverse temperature 1/(kcal/mol)
 
         # Compute uncertainties in stated concentrations.
         dP0 = 0.10 * P0_stated # uncertainty in protein stated concentration (M) - 10% error
         dLs = 0.10 * Ls_stated # uncertainty in ligand stated concentration (M) - 10% error
 
         # Determine guesses for initial values
-        q_n = list()
-        for injection in experiment.injections:
-            q_n.append(injection.evolved_heat / ureg.microcalorie )
+        q_n = Quantity(numpy.zeros(len(experiment.injections)), 'microcalorie')
+        for inj, injection in enumerate(experiment.injections):
+            q_n[inj] = injection.evolved_heat
 
-        # Fix for voodoo that occurs when adding Quantities to a numpy array, which would drop units
-        q_n = Quantity(numpy.asarray(q_n), ureg.microcalorie)
-
-        log_sigma_guess = log(q_n[-4:].std() / ureg.microcal ) # cal/injection
+        log_sigma_guess = log(q_n[-4:].std() / ureg.microcal)  # review: how can we do this better?
         DeltaG_guess = -8.3 * ureg.kilocalorie / ureg.mol
         DeltaH_guess = -12.0 * ureg.kilocalorie / ureg.mol
 
         #Assume the last injection has the best guess for H0
-        DeltaH_0_guess = q_n[-1] * ureg.calorie # cal/injection
+        DeltaH_0_guess = q_n[-1] # ucal/injection
 
         # Determine min and max range for log_sigma
         log_sigma_min = log_sigma_guess - 10
@@ -208,26 +201,27 @@ class TwoComponentBindingModel(BindingModel):
         DeltaG_max = +40. * ureg.kilocalorie / ureg.mol  # (kcal/mol)
         DeltaH_min = -100. * ureg.kilocalorie / ureg.mol  # (kcal/mol)
         DeltaH_max = +100. * ureg.kilocalorie / ureg.mol  # (kcal/mol)
-        heat_interval = q_n.max() - q_n.min()
+        # review dH = dQ, so is the unit of H0 cal, or cal/mol? Where does the mol come into the equation.
+        heat_interval = (q_n.max() - q_n.min())
         DeltaH_0_min = q_n.min() - heat_interval  # (cal/mol)
         DeltaH_0_max = q_n.max() + heat_interval  # (cal/mol)
-
+        numpy.ones
         # Define priors for concentrations.
         #self.P0 = pymc.Normal('P0', mu=P0_stated, tau=1.0/dP0**2, value=P0_stated)
         #self.Ls = pymc.Normal('Ls', mu=Ls_stated, tau=1.0/dLs**2, value=Ls_stated)
         # TODO Eliminate units from pymc input
-        self.P0 = pymc.Lognormal('P0', mu=log(P0_stated / ureg.molar ), tau=1.0/log(1.0+(dP0/P0_stated)**2), value=P0_stated / ureg.molar)
-        self.Ls = pymc.Lognormal('Ls', mu=log(Ls_stated / ureg.molar ), tau=1.0/log(1.0+(dLs/Ls_stated)**2), value=Ls_stated / ureg.molar )
+        self.P0 = pymc.Lognormal('P0', mu=log(P0_stated / ureg.molar), tau=1.0/log(1.0+(dP0/P0_stated)**2), value=P0_stated / ureg.molar)
+        self.Ls = pymc.Lognormal('Ls', mu=log(Ls_stated / ureg.molar), tau=1.0/log(1.0+(dLs/Ls_stated)**2), value=Ls_stated / ureg.molar)
 
         # Define priors for thermodynamic quantities.
         self.log_sigma = pymc.Uniform('log_sigma', lower=log_sigma_min, upper=log_sigma_max, value=log_sigma_guess)
-        self.DeltaG = pymc.Uniform('DeltaG', lower=DeltaG_min, upper=DeltaG_max, value=DeltaG_guess)
-        self.DeltaH = pymc.Uniform('DeltaH', lower=DeltaH_min, upper=DeltaH_max, value=DeltaH_guess)
-        self.DeltaH_0 = pymc.Uniform('DeltaH_0', lower=DeltaH_0_min, upper=DeltaH_0_max, value=DeltaH_0_guess)
+        self.DeltaG = pymc.Uniform('DeltaG', lower=DeltaG_min / (ureg.kilocalorie / ureg.mol), upper=DeltaG_max / (ureg.kilocalorie / ureg.mol), value=DeltaG_guess / (ureg.kilocalorie / ureg.mol))
+        self.DeltaH = pymc.Uniform('DeltaH', lower=DeltaH_min / (ureg.kilocalorie / ureg.mol), upper=DeltaH_max / (ureg.kilocalorie / ureg.mol), value=DeltaH_guess / (ureg.kilocalorie / ureg.mol))
+        # review make sure we get the units right on this.
+        self.DeltaH_0 = pymc.Uniform('DeltaH_0', lower=DeltaH_0_min / ureg.calorie, upper=DeltaH_0_max / ureg.calorie, value=DeltaH_0_guess / ureg.calorie)
 
-        # Deterministic functions.
-        q_n_model = pymc.Lambda('q_n_model', lambda P0=self.P0, Ls=self.Ls, DeltaG=self.DeltaG, DeltaH=self.DeltaH, DeltaH_0=self.DeltaH_0, q_n_obs=self.DeltaH_0 :
-        self.expected_injection_heats(P0, Ls, DeltaG, DeltaH, DeltaH_0, q_n_obs))
+        q_n_model = pymc.Lambda('q_n_model', lambda P0=self.P0, Ls=self.Ls, DeltaG=self.DeltaG, DeltaH=self.DeltaH, DeltaH_0=self.DeltaH_0, q_n_obs=self.DeltaH_0:
+        self.expected_injection_heats(P0 * ureg.molar, Ls * ureg.molar, DeltaG * ureg.kilocalorie / ureg.mol, DeltaH * ureg.kilocalorie / ureg.mol, DeltaH_0 * ureg.calorie, q_n_obs))
         tau = pymc.Lambda('tau', lambda log_sigma=self.log_sigma : self.tau(log_sigma))
 
         # Define observed data.
@@ -240,7 +234,7 @@ class TwoComponentBindingModel(BindingModel):
         mcmc.use_step_method(pymc.Metropolis, self.DeltaH_0)
         mcmc.use_step_method(pymc.Metropolis, self.P0)
         mcmc.use_step_method(pymc.Metropolis, self.Ls)
-        mcmc.use_step_method(RescalingStep, { 'Ls' : self.Ls, 'P0' : self.P0, 'DeltaH' : self.DeltaH, 'DeltaG' : self.DeltaG }, self.beta)
+        mcmc.use_step_method(RescalingStep, {'Ls' : self.Ls, 'P0' : self.P0, 'DeltaH' : self.DeltaH, 'DeltaG' : self.DeltaG}, self.beta)
         self.mcmc = mcmc
         return
 
@@ -258,27 +252,28 @@ class TwoComponentBindingModel(BindingModel):
 
         debug = False
 
-        Kd = exp(self.beta * DeltaG) * C0 # dissociation constant (M)
+        Kd = exp(self.beta * DeltaG) * ureg.standard_concentration  # dissociation constant (M)
         N = self.N
-
+        print self.V0
         # Compute complex concentrations.
-        Pn = numpy.zeros([N], numpy.float64) # Pn[n] is the protein concentration in sample cell after n injections (M)
-        Ln = numpy.zeros([N], numpy.float64) # Ln[n] is the ligand concentration in sample cell after n injections (M)
-        PLn = numpy.zeros([N], numpy.float64) # PLn[n] is the complex concentration in sample cell after n injections (M)
+        Pn = Quantity(numpy.zeros([N]), ureg.mole) # Pn[n] is the protein concentration in sample cell after n injections (M)
+        Ln = Quantity(numpy.zeros([N]), ureg.mole) # Ln[n] is the ligand concentration in sample cell after n injections (M)
+        PLn = Quantity(numpy.zeros([N]), ureg.mole) # PLn[n] is the complex concentration in sample cell after n injections (M)
         dcum = 1.0 # cumulative dilution factor (dimensionless)
         for n in range(N):
             # Instantaneous injection model (perfusion)
             # TODO: Allow injection volume to vary for each injection.
+            # REVIEW doing some numpy voodoo here to work the units.
             d = 1.0 - (self.DeltaVn[n] / self.V0) # dilution factor for this injection (dimensionless)
-            dcum *= d # cumulative dilution factor
-            P = self.V0 * P0 * dcum # total quantity of protein in sample cell after n injections (mol)
-            L = self.V0 * Ls * (1. - dcum) # total quantity of ligand in sample cell after n injections (mol)
-            PLn[n] = 0.5/self.V0 * ((P + L + Kd*self.V0) - sqrt((P + L + Kd*self.V0)**2 - 4*P*L));  # complex concentration (M)
-            Pn[n] = P/self.V0 - PLn[n]; # free protein concentration in sample cell after n injections (M)
-            Ln[n] = L/self.V0 - PLn[n]; # free ligand concentration in sample cell after n injections (M)
+            dcum *= d  # cumulative dilution factor
+            P = self.V0 * P0 * dcum  # total quantity of protein in sample cell after n injections (mol)
+            L = self.V0 * Ls * (1. - dcum)  # total quantity of ligand in sample cell after n injections (mol)
+            PLn[n] = (0.5/self.V0 * ((P + L + Kd*self.V0) - ((P + L + Kd*self.V0)**2 - 4*P*L)**0.5 ))  # complex concentration (M)
+            Pn[n] = P/self.V0 - PLn[n]  # free protein concentration in sample cell after n injections (M)
+            Ln[n] = L/self.V0 - PLn[n]  # free ligand concentration in sample cell after n injections (M)
 
         # Compute expected injection heats.
-        q_n = numpy.zeros([N], numpy.float64) # q_n_model[n] is the expected heat from injection n
+        q_n = numpy.zeros([N], object) # q_n_model[n] is the expected heat from injection n
         # Instantaneous injection model (perfusion)
         q_n[0] = (1000.0*DeltaH) * self.V0 * PLn[0] + DeltaH_0 # first injection
         for n in range(1,N):
@@ -309,9 +304,7 @@ class TwoComponentBindingModel(BindingModel):
         return exp(-2.0*log_sigma)
 
     #TODO Add specific createModel() for this binding model (move from ITC.py).
-#=============================================================================================
-# Competitive binding model
-#=============================================================================================
+
 
 class CompetitiveBindingModel(BindingModel):
     """
@@ -338,7 +331,7 @@ class CompetitiveBindingModel(BindingModel):
         # Store temperature.
         # NOTE: Right now, there can only be one.
         self.temperature = experiments[0].temperature # temperature (kelvin)
-        self.beta = 1.0 / (kB * self.temperature) # inverse temperature 1/(kcal/mol)
+        self.beta = 1.0 / (ureg.molar_gas_constant * self.temperature) # inverse temperature 1/(kcal/mol)
 
         # Store copy of experiments.
         self.experiments = copy.deepcopy(experiments)
@@ -680,7 +673,7 @@ class CompetitiveBindingModel(BindingModel):
             name = "DeltaG of %s * %s" % (self.receptor, ligand) # determine name of free energy of binding for this ligand
             DeltaG_n[n] = thermodynamic_parameters[name] # retrieve free energy of binding
 
-        Ka_n = numpy.exp(-self.beta * DeltaG_n[:]) / C0 # compute association constant (1/M)
+        Ka_n = numpy.exp(-self.beta * DeltaG_n[:]) / ureg.standard_concentration  # compute association constant (1/M)
 
         # Compute the quantity of each species in the sample cell after each injection.
         # NOTE: These quantities are correct for a perfusion-type model.  This would be modified for a cumulative model.
@@ -784,22 +777,22 @@ if __name__ == "__main__":
     Ls_stated = 384.e-6 # ligand syringe stated concentration (M)
     temperature = 298.15 # temperature (K)
     q_n = numpy.array([
-       -13.343, -13.417, -13.279, -13.199, -13.118, -12.781, -12.600, -12.124, -11.633, -10.921, -10.009, -8.810, 
+       -13.343, -13.417, -13.279, -13.199, -13.118, -12.781, -12.600, -12.124, -11.633, -10.921, -10.009, -8.810,
        -7.661, -6.272, -5.163, -4.228, -3.519, -3.055, -2.599, -2.512, -2.197, -2.096, -2.087, -1.959, -1.776, -1.879,
        -1.894, -1.813, -1.740, -1.810]) # integrated heats of injection (kcal/mol injectant)
     q_n = q_n * DeltaV * Ls_stated * 1000.0 # convert injection heats to cal/injection
-    beta = 1.0 / (kB * temperature) # inverse temperature 1/(kcal/mol)
-    
+    beta = 1.0 / (ureg.molar_gas_constant * temperature) # inverse temperature 1/(kcal/mol)
+
     #=============================================================================================
     # Erensto Freire data for HIV protease inhibitors KNI-10033 and KNI-10075
     #=============================================================================================
 
     experiments = list()
-    
+
     #
     # acetyl pepstatin
     #
-    
+
     V0 = 1.4301e-3 # volume of calorimeter sample cell listed in manual (L)
     V0 = V0 - 0.044e-3; # Tellinghuisen volume correction for VP-ITC (L)
     sample_cell_concentrations = {'HIV protease' : 20.e-6}
@@ -815,7 +808,7 @@ if __name__ == "__main__":
     experiment.name = "acetyl pepstatin binding to HIV protease"
     experiment.reference = "Nature Protocols 1:186, 2006; Fig. 1, left panel"
     experiments.append(experiment)
-    
+
     #
     # KNI-10033
     #
@@ -831,11 +824,11 @@ if __name__ == "__main__":
     experiment = Experiment(sample_cell_concentrations, syringe_concentrations, injection_volumes, injection_heats, temperature)
     experiment.name = "KNI-10033 displacement of acetyl pepstatin binding to HIV protease"
     experiments.append(experiment)
-    
+
     #
     # KNI-10075
     #
-    
+
     sample_cell_concentrations = {'HIV protease' : 8.8e-6, 'acetyl pepstatin' : 510.e-6} # initial sample cell concentrations (M)
     syringe_concentrations = {'KNI-10075' : 55.e-6}
     Ls_stated = 55.e-6 # KNI-10033 syringe concentration (M)
@@ -846,18 +839,18 @@ if __name__ == "__main__":
     experiment = Experiment(sample_cell_concentrations, syringe_concentrations, injection_volumes, injection_heats, temperature)
     experiment.name = "KNI-10075 displacement of acetyl pepstatin binding to HIV protease"
     experiments.append(experiment)
-   
+
     #=============================================================================================
     # MCMC inference
     #=============================================================================================
 
-    #model = TwoComponentBindingModel(Ls_stated, P0_stated, q_n, DeltaV, temperature, V0)    
+    #model = TwoComponentBindingModel(Ls_stated, P0_stated, q_n, DeltaV, temperature, V0)
     model = CompetitiveBindingModel(experiments, 'HIV protease', V0, verbose=True)
-    
+
     niters = 10000 # number of iterations
     nburn = 1000 # number of burn-in iterations
     nthin = 1 # thinning period
-    
+
     model.mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
     pymc.Matplot.plot(model.mcmc)
 

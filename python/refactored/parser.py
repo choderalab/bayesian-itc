@@ -27,7 +27,7 @@ Options:
   --version                      Show version
   --license                      Show license
   -l <logfile>, --log=<logfile>  File to write logs to. Will be placed in workdir.
-  -v, -vv, -vvv                  Verbose output level. Multiple flags increase verbosity. [default: 0]
+  -v,                            Verbose output level. Multiple flags increase verbosity.
   <datafile>                     A .itc file to perform the analysis on
   <workdir>                      Directory for output files
   -n <name>, --name=<name>       Name for the experiment. Will be used for output files. [default: '']
@@ -39,8 +39,7 @@ Options:
   --nthin=<n>                    Thinning period for mcmc sampling               [default: 250]
   -r <file>, --report=<file>     Output file with summary in markdown
 """
-    arguments = docopt(__usage__, argv=argv,version='ITC.py, pre-alpha')
-    del arguments['-vvv']  # Most likely a bug in docopt, have to delete this from the args.
+    arguments = docopt(__usage__, argv=argv, version='ITC.py, pre-alpha')
     schema = Schema({'--heats': Or(None, And(str, os.path.isfile)),  # str, verify that it exists
                      '--help': bool,  # True or False are accepted
                      '--license': bool,  # True or False are accepted
@@ -57,11 +56,13 @@ Options:
                      # None, or str and found in this dict
                      '--version': bool,  # True or False are accepted
                      '<workdir>': Or(os.path.exists, Use(lambda p: os.mkdir(p))),
-                     # Check if directory exists, or make the directory
+                     # Check if directory    exists, or make the directory
                      '<datafile>': And(str, os.path.isfile),  # str, and ensure it is an existing file
                      'mcmc': bool,  # True or False are accepted
                      '--report': Or(None, Use(lambda f: open(f, 'w'))),
                      # Don't use, or open file with writing permissions
                      '--log': Or(None, str),  # Don't use, or str
                     })
+
+
     return schema.validate(arguments)
