@@ -143,7 +143,7 @@ try:
     except Exception as e:
         logging.error(str(e))
         logging.error(traceback.format_exc())
-        raise ValueError("MCMC model could not me constructed!\n" + e)
+        raise ValueError("MCMC model could not me constructed!\n" + str(e))
 
     # First fit the model.
     # TODO This should be incorporated in the model. Perhaps as a model.getSampler() method?
@@ -202,6 +202,9 @@ try:
     outfile.write('\n')
     outfile.close()
 
-except ValueError:
+except ValueError as e:
     # review Always return successful if the error is in the model definition (helps with debugging)
+    import traceback
+    print(e)
+    print(traceback.format_exc())
     sys.exit(0)

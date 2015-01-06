@@ -29,7 +29,8 @@ class Injection(object):
     """
     # TODO Add docstring examples.
 
-    def __init__(self, number, volume, duration, spacing, filter_period):
+
+    def __init__(self, number, volume, duration, spacing, filter_period, titrant_concentration=None):
         # sequence number of injection
         self.number = number
         # programmed volume of injection
@@ -41,6 +42,28 @@ class Injection(object):
         # time over which data channel is averaged to produce a single measurement
         # of applied power
         self.filter_period = filter_period
+
+        # the quantity of compound(s) injected
+        if titrant_concentration:
+            self.contents(titrant_concentration)
+
+    def contents(self, titrant_concentration):
+        """
+        Define the contents of what was injected
+
+        Takes a list/array of concentrations
+        """
+        # Concentration of syringe contents
+        self.titrant_concentration = Quantity(numpy.array(titrant_concentration), ureg.millimole / ureg.liter)
+
+        self.titrant = Quantity(numpy.zeros(self.titrant_concentration.size), ureg.millimole)
+
+        for titr in range(self.titrant_concentration.size):
+            # Amount of titrant in the syringe (mole)
+            if titr == 0:
+                self.titrant[titr] = self.volume * self.titrant_concentration
+            else:
+                self.titrant[titr] = self.volume * self.titrant_concentration[titr]
 
 
 class Experiment(object):
@@ -167,6 +190,8 @@ class Experiment(object):
         self.syringe_concentration = float(
             lines[parsecline][
                 1:].strip()) * ureg.millimole / ureg.liter  # supposed concentration of compound in syringe
+        for inj in self.injections:
+            inj.contents(self.syringe_concentration) #TODO add support for multiple components
         # supposed concentration of receptor in cell
         self.cell_concentration = float(
             lines[parsecline + 1][1:].strip()) * ureg.millimole / ureg.liter
@@ -268,7 +293,7 @@ class Experiment(object):
             logger.warning("Number of injections read (%d) is not equal to number of injections declared (%d)." % (number_of_injections_read, self.number_of_injections) +
                            "This is usually a sign that the experimental run was terminated prematurely." +
                            "The analysis will not include the final %d injections declared." % (self.number_of_injections - number_of_injections_read),
-                   q        )
+                            q)
 
             # Remove extra injections.
             self.injections = self.injections[0:number_of_injections_read]

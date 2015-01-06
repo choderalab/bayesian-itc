@@ -10,7 +10,6 @@ A test of pymc for ITC.
 import numpy
 import pymc
 import copy
-from sklearn.ensemble._gradient_boosting import np_bool
 from units import ureg, Quantity
 import scipy.integrate
 import logging
@@ -173,19 +172,19 @@ class TwoComponentBindingModel(BindingModel):
         P0_stated = experiment.cell_concentration
 
         # Store temperature.
-        self.temperature = experiment.target_temperature # temperature (kelvin)
-        self.beta = 1.0 / ( ureg.molar_gas_constant * self.temperature) # inverse temperature 1/(kcal/mol)
+        self.temperature = experiment.target_temperature  # (kelvin)
+        self.beta = 1.0 / (ureg.molar_gas_constant * self.temperature)  # inverse temperature 1/(kcal/mol)
 
         # Compute uncertainties in stated concentrations.
         dP0 = 0.10 * P0_stated # uncertainty in protein stated concentration (M) - 10% error
         dLs = 0.10 * Ls_stated # uncertainty in ligand stated concentration (M) - 10% error
 
         # Determine guesses for initial values
-        q_n = Quantity(numpy.zeros(len(experiment.injections)), 'microcalorie')
+        q_n = Quantity(numpy.zeros(len(experiment.injections)), 'microcalorie / mole')
         for inj, injection in enumerate(experiment.injections):
-            q_n[inj] = injection.evolved_heat
+            q_n[inj] = injection.evolved_heat / (numpy.sum(injection.titrant)) # review is this correct?  # calories/ mole of injectant
 
-        log_sigma_guess = log(q_n[-4:].std() / ureg.microcal)  # review: how can we do this better?
+        log_sigma_guess = log(q_n[-4:].std() / (ureg.microcalorie / ureg.mole))  # review: how can we do this better?
         DeltaG_guess = -8.3 * ureg.kilocalorie / ureg.mol
         DeltaH_guess = -12.0 * ureg.kilocalorie / ureg.mol
 
@@ -209,7 +208,7 @@ class TwoComponentBindingModel(BindingModel):
         # Define priors for concentrations.
         #self.P0 = pymc.Normal('P0', mu=P0_stated, tau=1.0/dP0**2, value=P0_stated)
         #self.Ls = pymc.Normal('Ls', mu=Ls_stated, tau=1.0/dLs**2, value=Ls_stated)
-        # TODO Eliminate units from pymc input
+        # review check out all the units to make sure that they're appropriate
         self.P0 = pymc.Lognormal('P0', mu=log(P0_stated / ureg.molar), tau=1.0/log(1.0+(dP0/P0_stated)**2), value=P0_stated / ureg.molar)
         self.Ls = pymc.Lognormal('Ls', mu=log(Ls_stated / ureg.molar), tau=1.0/log(1.0+(dLs/Ls_stated)**2), value=Ls_stated / ureg.molar)
 
@@ -225,7 +224,7 @@ class TwoComponentBindingModel(BindingModel):
         tau = pymc.Lambda('tau', lambda log_sigma=self.log_sigma : self.tau(log_sigma))
 
         # Define observed data.
-        self.q_n_obs = pymc.Normal('q_n', mu=q_n_model, tau=tau, observed=True, value=experiment.number_of_injections)
+        self.q_n_obs = pymc.Normal('q_n', mu=q_n_model, tau=tau, observed=True, value=q_n_observed)
 
         # Create sampler.
         mcmc = pymc.MCMC(self, db='ram')
@@ -250,50 +249,44 @@ class TwoComponentBindingModel(BindingModel):
 
         """
 
-        debug = False
+        debug = True
 
         Kd = exp(self.beta * DeltaG) * ureg.standard_concentration  # dissociation constant (M)
         N = self.N
         print self.V0
         # Compute complex concentrations.
-        Pn = Quantity(numpy.zeros([N]), ureg.mole) # Pn[n] is the protein concentration in sample cell after n injections (M)
-        Ln = Quantity(numpy.zeros([N]), ureg.mole) # Ln[n] is the ligand concentration in sample cell after n injections (M)
-        PLn = Quantity(numpy.zeros([N]), ureg.mole) # PLn[n] is the complex concentration in sample cell after n injections (M)
+        Pn = Quantity(numpy.zeros([N]), ureg.molar) # Pn[n] is the protein concentration in sample cell after n injections (M)
+        Ln = Quantity(numpy.zeros([N]), ureg.molar) # Ln[n] is the ligand concentration in sample cell after n injections (M)
+        PLn = Quantity(numpy.zeros([N]), ureg.molar) # PLn[n] is the complex concentration in sample cell after n injections (M)
         dcum = 1.0 # cumulative dilution factor (dimensionless)
         for n in range(N):
             # Instantaneous injection model (perfusion)
             # TODO: Allow injection volume to vary for each injection.
-            # REVIEW doing some numpy voodoo here to work the units.
             d = 1.0 - (self.DeltaVn[n] / self.V0) # dilution factor for this injection (dimensionless)
             dcum *= d  # cumulative dilution factor
             P = self.V0 * P0 * dcum  # total quantity of protein in sample cell after n injections (mol)
             L = self.V0 * Ls * (1. - dcum)  # total quantity of ligand in sample cell after n injections (mol)
-            PLn[n] = (0.5/self.V0 * ((P + L + Kd*self.V0) - ((P + L + Kd*self.V0)**2 - 4*P*L)**0.5 ))  # complex concentration (M)
+            PLn[n] = (0.5/self.V0 * ((P + L + Kd*self.V0) - ((P + L + Kd*self.V0)**2 - 4*P*L)**0.5))  # complex concentration (M)
             Pn[n] = P/self.V0 - PLn[n]  # free protein concentration in sample cell after n injections (M)
             Ln[n] = L/self.V0 - PLn[n]  # free ligand concentration in sample cell after n injections (M)
 
         # Compute expected injection heats.
-        q_n = numpy.zeros([N], object) # q_n_model[n] is the expected heat from injection n
+        q_n = Quantity(numpy.zeros([N]), ureg.kilocalorie)  # q_n_model[n] is the expected heat from injection n
         # Instantaneous injection model (perfusion)
-        q_n[0] = (1000.0*DeltaH) * self.V0 * PLn[0] + DeltaH_0 # first injection
+        q_n[0] = (DeltaH) * self.V0 * PLn[0] + DeltaH_0  # first injection # review removed a factor 1000 here, presumably leftover from a unit conversion
         for n in range(1,N):
-            d = 1.0 - (self.DeltaVn[n] / self.V0) # dilution factor (dimensionless)
-            q_n[n] = (1000.0*DeltaH) * self.V0 * (PLn[n] - d*PLn[n-1]) + DeltaH_0 # subsequent injections
+            d = 1.0 - (self.DeltaVn[n] / self.V0)  # dilution factor (dimensionless)
+            q_n[n] = ( DeltaH) * self.V0 * (PLn[n] - d*PLn[n-1]) + DeltaH_0 # subsequent injections # review removed a factor 1000 here, presumably leftover from a unit conversion
 
         # Debug output
         if debug:
-            print "DeltaG = %6.1f kcal/mol ; DeltaH = %6.1f kcal/mol ; DeltaH_0 = %6.1f ucal/injection" % (DeltaG, DeltaH, DeltaH_0*1e6)
+            logger.debug("DeltaG = {:~.3}; DeltaH ={:~.3}; DeltaH_0 = {:~.3}".format(DeltaG, DeltaH, DeltaH_0))
             for n in range(N):
-                print "%6.1f" % (PLn[n]*1e6),
-            print ""
+                logger.debug("{:~.3}".format(PLn[n]))
             for n in range(N):
-                print "%6.1f" % (q_n[n]*1e6),
-            print ""
-            for n in range(N):
-                print "%6.1f" % (q_n_obs[n]*1e6),
-            print ""
-            print ""
-
+                logger.debug("{:~.3}".format(q_n[n]))
+            # for n in range(N): # review was this supposed to work?
+            #     logger.debug("{:~.3}".format(q_n_obs[n]))
         return q_n
 
     def tau(self, log_sigma):
@@ -301,9 +294,9 @@ class TwoComponentBindingModel(BindingModel):
         Injection heat measurement precision.
 
         """
-        return exp(-2.0*log_sigma)
+        return numpy.exp(-2.0*log_sigma)
 
-    #TODO Add specific createModel() for this binding model (move from ITC.py).
+    # TODO Add specific createModel() for this binding model (move from ITC.py).
 
 
 class CompetitiveBindingModel(BindingModel):

@@ -11,7 +11,7 @@ import os
 #  TODO implement license
 
 
-def parser(argv=sys.argv):
+def parser(argv=sys.argv[1:]):
     __usage__ = """
 Bayesian analysis of MicroCal .itc file data.
 
@@ -63,6 +63,5 @@ Options:
                      # Don't use, or open file with writing permissions
                      '--log': Or(None, str),  # Don't use, or str
                     })
-
 
     return schema.validate(arguments)
