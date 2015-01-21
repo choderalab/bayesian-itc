@@ -10,7 +10,7 @@ A test of pymc for ITC.
 import numpy
 import pymc
 import copy
-from units import ureg, Quantity
+from .units import ureg, Quantity
 import scipy.integrate
 import logging
 
@@ -153,7 +153,7 @@ class TwoComponentBindingModel(BindingModel):
     """
     A binding model with two components (e.g. Protein and Ligand)
     """
-    def __init__(self, experiment, instrument):
+    def __init__(self, experiment, instrument, heats):
 
         # Determine number of observations.
         self.N = experiment.number_of_injections

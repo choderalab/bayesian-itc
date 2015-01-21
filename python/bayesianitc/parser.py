@@ -2,16 +2,19 @@ __author__ = 'bas'
 
 from docopt import docopt
 from schema import Schema, And, Or, Use
-from models import known_models
-from instruments import known_instruments
+from .models import known_models
+from .instruments import known_instruments
 import sys
 import os
+import numpy as np
+import pandas as pd
+from units import Quantity
 
 #  TODO add options for multiple types of output files
 #  TODO implement license
 
 
-def parser(argv=sys.argv[1:]):
+def optparser(argv=sys.argv[1:]):
     __usage__ = """
 Bayesian analysis of MicroCal .itc file data.
 
@@ -65,3 +68,19 @@ Options:
                     })
 
     return schema.validate(arguments)
+
+def origin_heats_parser(input_file, unit=Quantity('microcalorie')):
+    """
+    Parse an origin heats file and return the heats as array with pint units
+    :param input_file:
+    :type input_file:
+    :param unit:
+    :type unit:
+    :return:
+    :rtype:
+    """
+
+    assert isinstance(input_file, str)
+    pd.read_fwf(input_file, skip_footer=1)
+    heats = np.array(pd['DH'])
+    return Quantity(heats, unit)

@@ -2,7 +2,7 @@
 Contains Experiment and Injection classes.
 """
 import os
-from units import ureg,Quantity
+from .units import ureg,Quantity
 from math import pi
 import logging
 import numpy
@@ -501,7 +501,7 @@ class Experiment(object):
         P0 = self.cell_concentration
         Ls = self.syringe_concentration
 
-        string = "%12s %5s %12s %12s %12s %12s\n" % (
+        string = "%12s, %5s, %12s, %12s, %12s, %12s\n" % (
             "DH", "INJV", "Xt", "Mt", "XMt", "NDH")
         for (n, injection) in enumerate(self.injections):
             # Instantaneous injection model (perfusion)
@@ -516,7 +516,7 @@ class Experiment(object):
             Pn = 0.0 * (ureg.millimole / ureg.liter)
             Ln = 0.0 * (ureg.millimole / ureg.liter)
             PLn = 0.0 * (ureg.millimole / ureg.liter)
-            NDH = 0.0  # Not sure what this is
+            NDH = 0.0  # review Not sure what this is
 
             # Form string.
             string += "%12.5f %5.1f %12.5f %12.5f %12.5f %12.5f\n" % (
@@ -532,6 +532,82 @@ class Experiment(object):
         outfile.close()
 
         return
+
+    def write_heats_csv(self, filename):
+        """
+         Write integrated heats in a csv format
+        """
+        DeltaV = self.injections[0].volume
+        V0 = self.cell_volume
+        P0 = self.cell_concentration
+        Ls = self.syringe_concentration
+
+        string = "%12s, %5s, %12s, %12s, %12s, %12s\n" % (
+            "DH", "INJV", "Xt", "Mt", "XMt", "NDH")
+        for (n, injection) in enumerate(self.injections):
+            # Instantaneous injection model (perfusion)
+            # d = 1.0 - (DeltaV / V0) # dilution factor (dimensionless)
+            # P = V0 * P0 * d**(n+1) # total quantity of protein in sample cell after n injections (mol)
+            # L = V0 * Ls * (1. - d**(n+1)) # total quantity of ligand in sample cell after n injections (mol)
+            # PLn = 0.5/V0 * ((P + L + Kd*V0) - numpy.sqrt((P + L + Kd*V0)**2 - 4*P*L));  # complex concentration (M)
+            # Pn = P/V0 - PLn; # free protein concentration in sample cell after n injections (M)
+            # Ln = L/V0 - PLn; # free ligand concentration in sample cell after
+            # n injections (M)
+
+            Pn = 0.0 * (ureg.millimole / ureg.liter)
+            Ln = 0.0 * (ureg.millimole / ureg.liter)
+            PLn = 0.0 * (ureg.millimole / ureg.liter)
+            NDH = 0.0  # review Not sure what this is
+
+            # Form string.
+            string += "%12.5f %5.1f %12.5f %12.5f %12.5f %12.5f\n" % (
+                injection.evolved_heat / ureg.microcalorie, injection.volume /
+                ureg.microliter, Pn / (ureg.millimole / ureg.liter), Ln / (ureg.millimole / ureg.liter),
+                PLn / (ureg.millimole / ureg.liter), NDH)
+
+        # Final line.
+        string += "        --      %12.5f %12.5f --\n" % (
+            Pn / (ureg.millimole / ureg.liter), Ln / (ureg.millimole / ureg.liter))
+
+        # Write file contents.
+        outfile = open(filename, 'w')
+        outfile.write(string)
+        outfile.close()
+
+        return
+
+
+    def read_integrated_heats(self, heats_file, format=False):
+        """
+
+        :param heats_file:
+        :type heats_file:
+        :param format:
+        :type format:
+        :return:
+        :rtype:
+        """
+        with open(heats_file) as heats:
+            heats = self._parse_heats(heats_file, write_heats_compatible=False)
+
+        if heats.size() != self.number_of_injections:
+            raise ValueError("The number of injections does not match the number of integrated heats in %s" % heats_file)
+
+        for inj, heat in enumerate(heats):
+            self.injections[inj].evolved_heat = heat
+
+    def _parse_heats(self, heats_file, write_heats_compatible=False):
+        """
+        Take as input a file with heats, format specification. Output a list of integrated heats in units of microcalorie
+
+        :param heats_file:
+        :type heats_file:
+        :param write_heats_compatible:
+        :type write_heats_compatible:
+        :return:
+        :rtype:
+        """
+        raise NotImplementedError
 
     def write_power(self, filename):
         """

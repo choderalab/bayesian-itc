@@ -1,6 +1,6 @@
 """Contains Isothermal titration calorimeter instrument classes."""
 
-from units import ureg,Quantity
+from .units import ureg
 import re
 import logging
 logger = logging.getLogger(__name__)
