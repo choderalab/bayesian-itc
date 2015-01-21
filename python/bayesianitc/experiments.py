@@ -501,7 +501,7 @@ class Experiment(object):
         P0 = self.cell_concentration
         Ls = self.syringe_concentration
 
-        string = "%12s, %5s, %12s, %12s, %12s, %12s\n" % (
+        string = "%12s %5s %12s %12s %12s %12s\n" % (
             "DH", "INJV", "Xt", "Mt", "XMt", "NDH")
         for (n, injection) in enumerate(self.injections):
             # Instantaneous injection model (perfusion)

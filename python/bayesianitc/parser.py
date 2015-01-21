@@ -81,6 +81,7 @@ def origin_heats_parser(input_file, unit=Quantity('microcalorie')):
     """
 
     assert isinstance(input_file, str)
-    pd.read_fwf(input_file, skip_footer=1)
-    heats = np.array(pd['DH'])
+    dataframe = pd.read_fwf(input_file, skip_footer=1)
+    heats = np.array(dataframe['DH'])
     return Quantity(heats, unit)
+

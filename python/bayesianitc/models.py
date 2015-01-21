@@ -153,7 +153,7 @@ class TwoComponentBindingModel(BindingModel):
     """
     A binding model with two components (e.g. Protein and Ligand)
     """
-    def __init__(self, experiment, instrument, heats):
+    def __init__(self, experiment, instrument, observed_heats):
 
         # Determine number of observations.
         self.N = experiment.number_of_injections
@@ -224,7 +224,7 @@ class TwoComponentBindingModel(BindingModel):
         tau = pymc.Lambda('tau', lambda log_sigma=self.log_sigma : self.tau(log_sigma))
 
         # Define observed data.
-        self.q_n_obs = pymc.Normal('q_n', mu=q_n_model, tau=tau, observed=True, value=q_n_observed)
+        self.q_n_obs = pymc.Normal('q_n', mu=q_n_model, tau=tau, observed=True, value=observed_heats)
 
         # Create sampler.
         mcmc = pymc.MCMC(self, db='ram')
