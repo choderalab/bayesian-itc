@@ -5,7 +5,6 @@ import re
 import logging
 logger = logging.getLogger(__name__)
 
-logger.info("BLAAAAAA")
 class Instrument(object):
 
     """
@@ -48,7 +47,6 @@ class Instrument(object):
 
             else:
                 dotitc = open(filename, 'r')
-            print "houdoe"
             logger.info("Reading volumes from a .itc file.")
             lines = dotitc.readlines()
             hash_count = 1

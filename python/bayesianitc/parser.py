@@ -33,9 +33,9 @@ Options:
   -v,                            Verbose output level. Multiple flags increase verbosity.
   <datafile>                     A .itc file to perform the analysis on
   <workdir>                      Directory for output files
-  -n <name>, --name=<name>       Name for the experiment. Will be used for output files. [default: '']
+  -n <name>, --name=<name>       Name for the experiment. Will be used for output files. Defaults to inputfile name. 
   -i <ins>, --instrument=<ins>   The name of the instrument used for the experiment. Overrides .itc file instrument.
-  -q <file>, --heats=<file>      Integrated heats (q_n) from file
+  -q <file>, --heats=<file>      Origin format integrated heats filec
   -m <model>, --model=<model>    Model to use for mcmc sampling                  [default: TwoComponent]
   --niters=<n>                   No. of iterations for mcmc sampling             [default: 2000000]
   --nburn=<n>                    No. of Burn-in iterations for mcmc sampling     [default: 500000]
@@ -54,7 +54,7 @@ Options:
                      # Convert str to int, make sure that it is larger than 0
                      '--nthin': And(Use(int), lambda n: n > 0),
                      # Convert str to int, make sure that it is larger than 0
-                     '--name': And(str, len),  # Not an empty string
+                     '--name': Or(None, And(str, len)),  # Not an empty string
                      '--instrument': Or(None, And(str, lambda m: m in known_instruments)),
                      # None, or str and found in this dict
                      '--version': bool,  # True or False are accepted
