@@ -69,7 +69,7 @@ class RescalingStep(pymc.StepMethod):
         self.dictionary['Ls'].value = self.dictionary['Ls'].value * factor
         self.dictionary['P0'].value = self.dictionary['P0'].value * factor
         self.dictionary['DeltaH'].value = self.dictionary['DeltaH'].value / factor
-        self.dictionary['DeltaG'].value = self.dictionary['DeltaG'].value + (1./self.beta) * numpy.log(factor);
+        self.dictionary['DeltaG'].value = self.dictionary['DeltaG'].value + (1./self.beta.magnitude) * numpy.log(factor);  # calling magnitude seems flaky, where are the units here?
 
         return
 
@@ -77,7 +77,7 @@ class RescalingStep(pymc.StepMethod):
         # Probability and likelihood for stochastic's current value:
         logp = sum([stochastic.logp for stochastic in self.stochastics])
         loglike = self.loglike
-        logger.info('Current likelihood: ' + logp+loglike)
+        logger.info('Current likelihood: %f, %f' % (logp, loglike))
 
         # Sample a candidate value
         self.propose()
@@ -88,7 +88,7 @@ class RescalingStep(pymc.StepMethod):
             # Probability and likelihood for stochastic's proposed value:
             logp_p = sum([stochastic.logp for stochastic in self.stochastics])
             loglike_p = self.loglike
-            logger.debug('Current likelihood: ' + logp+loglike)
+            logger.debug('Current likelihood: %f, %f ' %(logp, loglike))
 
             if numpy.log(numpy.random.rand()) < logp_p + loglike_p - logp - loglike:
                 accept = True
@@ -104,9 +104,16 @@ class RescalingStep(pymc.StepMethod):
             logger.debug('Rejected with ZeroProbability error.')
 
         if not self._current_iter % self.interval:
-            logger.info("Step ", self._current_iter +
-                        "\tLogprobability (current, proposed): %f, %f " % (logp, logp_p) +
-                        "\tloglike (current, proposed):      : " + loglike, loglike_p)
+            logger.info("Step %d \n"
+                        "Logprobability (current, proposed): %f, %f \n"
+                        "loglike (current, proposed):  %f, %f    :" % (self._current_iter,
+                                                                       logp,
+                                                                       logp_p,
+                                                                       loglike,
+                                                                       loglike_p
+                        )
+            )
+
             for stochastic in self.stochastics:
                 logger.info("\t" + str(stochastic.__name__) + str(stochastic.last_value) + str(stochastic.value))
             if accept:
@@ -123,7 +130,7 @@ class RescalingStep(pymc.StepMethod):
         return
 
     @classmethod
-    def competence(self, stochastic):
+    def competence(cls, stochastic):
         if str(stochastic) in ['DeltaG', 'DeltaH', 'DeltaH_0', 'Ls', 'P0']:
             return 1
         return 0
@@ -138,6 +145,7 @@ class RescalingStep(pymc.StepMethod):
 
 # TODO Move generation of the pymc sampler into a method in this base class: createSampler()?
 
+
 class BindingModel(object):
     """
     Abstract base class for reaction models.
@@ -146,7 +154,6 @@ class BindingModel(object):
 
     def __init__(self):
         pass
-
 
 
 class TwoComponentBindingModel(BindingModel):
@@ -204,7 +211,7 @@ class TwoComponentBindingModel(BindingModel):
         heat_interval = (q_n.max() - q_n.min())
         DeltaH_0_min = q_n.min() - heat_interval  # (cal/mol)
         DeltaH_0_max = q_n.max() + heat_interval  # (cal/mol)
-        numpy.ones
+
         # Define priors for concentrations.
         #self.P0 = pymc.Normal('P0', mu=P0_stated, tau=1.0/dP0**2, value=P0_stated)
         #self.Ls = pymc.Normal('Ls', mu=Ls_stated, tau=1.0/dLs**2, value=Ls_stated)
@@ -249,15 +256,15 @@ class TwoComponentBindingModel(BindingModel):
 
         """
 
-        debug = True
+        debug = True  # TODO this can be removed at some point, or exposed to logger
 
         Kd = exp(self.beta * DeltaG) * ureg.standard_concentration  # dissociation constant (M)
         N = self.N
-        print self.V0
+
         # Compute complex concentrations.
-        Pn = Quantity(numpy.zeros([N]), ureg.molar) # Pn[n] is the protein concentration in sample cell after n injections (M)
-        Ln = Quantity(numpy.zeros([N]), ureg.molar) # Ln[n] is the ligand concentration in sample cell after n injections (M)
-        PLn = Quantity(numpy.zeros([N]), ureg.molar) # PLn[n] is the complex concentration in sample cell after n injections (M)
+        Pn = Quantity(numpy.zeros([N]), ureg.molar)  # Pn[n] is the protein concentration in sample cell after n injections (M)
+        Ln = Quantity(numpy.zeros([N]), ureg.molar)  # Ln[n] is the ligand concentration in sample cell after n injections (M)
+        PLn = Quantity(numpy.zeros([N]), ureg.molar)  # PLn[n] is the complex concentration in sample cell after n injections (M)
         dcum = 1.0 # cumulative dilution factor (dimensionless)
         for n in range(N):
             # Instantaneous injection model (perfusion)
@@ -276,7 +283,7 @@ class TwoComponentBindingModel(BindingModel):
         q_n[0] = (DeltaH) * self.V0 * PLn[0] + DeltaH_0  # first injection # review removed a factor 1000 here, presumably leftover from a unit conversion
         for n in range(1,N):
             d = 1.0 - (self.DeltaVn[n] / self.V0)  # dilution factor (dimensionless)
-            q_n[n] = ( DeltaH) * self.V0 * (PLn[n] - d*PLn[n-1]) + DeltaH_0 # subsequent injections # review removed a factor 1000 here, presumably leftover from a unit conversion
+            q_n[n] = DeltaH * self.V0 * (PLn[n] - d*PLn[n-1]) + DeltaH_0 # subsequent injections # review removed a factor 1000 here, presumably leftover from a unit conversion
 
         # Debug output
         if debug:
@@ -289,7 +296,8 @@ class TwoComponentBindingModel(BindingModel):
             #     logger.debug("{:~.3}".format(q_n_obs[n]))
         return q_n
 
-    def tau(self, log_sigma):
+    @staticmethod
+    def tau(log_sigma):
         """
         Injection heat measurement precision.
 

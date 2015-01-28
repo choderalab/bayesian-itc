@@ -33,10 +33,11 @@ Options:
   -v,                            Verbose output level. Multiple flags increase verbosity.
   <datafile>                     A .itc file to perform the analysis on
   <workdir>                      Directory for output files
-  -n <name>, --name=<name>       Name for the experiment. Will be used for output files. Defaults to inputfile name. 
+  -n <name>, --name=<name>       Name for the experiment. Will be used for output files. Defaults to inputfile name.
   -i <ins>, --instrument=<ins>   The name of the instrument used for the experiment. Overrides .itc file instrument.
   -q <file>, --heats=<file>      Origin format integrated heats filec
   -m <model>, --model=<model>    Model to use for mcmc sampling                  [default: TwoComponent]
+  --nfit=<n>                     No. of iteration for maximum a posteriori fit   [default: 20000]
   --niters=<n>                   No. of iterations for mcmc sampling             [default: 2000000]
   --nburn=<n>                    No. of Burn-in iterations for mcmc sampling     [default: 500000]
   --nthin=<n>                    Thinning period for mcmc sampling               [default: 250]
@@ -48,6 +49,8 @@ Options:
                      '--license': bool,  # True or False are accepted
                      '-v': And(int, lambda n: 0 <= n <= 3),  # integer between 0 and 3
                      '--model': And(str, lambda m: m in known_models),  # str and found in this dict
+                     '--nfit':And(Use(int), lambda n: n > 0),
+                     # Convert str to int, make sure that it is larger than 0
                      '--nburn': And(Use(int), lambda n: n > 0),
                      # Convert str to int, make sure that it is larger than 0
                      '--niters': And(Use(int), lambda n: n > 0),

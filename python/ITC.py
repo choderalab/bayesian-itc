@@ -60,7 +60,7 @@ def compute_normal_statistics(x_t):
     return [x, dx, xlow, xhigh]
 
 try:
-    validated = optparser('mcmc ../data/SAMPL4/CB7/082213b15.itc workdir -m TwoComponent -vvv -n test.exp')
+    validated = optparser('mcmc ../data/SAMPL4/CB7/082213b15.itc workdir -m TwoComponent -v -n test.exp')
 
     # Arguments to variables
     # Set the logfile
@@ -99,6 +99,7 @@ try:
 
     if validated['mcmc']:
         # MCMC settings
+        nfit = validated['--nfit']      # number of iterations for maximum a posteriori fit
         niters = validated['--niters']  # number of iterations
         nburn = validated['--nburn']    # number of burn-in iterations
         nthin = validated['--nthin']    # thinning period
@@ -147,32 +148,32 @@ try:
     except Exception as e:
         logging.error(str(e))
         logging.error(traceback.format_exc())
-        raise ValueError("MCMC model could not me constructed!\n" + str(e))
+        raise Exception("MCMC model could not me constructed!\n" + str(e))
 
     # First fit the model.
     # TODO This should be incorporated in the model. Perhaps as a model.getSampler() method?
-    print "Fitting model..."
+    logging.info("Fitting model...")
     map = pymc.MAP(model)
-    map.fit(iterlim=20000)
-    print map
+    map.fit(iterlim=nfit) # 20000
+    logging.info(map)
 
-    mcmc = pymc.MCMC(model, db='ram')
+    # mcmc = pymc.MCMC(model, db='ram')
+    #
+    # mcmc.use_step_method(pymc.Metropolis, model['DeltaG'])
+    # mcmc.use_step_method(pymc.Metropolis, model['DeltaH'])
+    # mcmc.use_step_method(pymc.Metropolis, model['DeltaH_0'])
+    # mcmc.use_step_method(pymc.Metropolis, model['log_sigma'])
+    #
+    # if experiment.cell_concentration > 0.0:
+    #     mcmc.use_step_method(pymc.Metropolis, model['P0'])
+    # if experiment.syringe_concentration > 0.0:
+    #     mcmc.use_step_method(pymc.Metropolis, model['Ls'])
+    #
+    # if (experiment.cell_concentration > 0.0) and (experiment.syringe_concentration > 0.0):
+    #     mcmc.use_step_method(RescalingStep, [model['Ls'], model['P0'], model['DeltaH'], model['DeltaG'], model['DeltaH_0']], model['beta'])
 
-    mcmc.use_step_method(pymc.Metropolis, model['DeltaG'])
-    mcmc.use_step_method(pymc.Metropolis, model['DeltaH'])
-    mcmc.use_step_method(pymc.Metropolis, model['DeltaH_0'])
-    mcmc.use_step_method(pymc.Metropolis, model['log_sigma'])
-
-    if experiment.cell_concentration > 0.0:
-        mcmc.use_step_method(pymc.Metropolis, model['P0'])
-    if experiment.syringe_concentration > 0.0:
-        mcmc.use_step_method(pymc.Metropolis, model['Ls'])
-
-    if (experiment.cell_concentration > 0.0) and (experiment.syringe_concentration > 0.0):
-        mcmc.use_step_method(RescalingStep, [model['Ls'], model['P0'], model['DeltaH'], model['DeltaG'], model['DeltaH_0']], model['beta'])
-
-    print "Sampling..."
-    mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
+    logging.info("Sampling...")
+    model.mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
     #pymc.Matplot.plot(mcmc)
 
     # Plot individual terms.
