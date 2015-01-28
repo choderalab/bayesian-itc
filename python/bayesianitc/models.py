@@ -165,10 +165,10 @@ class TwoComponentBindingModel(BindingModel):
         # Determine number of observations.
         self.N = experiment.number_of_injections
 
-        self.DeltaVn = list()
+        self.DeltaVn = Quantity(numpy.zeros(self.N), ureg.microliter)
         # Store injection volumes
-        for injection in experiment.injections:
-            self.DeltaVn.append(injection.volume)
+        for inj,injection in enumerate(experiment.injections):
+            self.DeltaVn[inj] = injection.volume
 
         # Store calorimeter properties.
         self.V0 = instrument.V0
@@ -226,8 +226,8 @@ class TwoComponentBindingModel(BindingModel):
         # review make sure we get the units right on this.
         self.DeltaH_0 = pymc.Uniform('DeltaH_0', lower=DeltaH_0_min / ureg.calorie, upper=DeltaH_0_max / ureg.calorie, value=DeltaH_0_guess / ureg.calorie)
 
-        q_n_model = pymc.Lambda('q_n_model', lambda P0=self.P0, Ls=self.Ls, DeltaG=self.DeltaG, DeltaH=self.DeltaH, DeltaH_0=self.DeltaH_0, q_n_obs=self.DeltaH_0:
-        self.expected_injection_heats(self.V0, self.DeltaVn, P0 * ureg.molar, Ls * ureg.molar, DeltaG * ureg.kilocalorie / ureg.mol, DeltaH * ureg.kilocalorie / ureg.mol, DeltaH_0 * ureg.calorie, self.beta, self.N))
+        q_n_model = pymc.Lambda('q_n_model', lambda P0=self.P0, Ls=self.Ls, DeltaG=self.DeltaG, DeltaH=self.DeltaH, DeltaH_0=self.DeltaH_0:
+        self.expected_injection_heats(self.V0, self.DeltaVn, P0, Ls, DeltaG, DeltaH, DeltaH_0 , self.beta, self.N))
         tau = pymc.Lambda('tau', lambda log_sigma=self.log_sigma : self.tau(log_sigma))
 
         # Define observed data.
@@ -246,6 +246,7 @@ class TwoComponentBindingModel(BindingModel):
 
 
     @staticmethod
+    @ureg.wraps(ret=ureg.kilocalorie, args=[ureg.milliliter, ureg.milliliter, None , None , None, None, None ,  1/ (ureg.kilocalories / ureg.mole), None], strict=True)
     def expected_injection_heats(V0, DeltaVn, P0, Ls, DeltaG, DeltaH, DeltaH_0, beta, N):
         """
         Expected heats of injection for two-component binding model.
@@ -260,13 +261,13 @@ class TwoComponentBindingModel(BindingModel):
 
         debug = True  # TODO this can be removed at some point, or exposed to logger
 
-        Kd = exp(beta * DeltaG) * ureg.standard_concentration  # dissociation constant (M)
+        Kd = exp(beta * DeltaG)   # dissociation constant (M)
         N = N
 
         # Compute complex concentrations.
-        Pn = Quantity(numpy.zeros([N]), ureg.molar)  # Pn[n] is the protein concentration in sample cell after n injections (M)
-        Ln = Quantity(numpy.zeros([N]), ureg.molar)  # Ln[n] is the ligand concentration in sample cell after n injections (M)
-        PLn = Quantity(numpy.zeros([N]), ureg.molar)  # PLn[n] is the complex concentration in sample cell after n injections (M)
+        Pn = numpy.zeros([N])  # Pn[n] is the protein concentration in sample cell after n injections (M)
+        Ln = numpy.zeros([N])  # Ln[n] is the ligand concentration in sample cell after n injections (M)
+        PLn = numpy.zeros([N])  # PLn[n] is the complex concentration in sample cell after n injections (M)
         dcum = 1.0 # cumulative dilution factor (dimensionless)
         for n in range(N):
             # Instantaneous injection model (perfusion)
@@ -280,22 +281,22 @@ class TwoComponentBindingModel(BindingModel):
             Ln[n] = L/V0 - PLn[n]  # free ligand concentration in sample cell after n injections (M)
 
         # Compute expected injection heats.
-        q_n = Quantity(numpy.zeros([N]), ureg.kilocalorie)  # q_n_model[n] is the expected heat from injection n
+        q_n =numpy.zeros([N])  # q_n_model[n] is the expected heat from injection n
         # Instantaneous injection model (perfusion)
         q_n[0] = (DeltaH) * V0 * PLn[0] + DeltaH_0  # first injection # review removed a factor 1000 here, presumably leftover from a unit conversion
         for n in range(1,N):
             d = 1.0 - (DeltaVn[n] / V0)  # dilution factor (dimensionless)
             q_n[n] = DeltaH * V0 * (PLn[n] - d*PLn[n-1]) + DeltaH_0 # subsequent injections # review removed a factor 1000 here, presumably leftover from a unit conversion
 
-        # Debug output
-        if debug:
-            logger.debug("DeltaG = {:~.3}; DeltaH ={:~.3}; DeltaH_0 = {:~.3}".format(DeltaG, DeltaH, DeltaH_0))
-            for n in range(N):
-                logger.debug("{:~.3}".format(PLn[n]))
-            for n in range(N):
-                logger.debug("{:~.3}".format(q_n[n]))
-            # for n in range(N): # review was this supposed to work?
-            #     logger.debug("{:~.3}".format(q_n_obs[n]))
+        # # Debug output
+        # if debug:
+        #     logger.debug("DeltaG = {:~.3}; DeltaH ={:~.3}; DeltaH_0 = {:~.3}".format(DeltaG, DeltaH, DeltaH_0))
+        #     for n in range(N):
+        #         logger.debug("{:~.3}".format(PLn[n]))
+        #     for n in range(N):
+        #         logger.debug("{:~.3}".format(q_n[n]))
+        #     # for n in range(N): # review was this supposed to work?
+        #     #     logger.debug("{:~.3}".format(q_n_obs[n]))
         return q_n
 
     @staticmethod
