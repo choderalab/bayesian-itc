@@ -105,8 +105,8 @@ class RescalingStep(pymc.StepMethod):
 
         if not self._current_iter % self.interval:
             logger.info("Step %d \n"
-                        "Logprobability (current, proposed): %f, %f \n"
-                        "loglike (current, proposed):  %f, %f    :" % (self._current_iter,
+                        "Logprobability (current, proposed): %s, %s \n"
+                        "loglike (current, proposed):  %s, %s    :" % (self._current_iter,
                                                                        logp,
                                                                        logp_p,
                                                                        loglike,
