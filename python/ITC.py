@@ -82,7 +82,7 @@ try:
     # Set up the logger
     logging.basicConfig(format='%(levelname)s::%(module)s:L%(lineno)s\n%(message)s', level=loglevel, filename=logfile)
 
-    # Files for processing
+    # Files for procesysing
     filename = validated['<datafile>']  # .itc file to process
     working_directory = validated['<workdir>']
 

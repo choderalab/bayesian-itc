@@ -227,7 +227,7 @@ class TwoComponentBindingModel(BindingModel):
         self.DeltaH_0 = pymc.Uniform('DeltaH_0', lower=DeltaH_0_min / ureg.calorie, upper=DeltaH_0_max / ureg.calorie, value=DeltaH_0_guess / ureg.calorie)
 
         q_n_model = pymc.Lambda('q_n_model', lambda P0=self.P0, Ls=self.Ls, DeltaG=self.DeltaG, DeltaH=self.DeltaH, DeltaH_0=self.DeltaH_0, q_n_obs=self.DeltaH_0:
-        self.expected_injection_heats(P0 * ureg.molar, Ls * ureg.molar, DeltaG * ureg.kilocalorie / ureg.mol, DeltaH * ureg.kilocalorie / ureg.mol, DeltaH_0 * ureg.calorie, q_n_obs))
+        self.expected_injection_heats(self.V0, self.DeltaVn, P0 * ureg.molar, Ls * ureg.molar, DeltaG * ureg.kilocalorie / ureg.mol, DeltaH * ureg.kilocalorie / ureg.mol, DeltaH_0 * ureg.calorie, self.beta, self.N))
         tau = pymc.Lambda('tau', lambda log_sigma=self.log_sigma : self.tau(log_sigma))
 
         # Define observed data.
@@ -244,7 +244,9 @@ class TwoComponentBindingModel(BindingModel):
         self.mcmc = mcmc
         return
 
-    def expected_injection_heats(self, P0, Ls, DeltaG, DeltaH, DeltaH_0, q_n_obs):
+
+    @staticmethod
+    def expected_injection_heats(V0, DeltaVn, P0, Ls, DeltaG, DeltaH, DeltaH_0, beta, N):
         """
         Expected heats of injection for two-component binding model.
 
@@ -258,8 +260,8 @@ class TwoComponentBindingModel(BindingModel):
 
         debug = True  # TODO this can be removed at some point, or exposed to logger
 
-        Kd = exp(self.beta * DeltaG) * ureg.standard_concentration  # dissociation constant (M)
-        N = self.N
+        Kd = exp(beta * DeltaG) * ureg.standard_concentration  # dissociation constant (M)
+        N = N
 
         # Compute complex concentrations.
         Pn = Quantity(numpy.zeros([N]), ureg.molar)  # Pn[n] is the protein concentration in sample cell after n injections (M)
@@ -269,21 +271,21 @@ class TwoComponentBindingModel(BindingModel):
         for n in range(N):
             # Instantaneous injection model (perfusion)
             # TODO: Allow injection volume to vary for each injection.
-            d = 1.0 - (self.DeltaVn[n] / self.V0) # dilution factor for this injection (dimensionless)
+            d = 1.0 - (DeltaVn[n] / V0) # dilution factor for this injection (dimensionless)
             dcum *= d  # cumulative dilution factor
-            P = self.V0 * P0 * dcum  # total quantity of protein in sample cell after n injections (mol)
-            L = self.V0 * Ls * (1. - dcum)  # total quantity of ligand in sample cell after n injections (mol)
-            PLn[n] = (0.5/self.V0 * ((P + L + Kd*self.V0) - ((P + L + Kd*self.V0)**2 - 4*P*L)**0.5))  # complex concentration (M)
-            Pn[n] = P/self.V0 - PLn[n]  # free protein concentration in sample cell after n injections (M)
-            Ln[n] = L/self.V0 - PLn[n]  # free ligand concentration in sample cell after n injections (M)
+            P = V0 * P0 * dcum  # total quantity of protein in sample cell after n injections (mol)
+            L = V0 * Ls * (1. - dcum)  # total quantity of ligand in sample cell after n injections (mol)
+            PLn[n] = (0.5/V0 * ((P + L + Kd*V0) - ((P + L + Kd*V0)**2 - 4*P*L)**0.5))  # complex concentration (M)
+            Pn[n] = P/V0 - PLn[n]  # free protein concentration in sample cell after n injections (M)
+            Ln[n] = L/V0 - PLn[n]  # free ligand concentration in sample cell after n injections (M)
 
         # Compute expected injection heats.
         q_n = Quantity(numpy.zeros([N]), ureg.kilocalorie)  # q_n_model[n] is the expected heat from injection n
         # Instantaneous injection model (perfusion)
-        q_n[0] = (DeltaH) * self.V0 * PLn[0] + DeltaH_0  # first injection # review removed a factor 1000 here, presumably leftover from a unit conversion
+        q_n[0] = (DeltaH) * V0 * PLn[0] + DeltaH_0  # first injection # review removed a factor 1000 here, presumably leftover from a unit conversion
         for n in range(1,N):
-            d = 1.0 - (self.DeltaVn[n] / self.V0)  # dilution factor (dimensionless)
-            q_n[n] = DeltaH * self.V0 * (PLn[n] - d*PLn[n-1]) + DeltaH_0 # subsequent injections # review removed a factor 1000 here, presumably leftover from a unit conversion
+            d = 1.0 - (DeltaVn[n] / V0)  # dilution factor (dimensionless)
+            q_n[n] = DeltaH * V0 * (PLn[n] - d*PLn[n-1]) + DeltaH_0 # subsequent injections # review removed a factor 1000 here, presumably leftover from a unit conversion
 
         # Debug output
         if debug:
