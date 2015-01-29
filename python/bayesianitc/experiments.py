@@ -718,27 +718,20 @@ class Experiment(object):
 
         # Plot model fits, if specified.
         if model:
-            P0_n = model.trace('P0')[:]
-            Ls_n = model.trace('Ls')[:]
-            DeltaG_n = model.trace('DeltaG')[:]
-            DeltaH_n = model.trace('DeltaH')[:]
-            DeltaH0_n = model.trace('DeltaH_0')[:]
+            P0_n = model.mcmc.trace('P0')[:]
+            Ls_n = model.mcmc.trace('Ls')[:]
+            DeltaG_n = model.mcmc.trace('DeltaG')[:]
+            DeltaH_n = model.mcmc.trace('DeltaH')[:]
+            DeltaH0_n = model.mcmc.trace('DeltaH_0')[:]
             N = DeltaG_n.size
-            for n in range(N):
-                expected_injection_heats = mcmc.q_n.parents['mu']._eval_fun
-                q_n = expected_injection_heats(
-                    DeltaG=DeltaG_n[n],
-                    DeltaH=DeltaH_n[n],
-                    DeltaH_0=DeltaH0_n[n],
-                    P0=P0_n[n],
-                    Ls=Ls_n[n])
-                pylab.plot(
-                    injection_end_times /
-                    ureg.second,
-                    q_n /
-                    ureg.microcalorie,
-                    'r-',
-                    linewidth=1)
+            q_n = model.expected_injection_heats(model.V0, model.DeltaVn, P0_n, Ls_n, DeltaG_n, DeltaH_n, DeltaH0_n, model.beta,N)
+            pylab.plot(
+                injection_end_times /
+                ureg.second,
+                q_n /
+                ureg.microcalorie,
+                'r-',
+                linewidth=1)
 
         # Plot integrated heats.
         for (index, injection) in enumerate(self.injections):

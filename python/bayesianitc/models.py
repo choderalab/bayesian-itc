@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
 """
-A test of pymc for ITC.
-
+PyMC models to describe ITC binding experiments
 """
 
 
@@ -189,7 +188,7 @@ class TwoComponentBindingModel(BindingModel):
         # Determine guesses for initial values
         q_n = Quantity(numpy.zeros(len(experiment.injections)), 'microcalorie / mole')
         for inj, injection in enumerate(experiment.injections):
-            q_n[inj] = injection.evolved_heat / (numpy.sum(injection.titrant)) # review is this correct?  # calories/ mole of injectant
+            q_n[inj] = injection.evolved_heat / (numpy.sum(injection.titrant))  # review is this correct?  # calories/ mole of injectant
 
         log_sigma_guess = log(q_n[-4:].std() / (ureg.microcalorie / ureg.mole))  # review: how can we do this better?
         DeltaG_guess = -8.3 * ureg.kilocalorie / ureg.mol
@@ -213,18 +212,17 @@ class TwoComponentBindingModel(BindingModel):
         DeltaH_0_max = q_n.max() + heat_interval  # (cal/mol)
 
         # Define priors for concentrations.
-        #self.P0 = pymc.Normal('P0', mu=P0_stated, tau=1.0/dP0**2, value=P0_stated)
-        #self.Ls = pymc.Normal('Ls', mu=Ls_stated, tau=1.0/dLs**2, value=Ls_stated)
+
         # review check out all the units to make sure that they're appropriate
-        self.P0 = pymc.Lognormal('P0', mu=log(P0_stated / ureg.molar), tau=1.0/log(1.0+(dP0/P0_stated)**2), value=P0_stated / ureg.molar)
-        self.Ls = pymc.Lognormal('Ls', mu=log(Ls_stated / ureg.molar), tau=1.0/log(1.0+(dLs/Ls_stated)**2), value=Ls_stated / ureg.molar)
+        self.P0 = pymc.Lognormal('P0', mu=log(P0_stated / ureg.micromolar), tau=1.0/log(1.0+(dP0/P0_stated)**2), value=P0_stated / ureg.micromolar)
+        self.Ls = pymc.Lognormal('Ls', mu=log(Ls_stated / ureg.micromolar), tau=1.0/log(1.0+(dLs/Ls_stated)**2), value=Ls_stated / ureg.micromolar)
 
         # Define priors for thermodynamic quantities.
         self.log_sigma = pymc.Uniform('log_sigma', lower=log_sigma_min, upper=log_sigma_max, value=log_sigma_guess)
         self.DeltaG = pymc.Uniform('DeltaG', lower=DeltaG_min / (ureg.kilocalorie / ureg.mol), upper=DeltaG_max / (ureg.kilocalorie / ureg.mol), value=DeltaG_guess / (ureg.kilocalorie / ureg.mol))
         self.DeltaH = pymc.Uniform('DeltaH', lower=DeltaH_min / (ureg.kilocalorie / ureg.mol), upper=DeltaH_max / (ureg.kilocalorie / ureg.mol), value=DeltaH_guess / (ureg.kilocalorie / ureg.mol))
         # review make sure we get the units right on this.
-        self.DeltaH_0 = pymc.Uniform('DeltaH_0', lower=DeltaH_0_min / ureg.calorie, upper=DeltaH_0_max / ureg.calorie, value=DeltaH_0_guess / ureg.calorie)
+        self.DeltaH_0 = pymc.Uniform('DeltaH_0', lower=DeltaH_0_min / ureg.microcalorie, upper=DeltaH_0_max / ureg.microcalorie, value=DeltaH_0_guess / ureg.microcalorie)
 
         q_n_model = pymc.Lambda('q_n_model', lambda P0=self.P0, Ls=self.Ls, DeltaG=self.DeltaG, DeltaH=self.DeltaH, DeltaH_0=self.DeltaH_0:
         self.expected_injection_heats(self.V0, self.DeltaVn, P0, Ls, DeltaG, DeltaH, DeltaH_0 , self.beta, self.N))
@@ -233,14 +231,23 @@ class TwoComponentBindingModel(BindingModel):
         # Define observed data.
         self.q_n_obs = pymc.Normal('q_n', mu=q_n_model, tau=tau, observed=True, value=observed_heats)
 
+
         # Create sampler.
+
         mcmc = pymc.MCMC(self, db='ram')
         mcmc.use_step_method(pymc.Metropolis, self.DeltaG)
         mcmc.use_step_method(pymc.Metropolis, self.DeltaH)
         mcmc.use_step_method(pymc.Metropolis, self.DeltaH_0)
-        mcmc.use_step_method(pymc.Metropolis, self.P0)
-        mcmc.use_step_method(pymc.Metropolis, self.Ls)
-        mcmc.use_step_method(RescalingStep, {'Ls' : self.Ls, 'P0' : self.P0, 'DeltaH' : self.DeltaH, 'DeltaG' : self.DeltaG}, self.beta)
+
+        if experiment.cell_concentration > Quantity('0.0 molar') and experiment.syringe_concentration > Quantity('0.0 molar'):
+            mcmc.use_step_method(RescalingStep,
+                                 {'Ls': self.Ls, 'P0': self.P0, 'DeltaH': self.DeltaH, 'DeltaG': self.DeltaG},
+                                 self.beta)
+        elif experiment.cell_concentration > Quantity('0.0 molar'):
+            mcmc.use_step_method(pymc.Metropolis, self.P0)
+        elif experiment.syringe_concentration > Quantity('0.0 molar'):
+            mcmc.use_step_method(pymc.Metropolis, self.Ls)
+
         self.mcmc = mcmc
         return
 
@@ -288,15 +295,7 @@ class TwoComponentBindingModel(BindingModel):
             d = 1.0 - (DeltaVn[n] / V0)  # dilution factor (dimensionless)
             q_n[n] = DeltaH * V0 * (PLn[n] - d*PLn[n-1]) + DeltaH_0 # subsequent injections # review removed a factor 1000 here, presumably leftover from a unit conversion
 
-        # # Debug output
-        # if debug:
-        #     logger.debug("DeltaG = {:~.3}; DeltaH ={:~.3}; DeltaH_0 = {:~.3}".format(DeltaG, DeltaH, DeltaH_0))
-        #     for n in range(N):
-        #         logger.debug("{:~.3}".format(PLn[n]))
-        #     for n in range(N):
-        #         logger.debug("{:~.3}".format(q_n[n]))
-        #     # for n in range(N): # review was this supposed to work?
-        #     #     logger.debug("{:~.3}".format(q_n_obs[n]))
+
         return q_n
 
     @staticmethod

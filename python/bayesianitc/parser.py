@@ -18,6 +18,8 @@ def optparser(argv=sys.argv[1:]):
     __usage__ = """
 Bayesian analysis of MicroCal .itc file data.
 
+
+
 Usage:
   ITC.py <datafile> <workdir> [-n <name> | --name=<name>] [-q <file> | --heats=<file>] [-i <ins> | --instrument=<ins> ] [-v | -vv | -vvv] [-r <file> | --report=<file>] [ -l <logfile> | --log=<logfile>]
   ITC.py mcmc <datafile> <workdir> (-m <model> | --model=<model>) [-n <name> | --name=<name>] [-q <file> | --heats=<file>] [-i <ins> | --instrument=<ins> ] [ -l <logfile> | --log=<logfile>] [-v | -vv | -vvv] [-r <file> | --report=<file>] [options]
@@ -35,7 +37,7 @@ Options:
   <workdir>                      Directory for output files
   -n <name>, --name=<name>       Name for the experiment. Will be used for output files. Defaults to inputfile name.
   -i <ins>, --instrument=<ins>   The name of the instrument used for the experiment. Overrides .itc file instrument.
-  -q <file>, --heats=<file>      Origin format integrated heats filec
+  -q <file>, --heats=<file>      Origin format integrated heats file. (From NITPIC use .dat file)
   -m <model>, --model=<model>    Model to use for mcmc sampling                  [default: TwoComponent]
   --nfit=<n>                     No. of iteration for maximum a posteriori fit   [default: 20000]
   --niters=<n>                   No. of iterations for mcmc sampling             [default: 2000000]
@@ -84,7 +86,7 @@ def origin_heats_parser(input_file, unit=Quantity('microcalorie')):
     """
 
     assert isinstance(input_file, str)
-    dataframe = pd.read_fwf(input_file, skip_footer=1)
+    dataframe = pd.read_table(input_file, skip_footer=1, engine='python') # Need python engine for skip_footer
     heats = np.array(dataframe['DH'])
     return Quantity(heats, unit)
 

@@ -60,7 +60,7 @@ def compute_normal_statistics(x_t):
     return [x, dx, xlow, xhigh]
 
 try:
-    validated = optparser('mcmc ../data/SAMPL4/CB7/082213b15.itc workdir -m TwoComponent -v -n test.exp')
+    validated = optparser('mcmc 20140707a10.itc workdir -m TwoComponent --niters=400000 --nburn=25000 --nthin=250 --nfit=2000 -v -q 20140707a10_nitpic.dat')
 
     # Arguments to variables
     # Set the logfile
@@ -157,52 +157,39 @@ try:
     map.fit(iterlim=nfit) # 20000
     logging.info(map)
 
-    # mcmc = pymc.MCMC(model, db='ram')
-    #
-    # mcmc.use_step_method(pymc.Metropolis, model['DeltaG'])
-    # mcmc.use_step_method(pymc.Metropolis, model['DeltaH'])
-    # mcmc.use_step_method(pymc.Metropolis, model['DeltaH_0'])
-    # mcmc.use_step_method(pymc.Metropolis, model['log_sigma'])
-    #
-    # if experiment.cell_concentration > 0.0:
-    #     mcmc.use_step_method(pymc.Metropolis, model['P0'])
-    # if experiment.syringe_concentration > 0.0:
-    #     mcmc.use_step_method(pymc.Metropolis, model['Ls'])
-    #
-    # if (experiment.cell_concentration > 0.0) and (experiment.syringe_concentration > 0.0):
-    #     mcmc.use_step_method(RescalingStep, [model['Ls'], model['P0'], model['DeltaH'], model['DeltaG'], model['DeltaH_0']], model['beta'])
+
 
     logging.info("Sampling...")
     model.mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
     #pymc.Matplot.plot(mcmc)
 
     # Plot individual terms.
-    if experiment.cell_concentration > 0.0:
-        pymc.Matplot.plot(mcmc.trace('P0')[:] / (ureg.millimole/ ureg.liter), '%s-P0' % experiment_name)
-    if experiment.syringe_concentration > 0.0:
-        pymc.Matplot.plot(mcmc.trace('Ls')[:] / (ureg.micromole/ ureg.liter), '%s-Ls' % experiment_name)
-    pymc.Matplot.plot(mcmc.trace('DeltaG')[:] / (ureg.kilocalorie/ureg.mole), '%s-DeltaG' % experiment_name)
-    pymc.Matplot.plot(mcmc.trace('DeltaH')[:] / (ureg.kilocalorie/ureg.mole), '%s-DeltaH' % experiment_name)
-    pymc.Matplot.plot(mcmc.trace('DeltaH_0')[:] / (ureg.microcalorie/ureg.microliter), '%s-DeltaH_0' % experiment_name)
-    pymc.Matplot.plot(numpy.exp(mcmc.trace('log_sigma')[:]) * ureg.calorie / ureg.second**0.5, '%s-sigma' % experiment_name)
+    if experiment.cell_concentration > Quantity('0.0 molar'):
+        pymc.Matplot.plot(model.mcmc.trace('P0')[:] , '%s-P0' % experiment_name)
+    if experiment.syringe_concentration > Quantity('0.0 molar'):
+        pymc.Matplot.plot(model.mcmc.trace('Ls')[:] , '%s-Ls' % experiment_name)
+    pymc.Matplot.plot(model.mcmc.trace('DeltaG')[:] , '%s-DeltaG' % experiment_name)
+    pymc.Matplot.plot(model.mcmc.trace('DeltaH')[:] , '%s-DeltaH' % experiment_name)
+    pymc.Matplot.plot(model.mcmc.trace('DeltaH_0')[:] , '%s-DeltaH_0' % experiment_name)
+    pymc.Matplot.plot(numpy.exp(model.mcmc.trace('log_sigma')[:]), '%s-sigma' % experiment_name)
 
     #  TODO: Plot fits to enthalpogram.
-    experiment.plot(model=mcmc, filename='sampl4/%s-enthalpogram.png' % experiment_name)
+    #experiment.plot(model=model, filename='%s/%s-enthalpogram.png' % (working_directory, experiment_name)) # todo fix this
 
     # Compute confidence intervals in thermodynamic parameters.
-    outfile = open('sampl4/confidence-intervals.out','a')
+    outfile = open('%s/confidence-intervals.out' % working_directory,'a')
     outfile.write('%s\n' % experiment_name)
-    [x, dx, xlow, xhigh] = compute_normal_statistics(mcmc.trace('DeltaG')[:] / (ureg.kilocalorie/ureg.mole))
+    [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('DeltaG')[:] )
     outfile.write('DG:     %8.2f +- %8.2f kcal/mol     [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-    [x, dx, xlow, xhigh] = compute_normal_statistics(mcmc.trace('DeltaH')[:] / (ureg.kilocalorie/ureg.mole))
+    [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('DeltaH')[:] )
     outfile.write('DH:     %8.2f +- %8.2f kcal/mol     [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-    [x, dx, xlow, xhigh] = compute_normal_statistics(mcmc.trace('DeltaH_0')[:] / (ureg.microcalorie/ureg.microliter))
+    [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('DeltaH_0')[:] )
     outfile.write('DH0:    %8.2f +- %8.2f ucal         [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-    [x, dx, xlow, xhigh] = compute_normal_statistics(mcmc.trace('Ls')[:] / (ureg.micromole/ ureg.liter))
+    [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('Ls')[:] )
     outfile.write('Ls:     %8.2f +- %8.2f uM           [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-    [x, dx, xlow, xhigh] = compute_normal_statistics(mcmc.trace('P0')[:] / (ureg.micromole / ureg.liter))
+    [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('P0')[:] )
     outfile.write('P0:     %8.2f +- %8.2f uM           [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-    [x, dx, xlow, xhigh] = compute_normal_statistics(numpy.exp(mcmc.trace('log_sigma')[:]) * ureg.calorie / ureg.second**0.5)
+    [x, dx, xlow, xhigh] = compute_normal_statistics(numpy.exp(model.mcmc.trace('log_sigma')[:]) )
     outfile.write('sigma:  %8.5f +- %8.5f ucal/s^(1/2) [%8.5f, %8.5f] \n' % (x, dx, xlow, xhigh))
     outfile.write('\n')
     outfile.close()
