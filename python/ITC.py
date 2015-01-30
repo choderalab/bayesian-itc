@@ -26,6 +26,7 @@ in references units.  Multiplication or division by desired units should ALWAYS 
 store or extract quantities in the desired units.
 
 """
+import os
 
 from os.path import basename, splitext
 import numpy
@@ -63,12 +64,16 @@ def compute_normal_statistics(x_t):
     return [x, dx, xlow, xhigh]
 
 
-validated = optparser('mcmc 20140707a10.itc workdir -m TwoComponent --niters=4000 --nburn=250 --nthin=25 --nfit=2000 -v -q 20140707a10_nitpic.dat')
+validated = optparser('mcmc sample.itc workdir -m TwoComponent --niters=4000 --nburn=250 --nthin=25 --nfit=2000 -v -q sample.nitpic.dat')
 
-# Arguments to variables
+# Process the arguments
+working_directory = validated['<workdir>']
+
+os.chdir(working_directory)
+
 # Set the logfile
 if validated['--log']:
-    logfile = '%(<workdir>)s/%(--log)s' % validated
+    logfile = '%(--log)s' % validated
 else:
     logfile = None
 
@@ -87,7 +92,6 @@ logging.basicConfig(format='%(levelname)s::%(module)s:L%(lineno)s\n%(message)s',
 
 # Files for procesysing
 filename = validated['<datafile>']  # .itc file to process
-working_directory = validated['<workdir>']
 
 if not validated['--name']:
     # Name of the experiment, and output files
@@ -177,10 +181,10 @@ pymc.Matplot.plot(model.mcmc.trace('DeltaH_0')[:] , '%s-DeltaH_0' % experiment_n
 pymc.Matplot.plot(numpy.exp(model.mcmc.trace('log_sigma')[:]), '%s-sigma' % experiment_name)
 
 #  TODO: Plot fits to enthalpogram.
-#experiment.plot(model=model, filename='%s/%s-enthalpogram.png' % (working_directory, experiment_name)) # todo fix this
+#experiment.plot(model=model, filename='%s-enthalpogram.png' %  experiment_name) # todo fix this
 
 # Compute confidence intervals in thermodynamic parameters.
-outfile = open('%s/confidence-intervals.out' % working_directory,'a')
+outfile = open('%s.confidence-intervals.out' % experiment_name, 'a+')
 outfile.write('%s\n' % experiment_name)
 [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('DeltaG')[:] )
 outfile.write('DG:     %8.2f +- %8.2f kcal/mol     [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))

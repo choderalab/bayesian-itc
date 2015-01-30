@@ -46,7 +46,7 @@ Options:
   -r <file>, --report=<file>     Output file with summary in markdown
 """
     arguments = docopt(__usage__, argv=argv, version='ITC.py, pre-alpha')
-    schema = Schema({'--heats': Or(None, And(str, os.path.isfile)),  # str, verify that it exists
+    schema = Schema({'--heats': Or(None, And(str, os.path.isfile, Use(os.path.abspath))),  # str, verify that it exists
                      '--help': bool,  # True or False are accepted
                      '--license': bool,  # True or False are accepted
                      '-v': And(int, lambda n: 0 <= n <= 3),  # integer between 0 and 3
@@ -65,7 +65,7 @@ Options:
                      '--version': bool,  # True or False are accepted
                      '<workdir>': Or(os.path.exists, Use(lambda p: os.mkdir(p))),
                      # Check if directory    exists, or make the directory
-                     '<datafile>': And(str, os.path.isfile),  # str, and ensure it is an existing file
+                     '<datafile>': And(str, os.path.isfile, Use(os.path.abspath)),  # str, and ensure it is an existing file
                      'mcmc': bool,  # True or False are accepted
                      '--report': Or(None, Use(lambda f: open(f, 'w'))),
                      # Don't use, or open file with writing permissions
