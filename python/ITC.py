@@ -30,6 +30,7 @@ store or extract quantities in the desired units.
 from os.path import basename, splitext
 import numpy
 import logging
+import seaborn as sns
 from bayesianitc.units import ureg, Quantity
 import pymc
 from bayesianitc.report import Report, analyze
@@ -39,7 +40,9 @@ from bayesianitc.instruments import known_instruments, Instrument
 from bayesianitc.models import RescalingStep, known_models
 import sys
 
-# TODO Find out if this is still used
+sns.despine()
+sns.set_style("whitegrid")
+
 def compute_normal_statistics(x_t):
 
     # Compute mean.
@@ -60,7 +63,7 @@ def compute_normal_statistics(x_t):
     return [x, dx, xlow, xhigh]
 
 
-validated = optparser('mcmc 20140707a10.itc workdir -m TwoComponent --niters=400000 --nburn=25000 --nthin=250 --nfit=2000 -v -q 20140707a10_nitpic.dat')
+validated = optparser('mcmc 20140707a10.itc workdir -m TwoComponent --niters=4000 --nburn=250 --nthin=25 --nfit=2000 -v -q 20140707a10_nitpic.dat')
 
 # Arguments to variables
 # Set the logfile

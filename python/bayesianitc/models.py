@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 #TODO check if rescaling step is still necessary
 
+
 class RescalingStep(pymc.StepMethod):
     """
     Rescaling StepMethod for sampling correlated changes in ligand and receptor concentration
@@ -191,7 +192,7 @@ class TwoComponentBindingModel(BindingModel):
             q_n[inj] = injection.evolved_heat / (numpy.sum(injection.titrant))  # review is this correct?  # calories/ mole of injectant
 
         log_sigma_guess = log(q_n[-4:].std() / (ureg.microcalorie / ureg.mole))  # review: how can we do this better?
-        DeltaG_guess = -8.3 * ureg.kilocalorie / ureg.mol
+        DeltaG_guess = -8.3 * ureg.kilocalorie / ureg.mol # todo add option to supply literature values
         DeltaH_guess = -12.0 * ureg.kilocalorie / ureg.mol
 
         #Assume the last injection has the best guess for H0
@@ -542,15 +543,10 @@ class CompetitiveBindingModel(BindingModel):
         x_Ln = C0_Ln * V
 
         nspecies = Ka_n.size
-        #print "x_R = ", x_R
-        #print "x_Ln = ", x_Ln
-        #print "x_Ln / V = ", x_Ln / V
-        #print "Ka_n = ", Ka_n
 
         # Define optimization functions
         def func(C_RLn):
             f_n = V * (x_R/V - C_RLn[:].sum()) * (x_Ln[:]/V - C_RLn[:]) * Ka_n[:] - V * C_RLn[:]
-            #print "f_n = ", f_n
             return f_n
 
         def fprime(C_RLn):
@@ -562,9 +558,7 @@ class CompetitiveBindingModel(BindingModel):
             return G_nm
 
         def sfunc(s):
-            #print "s = ", s
             f_n = V * (x_R/V - (s[:]**2).sum()) * (x_Ln[:]/V - s[:]**2) * Ka_n[:] - V * s[:]**2
-            #print "f_n = ", f_n
             return f_n
 
         def sfprime(s):
@@ -576,16 +570,6 @@ class CompetitiveBindingModel(BindingModel):
                 G_nm[n,:] *= 2. * s[n]
             return G_nm
 
-        # Allocate storage for complexes
-        # Compute equilibrium concentrations.
-        #x0 = numpy.zeros([nspecies], numpy.float64)
-        #x0 = (x_Ln / V).copy()
-        #x = scipy.optimize.fsolve(func, x0, fprime=fprime)
-        #C_RLn = x
-
-        #x0 = numpy.sqrt(x_Ln / V).copy()
-        #x = scipy.optimize.fsolve(sfunc, x0, fprime=sfprime)
-        #C_RLn = x**2
 
         def objective(x):
             f_n = func(x)
@@ -597,14 +581,6 @@ class CompetitiveBindingModel(BindingModel):
                 grad += 2 * f_n[n] * G_nm[n,:]
 
             return (obj, grad)
-
-        #x0 = numpy.zeros([nspecies], numpy.float64)
-        #bounds = list()
-        #for n in range(nspecies):
-        #   m = min(C0_R, C0_Ln[n])
-        #   bounds.append( (0., m) )
-        #[x, a, b] = scipy.optimize.fmin_l_bfgs_b(objective, x0, bounds=bounds)
-        #C_RLn = x
 
         def ode(c_n, t, Ka_n, x_Ln, x_R):
             dc_n = - c_n[:] + Ka_n[:] * (x_Ln[:]/V - c_n[:]) * (x_R/V - c_n[:].sum())
@@ -618,30 +594,10 @@ class CompetitiveBindingModel(BindingModel):
                 d2c[n,n] += -(Ka_n[n] * (x_R/V - c_n[:].sum()) + 1.0)
             return d2c
 
-        #if c0 is None: c0 = numpy.zeros([nspecies], numpy.float64)
-        #maxtime = 100.0 * (x_R/V) / Ka_n.max()
-        #time = [0, maxtime / 2.0, maxtime]
-        #c = scipy.integrate.odeint(ode, c0, time, Dfun=odegrad, args=(Ka_n, x_Ln, x_R))
-        #C_RLn = c[-1,:]
-
-        #c = numpy.zeros([nspecies], numpy.float64)
-        #maxtime = 1.0 / Ka_n.min()
-        #maxtime = 1.0 / ((x_R/V) * Ka_n.min())
-        #maxtime = 1.0
-        #time = [0, maxtime]
-        #c = scipy.optimize.fsolve(ode, c, fprime=odegrad, args=(0.0, Ka_n, x_Ln, x_R), xtol=1.0e-6)
-        #c = scipy.integrate.odeint(ode, c, time, Dfun=odegrad, args=(Ka_n, x_Ln, x_R), mxstep=50000)
-        #c = c[-1,:]
-        #C_RLn = c
-
-        #print "C_RLn = ", C_RLn
-        #print ""
-
         c = numpy.zeros([nspecies], numpy.float64)
         sorted_indices = numpy.argsort(-x_Ln)
         for n in range(nspecies):
             indices = sorted_indices[0:n+1]
-            #c[indices] = scipy.optimize.fsolve(ode, c[indices], fprime=odegrad, args=(0.0, Ka_n[indices], x_Ln[indices], x_R), xtol=1.0e-6, warning=False)
             c[indices] = scipy.optimize.fsolve(ode, c[indices], fprime=odegrad, args=(0.0, Ka_n[indices], x_Ln[indices], x_R), xtol=1.0e-6)
         C_RLn = c
 
@@ -689,13 +645,6 @@ class CompetitiveBindingModel(BindingModel):
             x_Ri[i] = true_sample_cell_concentrations[self.receptor] * dcum + true_syringe_concentrations[self.receptor] * (1.0 - dcum)
             for (n, ligand) in enumerate(self.ligands):
                 x_Lin[i,n] = true_sample_cell_concentrations[ligand] * dcum + true_syringe_concentrations[ligand] * (1.0 - dcum)
-        # DEBUG
-        #print "true_sample_cell_concentrations: ", true_sample_cell_concentrations
-        #print "true_syringe_concentrations: ", true_syringe_concentrations
-        #print "x_R in mol:"
-        #print x_Ri
-        #print "x_Lin in mol: "
-        #print x_Lin
 
         # Solve for initial concentration.
         x_R0 = true_sample_cell_concentrations[self.receptor]
@@ -704,16 +653,14 @@ class CompetitiveBindingModel(BindingModel):
         for (n, ligand) in enumerate(self.ligands):
             x_L0n[n] = true_sample_cell_concentrations[ligand]
         C_RL0n[:] = self.equilibrium_concentrations(Ka_n, x_R0, x_L0n[:], self.V0)
-        #print "C_RL0n in uM:"
-        #print C_RL0n * 1.e6
+
 
         # Compute complex concentrations after each injection.
         # NOTE: The total cell volume would be modified for a cumulative model.
         C_RLin = numpy.zeros([experiment.ninjections,nspecies], numpy.float64) # C_RLin[i,n] is the concentration of complex RLn[n] after injection i
         for i in range(experiment.ninjections):
             C_RLin[i,:] = self.equilibrium_concentrations(Ka_n, x_Ri[i], x_Lin[i,:], self.V0)
-        #print "C_RLin in uM:"
-        #print C_RLin * 1e6
+
 
         # Compile a list of thermodynamic parameters.
         DeltaH_n = numpy.zeros([nspecies], numpy.float64) # DeltaH_n[n] is the enthalpy of association of ligand species n
