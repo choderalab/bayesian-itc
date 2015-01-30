@@ -63,8 +63,8 @@ Options:
                      '--instrument': Or(None, And(str, lambda m: m in known_instruments)),
                      # None, or str and found in this dict
                      '--version': bool,  # True or False are accepted
-                     '<workdir>': Or(os.path.exists, Use(lambda p: os.mkdir(p))),
-                     # Check if directory    exists, or make the directory
+                     '<workdir>': str,
+                     # Check if directory exists, or make the directory
                      '<datafile>': And(str, os.path.isfile, Use(os.path.abspath)),  # str, and ensure it is an existing file
                      'mcmc': bool,  # True or False are accepted
                      '--report': Or(None, Use(lambda f: open(f, 'w'))),

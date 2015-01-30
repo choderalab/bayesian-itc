@@ -69,6 +69,9 @@ validated = optparser('mcmc sample.itc workdir -m TwoComponent --niters=4000 --n
 # Process the arguments
 working_directory = validated['<workdir>']
 
+if not os.path.exists(working_directory):
+    os.mkdir(working_directory)
+
 os.chdir(working_directory)
 
 # Set the logfile
