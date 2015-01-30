@@ -10,6 +10,9 @@ A python library for the Bayesian analysis of ITC data. This library is currentl
 
 * `attic/` - older (unused) files
 
+## Requirements
+Python2.7. Necessary modules are listed in `requirements.txt`. We recommend using [`Anaconda`](https://store.continuum.io/cshop/anaconda/) as your python distribution. Some of the requirements will need to be installed using pip.  
+
 ## Usage instructions and command line options:
 ```
 Bayesian analysis of MicroCal .itc file data.
