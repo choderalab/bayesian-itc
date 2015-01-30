@@ -64,7 +64,7 @@ def compute_normal_statistics(x_t):
     return [x, dx, xlow, xhigh]
 
 
-validated = optparser('mcmc sample.itc workdir -m TwoComponent --niters=4000 --nburn=250 --nthin=25 --nfit=2000 -v -q sample.nitpic.dat')
+validated = optparser()
 
 # Process the arguments
 working_directory = validated['<workdir>']
