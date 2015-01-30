@@ -4,5 +4,9 @@ Note that these tools currently are not in working order.
 
 MANIFEST
 
-ITC.py - ITC analysis class
+ITC.py - Command line utility 
+bayesianitc - library with underlying tools.
 attic/ - older (unused) files
+
+Usage example:
+ITC.py mcmc sample.itc workdir -m TwoComponent --niters=4000 --nburn=250 --nthin=25 --nfit=2000 -v -q sample.nitpic.dat
