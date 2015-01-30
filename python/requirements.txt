@@ -1,0 +1,7 @@
+numpy
+seaborn
+pandas
+pymc
+pint
+docopt
+schema
