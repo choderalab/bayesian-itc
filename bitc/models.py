@@ -189,8 +189,9 @@ class TwoComponentBindingModel(BindingModel):
         # Determine guesses for initial values
         q_n = Quantity(numpy.zeros(len(experiment.injections)), 'microcalorie / mole')
         for inj, injection in enumerate(experiment.injections):
-            q_n[inj] = injection.evolved_heat / (numpy.sum(injection.titrant))  # review is this correct?  # calories/ mole of injectant
+            q_n[inj] = injection.evolved_heat / (numpy.sum(injection.titrant))  # TODO reduce to one titrant (from .itc file)
 
+        # TODO better initial guesses for everything
         log_sigma_guess = log(q_n[-4:].std() / (ureg.microcalorie / ureg.mole))  # review: how can we do this better?
         DeltaG_guess = -8.3 * ureg.kilocalorie / ureg.mol # todo add option to supply literature values
         DeltaH_guess = -12.0 * ureg.kilocalorie / ureg.mol
@@ -213,7 +214,7 @@ class TwoComponentBindingModel(BindingModel):
         DeltaH_0_max = q_n.max() + heat_interval  # (cal/mol)
 
         # Define priors for concentrations.
-
+        # TODO convert everything to a consistent unit system
         # review check out all the units to make sure that they're appropriate
         self.P0 = pymc.Lognormal('P0', mu=log(P0_stated / ureg.micromolar), tau=1.0/log(1.0+(dP0/P0_stated)**2), value=P0_stated / ureg.micromolar)
         self.Ls = pymc.Lognormal('Ls', mu=log(Ls_stated / ureg.micromolar), tau=1.0/log(1.0+(dLs/Ls_stated)**2), value=Ls_stated / ureg.micromolar)
@@ -254,7 +255,7 @@ class TwoComponentBindingModel(BindingModel):
 
 
     @staticmethod
-    @ureg.wraps(ret=ureg.kilocalorie, args=[ureg.milliliter, ureg.milliliter, None , None , None, None, None ,  1/ (ureg.kilocalories / ureg.mole), None], strict=True)
+    @ureg.wraps(ret=ureg.kilocalorie, args=[ureg.milliliter, ureg.milliliter, None, None, None, None, None ,  1/ (ureg.kilocalories / ureg.mole), None], strict=True)
     def expected_injection_heats(V0, DeltaVn, P0, Ls, DeltaG, DeltaH, DeltaH_0, beta, N):
         """
         Expected heats of injection for two-component binding model.

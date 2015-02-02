@@ -140,6 +140,7 @@ logging.debug(str(experiment))
 analyze(experiment_name, experiment)
 # Write Origin-style integrated heats.
 filename = experiment_name + '-integrated.txt'
+# TODO integrated heat override function, instead of file
 experiment.write_integrated_heats(filename)
 
 # Write baseline fit information.
