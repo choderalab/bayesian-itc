@@ -272,14 +272,10 @@ class Experiment(object):
                         (time, power, temperature) = line.strip().split(",")
 
                 # Store data about this measurement.
-                self.filter_period_end_time[
-                    nmeasurements] = float(time) * ureg.second
-                self.differential_power[nmeasurements] = float(
-                    power) * ureg.microcalorie / ureg.second
-                self.cell_temperature[nmeasurements] = (float(
-                    temperature) + 273.15) * ureg.kelvin  # in Kelvin
-                self.jacket_temperature[nmeasurements] = (float(
-                    jacket_temperature) + 273.15) * ureg.kelvin  # in Kelvin
+                self.filter_period_end_time[nmeasurements] = float(time) * ureg.second
+                self.differential_power[nmeasurements] = float(power) * ureg.microcalorie / ureg.second
+                self.cell_temperature[nmeasurements] = (float(temperature) + 273.15) * ureg.kelvin  # in Kelvin
+                self.jacket_temperature[nmeasurements] = (float(jacket_temperature) + 273.15) * ureg.kelvin  # in Kelvin
 
                 nmeasurements += 1
         # number of injections read, not including @0
