@@ -322,18 +322,37 @@ class Experiment(object):
 
         return
 
-    def gaussian_process_baseline(self, frac=0.05, theta0=4.7, nugget=1.0):
-        """
-        Gaussian Process fit of baseline.
+    @staticmethod
+    def _plot_confidence_interval(axes, full_x, sigma, y_pred):
+        # Confidence interval
+        axes.fill(numpy.concatenate([full_x, full_x[::-1]]),
+                  numpy.concatenate([y_pred - 1.9600 * sigma,
+                                     (y_pred + 1.9600 * sigma)[::-1]]),
+                  alpha=.7, fc='black', ec='None', label='95% confidence interval')
 
-        frac = fraction of baseline to use for fit
-        :return:
-        :rtype:
-        """
-        from sklearn import gaussian_process
-        import pylab as pl
-        import numpy as np
+    @staticmethod
+    def _plot_gaussian_baseline(figfile, figtitle, full_x, full_y, sigma, x, y, y_pred):
+        from matplotlib.figure import Figure
+        from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
+        figure = Figure()
+        canvas = FigureCanvas(figure)
+        axes = figure.add_subplot(1, 1, 1, axisbg='whitesmoke')
+        Experiment._plot_confidence_interval(axes, full_x, sigma, y_pred)
+        # Entire set of data
+        axes.plot(full_x, full_y, 'o', markersize=2, lw=1, color='deepskyblue', alpha=.5, label='Raw data')
+        #Points for fit
+        axes.plot(x, y, 'o', color='crimson', markersize=2, alpha=.8, label='Fitted data')
+        # Prediction
+        axes.plot(full_x, y_pred, 'o', markersize=1, mec='w', mew=1, color='k', alpha=.5, label='Predicted baseline')
+
+        axes.set_xlabel('time (s)')
+        axes.set_ylabel(r'differential power ($\mu$cal / s)')
+        axes.legend(markerscale=3)
+        axes.set_title(figtitle)
+        canvas.print_figure(figfile, dpi=500)
+
+    def _retrieve_fit_indices(self, frac):
         # Form list of data to fit.
         x = list()
         y = list()
@@ -352,6 +371,21 @@ class Experiment(object):
                 x.append(self.filter_period_end_time[index] / ureg.second)
                 y.append(self.differential_power[index] / (ureg.microcalorie / ureg.second))
                 fit_indices.append(index)
+        return fit_indices, x, y
+
+    def gaussian_process_baseline(self, frac=0.05, theta0=4.7, nugget=1.0):
+        """
+        Gaussian Process fit of baseline.
+
+        frac = fraction of baseline to use for fit
+        :return:
+        :rtype:
+        """
+        from sklearn import gaussian_process
+
+
+        fit_indices, x, y = self._retrieve_fit_indices(frac)
+
         x = numpy.array(x)
         y = numpy.array(y)
         full_x = numpy.atleast_2d(self.filter_period_end_time).T
@@ -365,26 +399,17 @@ class Experiment(object):
 
         gp.fit(x, y)
         y_pred, MSE = gp.predict(full_x, eval_MSE=True)
-        sigma = np.sqrt(MSE)
+        sigma = numpy.sqrt(MSE)
 
+        figfile='gp-baseline.png'
+        figtitle='Gaussian process baseline fit.'
 
-
-        #Prediction
-        pl.plot(full_x, y_pred, '.', color='black', alpha=.75)
-        #Entire set of data
-        pl.plot(full_x, full_y, '.', color='dodgerblue', alpha=.5)
-        #Points for fit
-        pl.plot(x, y, '.', color='crimson', alpha=.5)
-        # Confidence interval
-        pl.fill(np.concatenate([full_x, full_x[::-1]]), \
-                np.concatenate([y_pred - 1.9600 * sigma,
-                                (y_pred + 1.9600 * sigma)[::-1]]), \
-                alpha=.3, fc='black', ec='None', label='95% confidence interval')
-
-        # todo store baseline fit parameters
+        self._plot_gaussian_baseline(figfile, figtitle, full_x, full_y, sigma, x, y, y_pred)
 
         self.baseline_power = Quantity(y_pred, 'microcalories per second')
         self.baseline_fit_data = {'x': full_x, 'y': y_pred, 'indices': fit_indices}
+
+        # TODO store baseline fit parameters
 
     def fit_baseline(self):
         """
