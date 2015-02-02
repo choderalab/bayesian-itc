@@ -322,7 +322,7 @@ class Experiment(object):
 
         return
 
-    def gaussian_process_baseline(self, frac=0.25, theta0=4.7, nugget=1.0):
+    def gaussian_process_baseline(self, frac=0.05, theta0=4.7, nugget=1.0):
         """
         Gaussian Process fit of baseline.
 
@@ -342,6 +342,7 @@ class Experiment(object):
         for index in range(0, self.injections[0].first_index):
             x.append(self.filter_period_end_time[index] / ureg.second)
             y.append(self.differential_power[index] / (ureg.microcalorie / ureg.second ))
+            fit_indices.append(index)
         # Add last x% of each injection.
         for injection in self.injections:
             start_index = injection.first_index
@@ -353,6 +354,8 @@ class Experiment(object):
                 fit_indices.append(index)
         x = numpy.array(x)
         y = numpy.array(y)
+        full_x = numpy.atleast_2d(self.filter_period_end_time).T
+        full_y = numpy.array(self.differential_power).T
 
         x = numpy.atleast_2d(x).T
         y = numpy.array(y).T
@@ -361,26 +364,27 @@ class Experiment(object):
                                               random_start=100)
 
         gp.fit(x, y)
-        y_pred, MSE = gp.predict(x, eval_MSE=True)
+        y_pred, MSE = gp.predict(full_x, eval_MSE=True)
         sigma = np.sqrt(MSE)
 
-        full_x = numpy.atleast_2d(self.filter_period_end_time).T
-        full_y = numpy.array(self.differential_power).T
+
 
         #Prediction
-        pl.plot(x, y_pred, 'o', color='black', alpha=.75)
+        pl.plot(full_x, y_pred, '.', color='black', alpha=.75)
         #Entire set of data
         pl.plot(full_x, full_y, '.', color='dodgerblue', alpha=.5)
         #Points for fit
         pl.plot(x, y, '.', color='crimson', alpha=.5)
         # Confidence interval
-        pl.fill(np.concatenate([x, x[::-1]]), \
+        pl.fill(np.concatenate([full_x, full_x[::-1]]), \
                 np.concatenate([y_pred - 1.9600 * sigma,
                                 (y_pred + 1.9600 * sigma)[::-1]]), \
                 alpha=.3, fc='black', ec='None', label='95% confidence interval')
-        pl.savefig("baseline.png", dpi=300)
 
+        # todo store baseline fit parameters
 
+        self.baseline_power = Quantity(y_pred, 'microcalories per second')
+        self.baseline_fit_data = {'x': full_x, 'y': y_pred, 'indices': fit_indices}
 
     def fit_baseline(self):
         """
@@ -391,7 +395,6 @@ class Experiment(object):
         where parameters (c, k, x0, y0) are fit parameters.
 
         """
-        # TODO look for linearly interpolated fits, or @pgrinaway 's implementation using Gaussian process
         # TODO expose baseline to BindingModel as parameters
         import scipy.optimize
 
@@ -427,6 +430,7 @@ class Experiment(object):
         for index in range(0, self.injections[0].first_index):
             x.append(self.filter_period_end_time[index] / ureg.second)
             y.append(self.differential_power[index] / (ureg.microcalorie / ureg.second ))
+            fit_indices.append(index)
         # Add last 5% of each injection.
         for injection in self.injections:
             start_index = injection.first_index
