@@ -1,6 +1,8 @@
 import unittest
 
+
 class TestInjection(unittest.TestCase):
+
     @unittest.expectedFailure
     def test___init__(self):
         # injection = Injection(number, volume, duration, spacing, filter_period, titrant_concentration)
@@ -11,7 +13,9 @@ class TestInjection(unittest.TestCase):
         # self.assertEqual(expected, injection.contents(titrant_concentration))
         assert False # TODO: implement your test here
 
+
 class TestExperiment(unittest.TestCase):
+
     @unittest.expectedFailure
     def test___init__(self):
         # experiment = Experiment(data_filename)
@@ -23,20 +27,17 @@ class TestExperiment(unittest.TestCase):
         # self.assertEqual(expected, experiment.__str__())
         assert False # TODO: implement your test here
 
-
     @unittest.expectedFailure
     def test_fit_gaussian_process_baseline(self):
         # experiment = Experiment(data_filename)
         # self.assertEqual(expected, experiment.fit_gaussian_process_baseline(frac, theta0, nugget, plot))
         assert False # TODO: implement your test here
 
-
     @unittest.expectedFailure
     def test_integrate_heat(self):
         # experiment = Experiment(data_filename)
         # self.assertEqual(expected, experiment.integrate_heat())
         assert False # TODO: implement your test here
-
 
     @unittest.expectedFailure
     def test_plot(self):
