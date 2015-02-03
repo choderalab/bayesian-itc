@@ -72,19 +72,3 @@ Options:
 
     return schema.validate(arguments)
 
-def origin_heats_parser(input_file, unit=Quantity('microcalorie')):
-    """
-    Parse an origin heats file and return the heats as array with pint units
-    :param input_file:
-    :type input_file:
-    :param unit:
-    :type unit:
-    :return:
-    :rtype:
-    """
-
-    assert isinstance(input_file, str)
-    dataframe = pd.read_table(input_file, skip_footer=1, engine='python') # Need python engine for skip_footer
-    heats = np.array(dataframe['DH'])
-    return Quantity(heats, unit)
-
