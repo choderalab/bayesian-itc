@@ -42,11 +42,12 @@ class Instrument(object):
         The volume is assumed to be the fourth   line in the block that starts with a #.
         This format is valid for at least the Auto-iTC200 and VPITC."""
         try:
-            if type(filename) == file:
+            if type(filename) == str:
+                dotitc = open(filename, 'r')
+            else:
                 dotitc = filename
 
-            else:
-                dotitc = open(filename, 'r')
+
             logger.info("Reading volumes from a .itc file.")
             lines = dotitc.readlines()
             hash_count = 1

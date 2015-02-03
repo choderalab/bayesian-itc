@@ -346,26 +346,26 @@ class CompetitiveBindingModel(BindingModel):
 
         # Store copy of experiments.
         self.experiments = copy.deepcopy(experiments)
-        if verbose: print "%d experiments" % len(self.experiments)
+        if verbose: print("%d experiments" % len(self.experiments))
 
         # Store sample cell volume.
         self.V0 = V0
 
         # Store the name of the receptor.
         self.receptor = receptor
-        if verbose: print "species '%s' will be treated as receptor" % self.receptor
+        if verbose: print("species '%s' will be treated as receptor" % self.receptor)
 
         # Make a list of names of all molecular species.
         self.species = set() # all molecular species
         for experiment in experiments:
             self.species.update( experiment.sample_cell_concentrations.keys() )
             self.species.update( experiment.syringe_concentrations.keys() )
-        if verbose: print "species: ", self.species
+        if verbose: print("species: ", self.species)
 
         # Make a list of all ligands.
         self.ligands = copy.deepcopy(self.species)
         self.ligands.remove(receptor)
-        if verbose: print "ligands: ", self.ligands
+        if verbose: print("ligands: ", self.ligands)
 
         # Create a list of all stochastics.
         self.stochastics = list()
@@ -386,8 +386,8 @@ class CompetitiveBindingModel(BindingModel):
             self.thermodynamic_parameters[name] = x
             self.stochastics.append(x)
         if verbose:
-            print "thermodynamic parameters:"
-            print self.thermodynamic_parameters
+            print("thermodynamic parameters:")
+            print(self.thermodynamic_parameters)
 
         # DEBUG: Set initial thermodynamic parameters to literature values.
         self.thermodynamic_parameters["DeltaG of HIV protease * acetyl pepstatin"].value = -9.0
@@ -415,7 +415,7 @@ class CompetitiveBindingModel(BindingModel):
         for (index, experiment) in enumerate(self.experiments):
             # Number of observations
             experiment.ninjections = experiment.observed_injection_heats.size
-            if verbose: print "Experiment %d has %d injections" % (index, experiment.ninjections)
+            if verbose: print("Experiment %d has %d injections" % (index, experiment.ninjections))
 
             # Heat of dilution / mixing
             # We allow the heat of dilution/mixing to range in observed range of heats, plus a larger margin of the range of oberved heats.
@@ -467,12 +467,12 @@ class CompetitiveBindingModel(BindingModel):
             self.stochastics.append(experiment.observation)
 
         # Create sampler.
-        print "Creating sampler..."
+        print("Creating sampler...")
         mcmc = pymc.MCMC(self.stochastics, db='ram')
         #db = pymc.database.pickle.load('MCMC.pickle') # DEBUG
         #mcmc = pymc.MCMC(self.stochastics, db=db)
         for stochastic in self.stochastics:
-            print stochastic
+            # print stochastic
             try:
                 mcmc.use_step_method(pymc.Metropolis, stochastic)
             except:
@@ -686,22 +686,22 @@ class CompetitiveBindingModel(BindingModel):
             for n in range(nspecies):
                 q_n[i] += (1000.0*DeltaH_n[n]) * V0 * (C_RLin[i,n] - d*C_RLin[i-1,n]) # subsequent injections
 
-        # Debug output
-        debug = False
-        if debug:
-            print experiment.name
-            print "DeltaG = ", DeltaG_n
-            print "DeltaH = ", DeltaH_n
-            print "DeltaH_0 = ", DeltaH_0
-            print "model: ",
-            for heat in q_n:
-                print "%6.1f" % (heat*1e6),
-            print ""
-            print "obs  : ",
-            for heat in experiment.observed_injection_heats:
-                print "%6.1f" % (heat*1e6),
-            print ""
-            print ""
+        # # Debug output
+        # debug = False
+        # if debug:
+        #     print experiment.name
+        #     print "DeltaG = ", DeltaG_n
+        #     print "DeltaH = ", DeltaH_n
+        #     print "DeltaH_0 = ", DeltaH_0
+        #     print "model: ",
+        #     for heat in q_n:
+        #         print "%6.1f" % (heat*1e6),
+        #     print ""
+        #     print "obs  : ",
+        #     for heat in experiment.observed_injection_heats:
+        #         print "%6.1f" % (heat*1e6),
+        #     print ""
+        #     print ""
 
         return q_n
 
