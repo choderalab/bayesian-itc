@@ -1,4 +1,5 @@
-# Bayesian ITC
+# Bayesian ITC 
+[![Build Status](https://travis-ci.org/choderalab/bayesian-itc.svg)](https://travis-ci.org/choderalab/bayesian-itc)  
 A python library for the Bayesian analysis of isothermal titration calorimetry experiments. This library is currently under heavy development, and API changes are frequent. Not all of the available command line options have been implemented yet.
 
 
