@@ -1,7 +1,8 @@
 """Contains Report class for presenting summary of data in organized fashion."""
 
 # TODO work on a markdown version of the report
-from units import ureg,Quantity
+from bitc.units import ureg,Quantity
+
 
 class Report(object):
     """
@@ -14,7 +15,7 @@ r"""
 \documentclass[11pt]{report}
 \usepackage{graphicx}
 \usepackage{cite}
-\usepackage{url} 
+\usepackage{url}
 \usepackage{ifthen}
 \usepackage{multicol}
 
@@ -95,7 +96,7 @@ J.~D.~Chodera, P.~A.~Novick, K.~Branson, and V.~S.~Pande.
     #=============================================================================================
     # Methods.
     #=============================================================================================
-    
+
     def __init__(self, experiments):
         """
         Initialize report with one or more experiments.
@@ -120,9 +121,9 @@ J.~D.~Chodera, P.~A.~Novick, K.~Branson, and V.~S.~Pande.
 
         @param filename name of LaTeX file to be written
         @paramtype filename Python string
-        
+
         """
-                
+
         # Populate LaTeX report template.
         project_name = 'test project'
         user_name = 'jchodera'
@@ -138,7 +139,7 @@ syringe concentration & %(syringe_concentration).3f mM \\
 cell concentration & %(cell_concentration).3f mM \\
 cell volume & %(cell_volume).3f mL \\
 reference power & %(reference_power).3f $\mu$cal/s \\
-"""        
+"""
         table_overview_datasets = ""
         for experiment in self.experiments:
             dataset_name = experiment.data_filename
@@ -152,16 +153,16 @@ reference power & %(reference_power).3f $\mu$cal/s \\
                 'cell_volume' : (experiment.cell_volume / ureg.milliliter),
                 'reference_power' : (experiment.reference_power / (ureg.microcalorie/ureg.second)),
             }
-             
+
         latex_source = self.latex_template % vars()
 
         # Create report file.
         report_file = open(filename, 'w')
-        report_file.write(latex_source)        
+        report_file.write(latex_source)
         report_file.close()
-        
+
         return
-  
+
 # TODO this function name is too vague, rename. Make modular
 def analyze(name, experiment):
 
@@ -183,7 +184,7 @@ def analyze(name, experiment):
 
     # plot baseline fit
     pylab.hold(True)
-    pylab.plot(experiment.filter_period_end_time / ureg.second, experiment.baseline_power / (ureg.microcalorie/ureg.second), 'g-') # plot baseline fit
+    pylab.plot(experiment.filter_period_end_time / ureg.second, experiment.baseline_power / (ureg.microcalorie/ureg.second), 'g-')  # plot baseline fit
 
     # differential power
     pylab.plot(experiment.filter_period_end_time / ureg.second, experiment.differential_power / (ureg.microcalorie/ureg.second), 'k.', markersize=1)
