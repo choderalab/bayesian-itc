@@ -1,4 +1,5 @@
 numpy
+nose
 pandas
 pymc
 pint
