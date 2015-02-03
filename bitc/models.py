@@ -160,7 +160,7 @@ class TwoComponentBindingModel(BindingModel):
     """
     A binding model with two components (e.g. Protein and Ligand)
     """
-    def __init__(self, experiment, instrument, observed_heats):
+    def __init__(self, experiment, instrument):
 
         # Determine number of observations.
         self.N = experiment.number_of_injections
@@ -230,8 +230,14 @@ class TwoComponentBindingModel(BindingModel):
         self.expected_injection_heats(self.V0, self.DeltaVn, P0, Ls, DeltaG, DeltaH, DeltaH_0 , self.beta, self.N))
         tau = pymc.Lambda('tau', lambda log_sigma=self.log_sigma : self.tau(log_sigma))
 
+        # Review doublecheck equation
+        q_ns = Quantity(numpy.zeros(experiment.number_of_injections), 'microcalorie / mole')
+        for inj,injection in enumerate(experiment.injections):
+            q_ns[inj] = injection.evolved_heat / (experiment.syringe_concentration * injection.volume)
+
+
         # Define observed data.
-        self.q_n_obs = pymc.Normal('q_n', mu=q_n_model, tau=tau, observed=True, value=observed_heats)
+        self.q_n_obs = pymc.Normal('q_n', mu=q_n_model, tau=tau, observed=True, value=q_ns / Quantity('microcalorie / mole'))
 
 
         # Create sampler.

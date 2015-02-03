@@ -444,6 +444,8 @@ class Experiment(object):
 
             # Store heat evolved from this injection.
             injection.evolved_heat = evolved_heat
+
+
         return
 
     def __str__(self):
@@ -490,7 +492,6 @@ class Experiment(object):
         """
         Write integrated heats in a format similar to that used by Origin.
         """
-        # TODO implement read_integrated_heats function that overrides values
         DeltaV = self.injections[0].volume
         V0 = self.cell_volume
         P0 = self.cell_concentration
@@ -571,27 +572,24 @@ class Experiment(object):
 
         return
 
-
-    def read_integrated_heats(self, heats_file, format=False):
+    def read_integrated_heats(self, heats_file, unit='microcalorie'):
         """
-
+        Read integrated heats from an origin file
         :param heats_file:
         :type heats_file:
-        :param format:
-        :type format:
         :return:
         :rtype:
         """
-        with open(heats_file) as heats:
-            heats = self._parse_heats(heats_file, write_heats_compatible=False)
+        heats = self._parse_heats(heats_file, unit)
 
-        if heats.size() != self.number_of_injections:
+        if heats.size != self.number_of_injections:
             raise ValueError("The number of injections does not match the number of integrated heats in %s" % heats_file)
 
         for inj, heat in enumerate(heats):
             self.injections[inj].evolved_heat = heat
 
-    def _parse_heats(self, heats_file, write_heats_compatible=False):
+    @staticmethod
+    def _parse_heats(heats_file, unit):
         """
         Take as input a file with heats, format specification. Output a list of integrated heats in units of microcalorie
 
@@ -602,7 +600,12 @@ class Experiment(object):
         :return:
         :rtype:
         """
-        raise NotImplementedError
+        import pandas as pd
+
+        assert isinstance(heats_file, str)
+        dataframe = pd.read_table(heats_file, skip_footer=1, engine='python')  # Need python engine for skip_footer
+        heats = numpy.array(dataframe['DH'])
+        return Quantity(heats, unit)
 
     def write_power(self, filename):
         """
