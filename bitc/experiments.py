@@ -2,9 +2,12 @@
 Contains Experiment and Injection classes.
 """
 import os
-from bitc.units import ureg,Quantity
 import logging
+
 import numpy
+
+from bitc.units import ureg,Quantity
+
 
 # Use logger with name of module
 logger = logging.getLogger(__name__)
@@ -309,8 +312,7 @@ class Experiment(object):
                 injection.last_index = nmeasurements - 1
 
         # Fit baseline.
-        self.gaussian_process_baseline()
-        # self.fit_baseline()
+        self.fit_gaussian_process_baseline()
 
         # Integrate heat evolved from each injection.
         self.integrate_heat()
@@ -333,6 +335,8 @@ class Experiment(object):
         figure = Figure()
         canvas = FigureCanvas(figure)
         axes = figure.add_subplot(1, 1, 1, axisbg='whitesmoke')
+
+        # Adds a 95% confidence interval to the plot
         Experiment._plot_confidence_interval(axes, full_x, sigma, y_pred)
         # Entire set of data
         axes.plot(full_x, full_y, 'o', markersize=2, lw=1, color='deepskyblue', alpha=.5, label='Raw data')
@@ -348,7 +352,9 @@ class Experiment(object):
         canvas.print_figure(figfile, dpi=500)
 
     def _retrieve_fit_indices(self, frac):
-        # Form list of data to fit.
+        """Form list of data to fit.
+        """
+
         x = list()
         y = list()
         fit_indices = list()
@@ -366,142 +372,49 @@ class Experiment(object):
                 x.append(self.filter_period_end_time[index] / ureg.second)
                 y.append(self.differential_power[index] / (ureg.microcalorie / ureg.second))
                 fit_indices.append(index)
+
+        x = numpy.array(x)
+        y = numpy.array(y)
+        fit_indices = numpy.array(fit_indices)
         return fit_indices, x, y
 
-    def gaussian_process_baseline(self, frac=0.05, theta0=4.7, nugget=1.0):
+    def fit_gaussian_process_baseline(self, frac=0.05, theta0=4.7, nugget=1.0, plot=True):
         """
         Gaussian Process fit of baseline.
 
         frac = fraction of baseline to use for fit
+
         :return:
         :rtype:
         """
         from sklearn import gaussian_process
 
-
+        # Retrieve a reduced set of data
+        # (data up until first injection and x percent before every injection)
         fit_indices, x, y = self._retrieve_fit_indices(frac)
 
-        x = numpy.array(x)
-        y = numpy.array(y)
+        # sklearn requires a 2d array, so make it pseudo 2d
         full_x = numpy.atleast_2d(self.filter_period_end_time).T
-        full_y = numpy.array(self.differential_power).T
-
         x = numpy.atleast_2d(x).T
+
+        full_y = numpy.array(self.differential_power).T
         y = numpy.array(y).T
 
         gp = gaussian_process.GaussianProcess(regr='quadratic', corr='squared_exponential', theta0=theta0, nugget=nugget,
                                               random_start=100)
 
+        # Fit only based on the reduced set of the data
         gp.fit(x, y)
-        y_pred, MSE = gp.predict(full_x, eval_MSE=True)
-        sigma = numpy.sqrt(MSE)
+        y_pred, mean_squared_error = gp.predict(full_x, eval_MSE=True)
+        sigma = numpy.sqrt(mean_squared_error)
 
-        figfile='gp-baseline.png'
-        figtitle='Gaussian process baseline fit.'
-
-        self._plot_gaussian_baseline(figfile, figtitle, full_x, full_y, sigma, x, y, y_pred)
+        if plot:
+            figfile = 'gp-baseline.png'
+            figtitle = 'Gaussian process baseline fit.'
+            self._plot_gaussian_baseline(figfile, figtitle, full_x, full_y, sigma, x, y, y_pred)
 
         self.baseline_power = Quantity(y_pred, 'microcalories per second')
         self.baseline_fit_data = {'x': full_x, 'y': y_pred, 'indices': fit_indices}
-
-        # TODO store baseline fit parameters
-
-    def fit_baseline(self):
-        """
-        Fit the baseline using a simple shifted exponential functional form:
-
-        y = c * exp[-k*(x-x0)] + y0
-
-        where parameters (c, k, x0, y0) are fit parameters.
-
-        """
-        # TODO expose baseline to BindingModel as parameters
-        import scipy.optimize
-
-        def _eNegX_(p, x):
-            [x0, y0, c, k] = p
-            y = (c * numpy.exp(-k * (x - x0))) + y0
-            return y
-
-        def _eNegX_residuals(p, x, y):
-            return y - _eNegX_(p, x)
-
-        def _eNegX_error(p, x, y):
-            return numpy.sum((y - _eNegX_(p, x)) ** 2)
-
-        def Get_eNegX_Coefficients(x, y, p_guess):
-            # Calls the leastsq() function, which calls the residuals function with an initial
-            # guess for the parameters and with the x and y vectors.  Note that the residuals
-            # function also calls the _eNegX_ function.  This will return the parameters p that
-            # minimize the least squares error of the _eNegX_ function with respect to the original
-            # x and y coordinate vectors that are sent to it.
-            # [p, cov, infodict, mesg, ier] = scipy.optimize.leastsq(_eNegX_residuals,p_guess,args=(x,y),full_output=1,warning=True) # works with older scipy
-            [p, cov, infodict, mesg, ier] = scipy.optimize.leastsq(
-                _eNegX_residuals, p_guess, args=(x, y),
-                full_output=1)  # works with EPD 7.0 scipy
-
-            return p
-
-        # Form list of data to fit.
-        x = list()
-        y = list()
-        fit_indices = list()
-        # Add data prior to first injection
-        for index in range(0, self.injections[0].first_index):
-            x.append(self.filter_period_end_time[index] / ureg.second)
-            y.append(self.differential_power[index] / (ureg.microcalorie / ureg.second ))
-            fit_indices.append(index)
-        # Add last 5% of each injection.
-        for injection in self.injections:
-            start_index = injection.first_index
-            end_index = injection.last_index + 1
-            start_index = end_index - int((end_index - start_index) * 0.05)
-            for index in range(start_index, end_index):
-                x.append(self.filter_period_end_time[index] / ureg.second )
-                y.append(self.differential_power[index] / (ureg.microcalorie / ureg.second))
-                fit_indices.append(index)
-        x = numpy.array(x)
-        y = numpy.array(y)
-
-        # Store list of data to which base line was fitted.
-        self.baseline_fit_data = {'x': x, 'y': y, 'indices': fit_indices}
-
-        logger.info("Fitting data:\n%s\n%s" % (x, y))
-
-        # Perform nonlinear fit using multiple guesses.
-        # Parameters are [x0, y0, c, k].
-        p_guesses = list()
-        p_guesses.append((numpy.median(x), numpy.min(y), numpy.max(y), 0.01))
-        p_guesses.append((numpy.median(x), numpy.min(y), -numpy.max(y), -0.01))
-        p_guesses.append((numpy.median(x), numpy.min(y), numpy.max(y), -0.01))
-        p_guesses.append((numpy.median(x), numpy.min(y), -numpy.max(y), 0.01))
-        p_fits = list()
-        for p_guess in p_guesses:
-            p = Get_eNegX_Coefficients(x, y, p_guess)
-            p_fits.append(p)
-        # Find best fit.
-        minimal_error = _eNegX_error(p_fits[0], x, y)
-        minimal_error_index = 0
-        for index in range(1, len(p_fits)):
-            error = _eNegX_error(p_fits[index], x, y)
-            if error < minimal_error:
-                minimal_error = error
-                minimal_error_index = index
-        p = p_fits[minimal_error_index]
-        # Unpack fit parameters
-        [x0, y0, c, k] = p
-        xfit = self.filter_period_end_time[:] / ureg.second
-        yfit = _eNegX_(p, xfit)
-
-        logger.debug("Fit parameters: [x0, y0, c, k]\n%s" % p)
-
-        # Store baseline fit parameters.
-        self.baseline_fit_parameters = p
-
-        # Store baseline
-        self.baseline_power = ureg.Quantity(numpy.array(yfit), ureg.microcalorie / ureg.second)
-
-        return
 
     def integrate_heat(self):
         """
