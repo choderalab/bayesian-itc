@@ -50,4 +50,6 @@ Sample files have been included to test if the library is functional. You can fi
 
 ### Usage example:
 
-`python bitc_util.py mcmc bitc/testdata/sample.itc workdir -m TwoComponent -v -q bitc/testdata/sample.nitpic.dat`
+```
+python bitc_util.py mcmc bitc/testdata/sample.itc workdir -m TwoComponent -v -q bitc/testdata/sample.nitpic.dat
+```
