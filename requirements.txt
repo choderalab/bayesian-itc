@@ -4,4 +4,4 @@ pymc
 pint
 docopt
 schema
-sklearn
+scikit-learn
