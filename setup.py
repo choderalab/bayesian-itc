@@ -3,15 +3,11 @@ bitc, a python library for the Bayesian analysis of isothermal titration calorim
 """
 from __future__ import print_function
 import os
-import sys
-import distutils.extension
-from setuptools import setup, Extension, find_packages
-import numpy
-import glob
-import os
 from os.path import relpath, join
 import subprocess
-from Cython.Build import cythonize
+
+from setuptools import setup
+
 DOCLINES = __doc__.split("\n")
 
 
