@@ -1,9 +1,7 @@
-__author__ = 'bas'
-
 from docopt import docopt
 from schema import Schema, And, Or, Use
-from .models import known_models
-from .instruments import known_instruments
+from models import known_models
+from instruments import known_instruments
 import sys
 import os
 import numpy as np
