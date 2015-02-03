@@ -1,14 +1,12 @@
-__author__ = 'bas'
-
 from docopt import docopt
 from schema import Schema, And, Or, Use
-from .models import known_models
-from .instruments import known_instruments
+from bitc.models import known_models
+from bitc.instruments import known_instruments
 import sys
 import os
 import numpy as np
 import pandas as pd
-from units import Quantity
+from bitc.units import Quantity
 
 #  TODO add options for multiple types of output files
 #  TODO implement license

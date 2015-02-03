@@ -2,8 +2,7 @@
 Contains Experiment and Injection classes.
 """
 import os
-from .units import ureg,Quantity
-from math import pi
+from bitc.units import ureg,Quantity
 import logging
 import numpy
 

@@ -9,7 +9,7 @@ PyMC models to describe ITC binding experiments
 import numpy
 import pymc
 import copy
-from .units import ureg, Quantity
+from bitc.units import ureg, Quantity
 import scipy.integrate
 import logging
 

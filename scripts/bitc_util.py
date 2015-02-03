@@ -31,18 +31,14 @@ import os
 from os.path import basename, splitext
 import numpy
 import logging
-import seaborn as sns
-from bayesianitc.units import ureg, Quantity
+from bitc.units import ureg, Quantity
 import pymc
-from bayesianitc.report import Report, analyze
-from bayesianitc.parser import optparser, origin_heats_parser
-from bayesianitc.experiments import Injection, Experiment
-from bayesianitc.instruments import known_instruments, Instrument
-from bayesianitc.models import RescalingStep, known_models
+from bitc.report import Report, analyze
+from bitc.parser import optparser, origin_heats_parser
+from bitc.experiments import Injection, Experiment
+from bitc.instruments import known_instruments, Instrument
+from bitc.models import RescalingStep, known_models
 import sys
-
-sns.despine()
-sns.set_style("whitegrid")
 
 def compute_normal_statistics(x_t):
 
