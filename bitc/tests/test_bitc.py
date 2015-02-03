@@ -1,7 +1,6 @@
 import unittest
 
 
-
 class TestImports(unittest.TestCase):
     """Test if all submodules import properly.
     """
