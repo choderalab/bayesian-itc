@@ -1,0 +1,8 @@
+numpy
+nose
+pandas
+pymc
+pint
+docopt
+schema
+scikit-learn
