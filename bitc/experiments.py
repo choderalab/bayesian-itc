@@ -85,7 +85,7 @@ class Experiment(object):
 
     # TODO Add type verification
 
-    def __init__(self, data_filename):
+    def __init__(self, data_filename, experiment_name):
         """
         Initialize an experiment from a Microcal VP-ITC formatted .itc file.
 
@@ -123,6 +123,7 @@ class Experiment(object):
         # "differential" power applied to sample cell
         self.differential_power = None
         self.cell_temperature = None            # cell temperature
+        self.name = experiment_name
 
         # Check to make sure we can access the file.
         if not os.access(data_filename, os.R_OK):
@@ -132,6 +133,7 @@ class Experiment(object):
         infile = open(data_filename, 'r')
         lines = infile.readlines()
         infile.close()
+
 
         # Check the header to make sure it is a VP-ITC text-formatted .itc
         # file.
@@ -347,7 +349,7 @@ class Experiment(object):
 
         axes.set_xlabel('time (s)')
         axes.set_ylabel(r'differential power ($\mu$cal / s)')
-        axes.legend(markerscale=3)
+        axes.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), ncol=4, fancybox=True, shadow=True, markerscale=3, prop={'size': 6})
         axes.set_title(figtitle)
         canvas.print_figure(figfile, dpi=500)
 
@@ -378,7 +380,7 @@ class Experiment(object):
         fit_indices = numpy.array(fit_indices)
         return fit_indices, x, y
 
-    def fit_gaussian_process_baseline(self, frac=0.05, theta0=4.7, nugget=1.0, plot=True):
+    def fit_gaussian_process_baseline(self, frac=0.1, theta0=4.7, nugget=1.0, plot=True):
         """
         Gaussian Process fit of baseline.
 
@@ -409,7 +411,7 @@ class Experiment(object):
         sigma = numpy.sqrt(mean_squared_error)
 
         if plot:
-            figfile = 'gp-baseline.png'
+            figfile = '%s-gp-baseline.png' % self.name
             figtitle = 'Gaussian process baseline fit.'
             self._plot_gaussian_baseline(figfile, figtitle, full_x, full_y, sigma, x, y, y_pred)
 

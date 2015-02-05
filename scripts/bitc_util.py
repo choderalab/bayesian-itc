@@ -128,7 +128,7 @@ import pylab
 pylab.close('all')
 logging.info("Reading ITC data from %s" % filename)
 
-experiment = Experiment(filename)
+experiment = Experiment(filename, experiment_name)
 logging.debug(str(experiment))
 #  TODO work on a markdown version for generating reports. Perhaps use sphinx
 analyze(experiment_name, experiment)
