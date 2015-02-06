@@ -329,8 +329,8 @@ class Experiment(object):
                                      (y_pred + 1.9600 * sigma)[::-1]]),
                   alpha=.7, fc='black', ec='None', label='95% confidence interval')
 
-    @staticmethod
-    def _plot_gaussian_baseline(figfile, figtitle, full_x, full_y, sigma, x, y, y_pred):
+
+    def _plot_gaussian_baseline(self, full_x, full_y, sigma, x, y, y_pred):
         from matplotlib.figure import Figure
         from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
@@ -347,11 +347,55 @@ class Experiment(object):
         # Prediction
         axes.plot(full_x, y_pred, 'o', markersize=1, mec='w', mew=1, color='k', alpha=.5, label='Predicted baseline')
 
+        # Plot injection time markers.
+        [ymin, ymax] = axes.get_ybound()
+        for injection in self.injections:
+            # timepoint at start of syringe injection
+            last_index = injection.first_index
+            t = self.filter_period_end_time[last_index] / ureg.second
+            axes.plot([t, t], [ymin, ymax], '-', color='crimson')
+
+        # Adjust axis to zoom in on baseline.
+        ymax = self.baseline_power.max() / (ureg.microcalorie / ureg.second)
+        ymin = self.baseline_power.min() / (ureg.microcalorie / ureg.second)
+        width = ymax - ymin
+        ymax += width / 2
+        ymin -= width / 2
+        axes.set_ybound(ymin, ymax)
+
         axes.set_xlabel('time (s)')
         axes.set_ylabel(r'differential power ($\mu$cal / s)')
-        axes.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), ncol=4, fancybox=True, shadow=True, markerscale=3, prop={'size': 6})
-        axes.set_title(figtitle)
-        canvas.print_figure(figfile, dpi=500)
+        axes.legend(loc='upper center', bbox_to_anchor=(0.5, 0.1), ncol=4, fancybox=True, shadow=True, markerscale=3, prop={'size': 6})
+        axes.set_title(self.data_filename)
+        canvas.print_figure(self.name + '-baseline.png', dpi=500)
+
+    def _plot_baseline_subtracted(self, x, y, raw=True, baseline=True):
+        """Plot the baseline-subtracted data"""
+        from matplotlib.figure import Figure
+        from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+
+        figure = Figure()
+        canvas = FigureCanvas(figure)
+        axes1 = figure.add_subplot(1, 1, 1, axisbg='whitesmoke')
+
+        # Points for fit
+        axes1.plot(x, y, 'o', color='deepskyblue', markersize=2, alpha=1, label='Baseline-subtracted data')
+        axes1.set_xlabel('time (s)')
+        axes1.set_ylabel(r' corr. differential power ($\mu$cal / s)')
+        axes1.legend(loc='upper center', bbox_to_anchor=(0.2, 0.95), ncol=1, fancybox=True, shadow=True, markerscale=3,
+                     prop={'size': 6})
+
+        if raw:
+            axes2 = axes1.twinx()
+            axes2.plot(x, self.differential_power, 'o', color='gray', markersize=2, alpha=.3, label='Raw data')
+            axes2.set_ylabel(r'raw differential power ($\mu$cal / s)')
+            axes2.legend(loc='upper center', bbox_to_anchor=(0.8, 0.95), ncol=1, fancybox=True, shadow=True, markerscale=3,
+                     prop={'size': 6})
+            if baseline:
+                axes2.plot(x, self.baseline_power, '-', color='black', alpha=.3, label='baseline')
+
+        axes1.set_title(self.data_filename)
+        canvas.print_figure(self.name + '-subtracted.png', dpi=500)
 
     def _retrieve_fit_indices(self, frac):
         """Form list of data to fit.
@@ -410,13 +454,13 @@ class Experiment(object):
         y_pred, mean_squared_error = gp.predict(full_x, eval_MSE=True)
         sigma = numpy.sqrt(mean_squared_error)
 
-        if plot:
-            figfile = '%s-gp-baseline.png' % self.name
-            figtitle = 'Gaussian process baseline fit.'
-            self._plot_gaussian_baseline(figfile, figtitle, full_x, full_y, sigma, x, y, y_pred)
-
         self.baseline_power = Quantity(y_pred, 'microcalories per second')
         self.baseline_fit_data = {'x': full_x, 'y': y_pred, 'indices': fit_indices}
+        self.baseline_subtracted = self.differential_power - self.baseline_power
+
+        if plot:
+            self._plot_gaussian_baseline(full_x, full_y, sigma, x, y, y_pred)
+            self._plot_baseline_subtracted(full_x, self.baseline_subtracted)
 
     def integrate_heat(self):
         """
@@ -633,262 +677,6 @@ class Experiment(object):
 
         return
 
-    def plot(self, filename=None, model=None):
-        """
-        Generate an enthalpogram plot showing fitted models.
 
-        OPTIONAL ARGUMENTS
-          filename (String) - if specified, the plot will be written to the specified file instead of plotted to the screen.
 
-        """
 
-        #import matplotlib
-        #if (filename != None): matplotlib.use('pdf')
-
-        import pylab
-        pylab.figure()
-        fontsize = 8
-        markersize = 5
-
-        #
-        # Plot the raw measurements of differential power versus time and the enthalpogram.
-        #
-
-        pylab.subplot(211)
-        pylab.hold(True)
-
-        # Plot baseline fit.
-        pylab.plot(
-            self.filter_period_end_time / ureg.second, self.baseline_power /
-            (ureg.microcalorie / ureg.second),
-            'g-')
-
-        # Plot differential power.
-        pylab.plot(
-            self.filter_period_end_time / ureg.second, self.differential_power /
-            (ureg.microcalorie / ureg.second),
-            'k.', markersize=markersize)
-
-        # Plot injection time markers.
-        [xmin, xmax, ymin, ymax] = pylab.axis()
-        for injection in self.injections:
-            # timepoint at start of syringe injection
-            last_index = injection.first_index
-            t = self.filter_period_end_time[last_index] / ureg.second
-            pylab.plot([t, t], [ymin, ymax], 'r-')
-
-        # Label plot axes.
-        xlabel = pylab.xlabel('time / s')
-        xlabel.set_fontsize(fontsize)
-        ylabel = pylab.ylabel('differential power / ucal/s')
-        ylabel.set_fontsize(fontsize)
-
-        # Change tick label font sizes.
-        ax = pylab.gca()
-        for tick in ax.xaxis.get_major_ticks():
-            tick.label1.set_fontsize(fontsize)
-        for tick in ax.yaxis.get_major_ticks():
-            tick.label1.set_fontsize(fontsize)
-
-        # title plot
-        title = pylab.title(self.data_filename)
-        title.set_fontsize(fontsize)
-
-        pylab.hold(False)
-
-        #
-        # Plot integrated heats and model fits.
-        #
-
-        pylab.subplot(212)
-        pylab.hold(True)
-
-        # Determine injection end times.
-        injection_end_times = numpy.zeros(
-            [len(self.injections)],
-            numpy.float64)
-        for (index, injection) in enumerate(self.injections):
-            # determine initial and final samples for injection
-            # index of timepoint for first filtered differential power
-            # measurement
-            first_index = injection.first_index
-            # index of timepoint for last filtered differential power
-            # measurement
-            last_index = injection.last_index
-            # determine time at end of injection period
-            injection_end_times[index] = self.filter_period_end_time[
-                last_index] / ureg.second
-
-        # Plot model fits, if specified.
-        if model:
-            P0_n = model.mcmc.trace('P0')[:]
-            Ls_n = model.mcmc.trace('Ls')[:]
-            DeltaG_n = model.mcmc.trace('DeltaG')[:]
-            DeltaH_n = model.mcmc.trace('DeltaH')[:]
-            DeltaH0_n = model.mcmc.trace('DeltaH_0')[:]
-            N = DeltaG_n.size
-            q_n = model.expected_injection_heats(model.V0, model.DeltaVn, P0_n, Ls_n, DeltaG_n, DeltaH_n, DeltaH0_n, model.beta,N)
-            pylab.plot(
-                injection_end_times /
-                ureg.second,
-                q_n /
-                ureg.microcalorie,
-                'r-',
-                linewidth=1)
-
-        # Plot integrated heats.
-        for (index, injection) in enumerate(self.injections):
-            # determine time at end of injection period
-            t = injection_end_times[index] / ureg.second
-            # plot a point there to represent total heat evolved in injection
-            # period
-            y = injection.evolved_heat / ureg.microcalorie
-            pylab.plot(t, y, 'k.', markersize=markersize)
-            # pylab.plot([t, t], [0, y], 'k-') # plot bar from zero line
-            # label injection
-            pylab.text(t, y, '%d' % injection.number, fontsize=6)
-
-        # Adjust axes to match first plot.
-        [xmin_new, xmax_new, ymin, ymax] = pylab.axis()
-        pylab.axis([xmin, xmax, ymin, ymax])
-
-        # Label axes.
-        #pylab.title('evolved heat per injection')
-        xlabel = pylab.xlabel('time / s')
-        xlabel.set_fontsize(fontsize)
-        ylabel = pylab.ylabel('evolved heat / ucal')
-        ylabel.set_fontsize(fontsize)
-
-        # Plot zero line.
-        pylab.plot(experiment.filter_period_end_time /
-                   ureg.second, 0.0 *
-                   experiment.filter_period_end_time /
-                   (ureg.microcalorie /
-                    ureg.second), 'g-')  # plot zero line
-
-        # Adjust font sizes for tick labels.
-        ax = pylab.gca()
-        for tick in ax.xaxis.get_major_ticks():
-            tick.label1.set_fontsize(fontsize)
-        for tick in ax.yaxis.get_major_ticks():
-            tick.label1.set_fontsize(fontsize)
-
-        pylab.hold(False)
-
-        #
-        # Send plot to appropriate output device.
-        #
-
-        if filename is not None:
-            # Save the plot to the specified file.
-            pylab.savefig(filename, dpi=150)
-        else:
-            # Show plot.
-            pylab.show()
-
-        return
-
-    def plot_baseline(self, filename=None):
-        """
-        Generate an close-up view of the baseline.
-
-        OPTIONAL ARGUMENTS
-          filename (String) - if specified, the plot will be written to the specified file instead of plotted to the screen.
-
-        """
-
-        #import matplotlib
-        #if (filename != None): matplotlib.use('pdf')
-
-        import pylab
-        pylab.figure()
-        fontsize = 8
-        markersize = 5
-
-        #
-        # Plot close-up of baseline.
-        #
-
-        # pylab.subplot(212)
-        pylab.hold(True)
-
-        # Plot baseline fit.
-        pylab.plot(
-            self.filter_period_end_time / ureg.second, self.baseline_power /
-            (ureg.microcalorie / ureg.second),
-            'g-')
-
-        # Plot differential power.
-        indices = list(
-            set(range(len(self.differential_power))) -
-            set(self.baseline_fit_data['indices']))
-        pylab.plot(
-            self.filter_period_end_time[indices] /
-            ureg.second,
-            self.differential_power[indices] /
-            (
-                ureg.microcalorie /
-                ureg.second),
-            'k.',
-            markersize=markersize)
-
-        # Plot differential power.
-        indices = self.baseline_fit_data['indices']
-        pylab.plot(
-            self.filter_period_end_time[indices] /
-            ureg.second,
-            self.differential_power[indices] /
-            (
-                ureg.microcalorie /
-                ureg.second),
-            'r.',
-            markeredgecolor='r',
-            markersize=markersize)
-
-        # Plot injection time markers.
-        [xmin, xmax, ymin, ymax] = pylab.axis()
-        for injection in self.injections:
-            # timepoint at start of syringe injection
-            last_index = injection.first_index
-            t = self.filter_period_end_time[last_index] / ureg.second
-            pylab.plot([t, t], [ymin, ymax], 'r-')
-
-        # Adjust axis to zoom in on baseline.
-        ymax = self.baseline_power.max() / (ureg.microcalorie / ureg.second)
-        ymin = self.baseline_power.min() / (ureg.microcalorie / ureg.second)
-        width = ymax - ymin
-        ymax += width / 2
-        ymin -= width / 2
-        pylab.axis([xmin, xmax, ymin, ymax])
-
-        # Label plot axes.
-        xlabel = pylab.xlabel('time / s')
-        xlabel.set_fontsize(fontsize)
-        ylabel = pylab.ylabel('differential power / ucal/s')
-        ylabel.set_fontsize(fontsize)
-
-        # Change tick label font sizes.
-        ax = pylab.gca()
-        for tick in ax.xaxis.get_major_ticks():
-            tick.label1.set_fontsize(fontsize)
-        for tick in ax.yaxis.get_major_ticks():
-            tick.label1.set_fontsize(fontsize)
-
-        # title plot
-        title = pylab.title(self.data_filename)
-        title.set_fontsize(fontsize)
-
-        pylab.hold(False)
-
-        #
-        # Send plot to appropriate output device.
-        #
-
-        if filename is not None:
-            # Save the plot to the specified file.
-            pylab.savefig(filename, dpi=150)
-        else:
-            # Show plot.
-            pylab.show()
-
-        return

@@ -140,11 +140,6 @@ experiment.write_integrated_heats(filename)
 if integrated_heats_file:
     experiment.read_integrated_heats(integrated_heats_file)
 
-
-# Write baseline fit information.
-filename = experiment_name + '-baseline.png'
-experiment.plot_baseline(filename)
-
 # MCMC inference
 if not validated['mcmc']:
     sys.exit(0)
@@ -164,8 +159,6 @@ logging.info("Fitting model...")
 map = pymc.MAP(model)
 map.fit(iterlim=nfit) # 20000
 logging.info(map)
-
-
 
 logging.info("Sampling...")
 model.mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
