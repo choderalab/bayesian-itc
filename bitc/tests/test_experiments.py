@@ -40,12 +40,6 @@ class TestExperiment(unittest.TestCase):
         assert False # TODO: implement your test here
 
     @unittest.expectedFailure
-    def test_plot(self):
-        # experiment = Experiment(data_filename)
-        # self.assertEqual(expected, experiment.plot(filename, model))
-        assert False # TODO: implement your test here
-
-    @unittest.expectedFailure
     def test_plot_baseline(self):
         # experiment = Experiment(data_filename)
         # self.assertEqual(expected, experiment.plot_baseline(filename))
