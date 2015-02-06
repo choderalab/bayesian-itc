@@ -128,7 +128,7 @@ import pylab
 pylab.close('all')
 logging.info("Reading ITC data from %s" % filename)
 
-experiment = Experiment(filename)
+experiment = Experiment(filename, experiment_name)
 logging.debug(str(experiment))
 #  TODO work on a markdown version for generating reports. Perhaps use sphinx
 analyze(experiment_name, experiment)
@@ -139,11 +139,6 @@ experiment.write_integrated_heats(filename)
 # Override the heats if file specified.
 if integrated_heats_file:
     experiment.read_integrated_heats(integrated_heats_file)
-
-
-# Write baseline fit information.
-filename = experiment_name + '-baseline.png'
-experiment.plot_baseline(filename)
 
 # MCMC inference
 if not validated['mcmc']:
@@ -164,8 +159,6 @@ logging.info("Fitting model...")
 map = pymc.MAP(model)
 map.fit(iterlim=nfit) # 20000
 logging.info(map)
-
-
 
 logging.info("Sampling...")
 model.mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
