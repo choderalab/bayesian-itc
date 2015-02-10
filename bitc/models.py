@@ -156,11 +156,101 @@ class BindingModel(object):
         pass
 
 
+class Calibration(BindingModel):
+    """A model for a calibration titration, e.g. water into water, or buffer into buffer"""
+    def __init__(self, experiment, instrument):
+
+        self.N = experiment.number_of_injections
+
+        # Determine number of observations.
+        self.N = experiment.number_of_injections
+
+        self.DeltaVn = Quantity(numpy.zeros(self.N), ureg.microliter)
+        # Store injection volumes
+        for inj, injection in enumerate(experiment.injections):
+            self.DeltaVn[inj] = injection.volume
+
+        # Store calorimeter properties.
+        self.V0 = instrument.V0
+
+        # Determine guesses for initial values
+        q_n = Quantity(numpy.zeros(len(experiment.injections)), 'microcalorie')
+        for inj, injection in enumerate(experiment.injections):
+            q_n[inj] = injection.evolved_heat
+
+        log_sigma_guess = log(q_n.std() / (ureg.microcalorie))
+        # We guess sigma is within 2 orders of magnitude of what we know.
+        log_sigma_min = log_sigma_guess - 10
+        log_sigma_max = log_sigma_guess + 10
+
+
+        # We assume ranges for H0 based on the observed heats
+        DeltaH_0_guess = q_n.mean()
+        heat_interval = (q_n.max() - q_n.min())
+        DeltaH_0_min = q_n.min() - heat_interval  # (cal/mol)
+        DeltaH_0_max = q_n.max() + heat_interval  # (cal/mol)
+
+        # Prior on the heats of the injection is uniform
+        self.DeltaH_0 = pymc.Uniform('DeltaH_0', lower=DeltaH_0_min / ureg.microcalorie, upper=DeltaH_0_max / ureg.microcalorie, value=DeltaH_0_guess / ureg.microcalorie)
+
+        # Prior on the log of sigma is uniform
+        self.log_sigma = pymc.Uniform('log_sigma', lower=log_sigma_min, upper=log_sigma_max, value=log_sigma_guess)
+        tau = pymc.Lambda('tau', lambda log_sigma=self.log_sigma: self.tau(log_sigma))
+        q_n_model = pymc.Lambda('q_n_model', lambda DeltaH_0=self.DeltaH_0: self.expected_injection_heats(DeltaH_0, self.N))
+
+
+        # Define observed data.
+        self.q_n_obs = pymc.Normal('q_n', mu=q_n_model, tau=tau, observed=True, value=q_n / Quantity('microcalorie'))
+
+
+        mcmc = pymc.MCMC(self, db='ram')
+        mcmc.use_step_method(pymc.Metropolis, self.DeltaH_0)
+
+        self.mcmc = mcmc
+
+        return
+
+    @staticmethod
+    @ureg.wraps(ret=ureg.microcalorie, args=[None, None], strict=True)
+    def expected_injection_heats(DeltaH_0, N):
+        """
+        Expected heats of injection for a calibration titration
+
+        ARGUMENTS
+
+        DeltaH_0 - heat of injection (ucal)
+
+        """
+        debug = True  # TODO this can be removed at some point, or exposed to logger
+
+        # Compute expected injection heats.
+        q_n = numpy.zeros([N])  # q_n_model[n] is the expected heat from injection n
+        # Instantaneous injection model (perfusion)
+        for n in range(N):
+            q_n[n] = DeltaH_0
+
+        return q_n
+
+    @staticmethod
+    def tau(log_sigma):
+        """
+        Injection heat measurement precision.
+        """
+        return numpy.exp(-2.0 * log_sigma)
+
+
+
 class TwoComponentBindingModel(BindingModel):
     """
     A binding model with two components (e.g. Protein and Ligand)
     """
-    def __init__(self, experiment, instrument):
+    def __init__(self, experiment, instrument, calibrations=None):
+
+        # Verify whether we have calibration experiments to help determine sigma
+        if calibrations is None:
+            self.calibrations = list()
+        else:
+            assert isinstance(calibrations, list)
 
         # Determine number of observations.
         self.N = experiment.number_of_injections
@@ -230,7 +320,7 @@ class TwoComponentBindingModel(BindingModel):
         self.expected_injection_heats(self.V0, self.DeltaVn, P0, Ls, DeltaG, DeltaH, DeltaH_0 , self.beta, self.N))
         tau = pymc.Lambda('tau', lambda log_sigma=self.log_sigma : self.tau(log_sigma))
 
-        # Review doublecheck equation
+        # Review double check equation
         q_ns = Quantity(numpy.zeros(experiment.number_of_injections), 'microcalorie / mole')
         for inj,injection in enumerate(experiment.injections):
             q_ns[inj] = injection.evolved_heat / (experiment.syringe_concentration * injection.volume)
