@@ -156,7 +156,7 @@ class BindingModel(object):
         pass
 
 
-class Calibration(BindingModel):
+class CalibrationModel(BindingModel):
     """A model for a calibration titration, e.g. water into water, or buffer into buffer"""
     def __init__(self, experiment, instrument):
 
@@ -799,6 +799,7 @@ class CompetitiveBindingModel(BindingModel):
 # Container of all models that this module provides for use
 known_models = {'TwoComponent': TwoComponentBindingModel,
                 'Competitive': CompetitiveBindingModel,
+                'Calibration': CalibrationModel,
                 }
 
 
