@@ -127,7 +127,7 @@ class Experiment(object):
 
         # Check to make sure we can access the file.
         if not os.access(data_filename, os.R_OK):
-            raise "The file '%s' cannot be opened." % data_filename
+            raise IOError("The file '%s' cannot be opened." % data_filename)
 
         # Open the file and read is contents.
         infile = open(data_filename, 'r')

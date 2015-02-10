@@ -1,6 +1,6 @@
 """Contains Isothermal titration calorimeter instrument classes."""
 
-from bitc.units import ureg
+from bitc.units import ureg, Quantity
 import re
 import logging
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ class Instrument(object):
     For best results, it is recommended to extract the volumes from a .itc file.
     """
 
-    def __init__(self, V0=0., V_correction=0., itcfile=None, description=""):
+    def __init__(self, V0=Quantity('0. microliter'), V_correction=Quantity('0. microliter'), itcfile=None, description=""):
         """Initialize an instrument from file or setting volumes and description manually.
 
         :rtype : object
@@ -32,7 +32,7 @@ class Instrument(object):
             raise ValueError("Correction was specified, but volume is not set.")
 
         self.V_correction = V_correction
-        self.V0 = float(V0) - float(V_correction)  # volume of calorimeter sample cell
+        self.V0 = V0 - V_correction  # volume of calorimeter sample cell
         self.description = description
         if itcfile:
             self.instrument_from_file(itcfile)
@@ -87,7 +87,7 @@ class ITC200(Instrument):
     If possible, we recommend using the calibrated volume for the .itc file.
     """
     def __init__(self):
-        super(ITC200, self).__init__(V0=200 * ureg.microliter, V_correction=0, itcfile=None, description="MicroCal Auto-iTC200")
+        super(ITC200, self).__init__(V0=Quantity('200. microliter'), V_correction=Quantity('0. microliter'), itcfile=None, description="MicroCal Auto-iTC200")
 
 AutoITC200 = ITC200
 
