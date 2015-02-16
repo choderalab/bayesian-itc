@@ -3,12 +3,11 @@
 PyMC models to describe ITC binding experiments
 """
 
-import copy
-import logging
-from math import exp, log
-
 import numpy
 import pymc
+import copy
+from bitc.units import ureg, Quantity
+from bitc.experiments import Experiment
 import scipy.integrate
 
 from bitc.units import ureg, Quantity
@@ -888,18 +887,6 @@ class CompetitiveBindingModel(BindingModel):
             species.update(experiment.cell_concentration.keys())
             species.update(experiment.syringe_concentration.keys())
         return species
-
-    def _zero_for_missing__concentrations(self, experiment):
-        for species in self.species:
-            if species not in experiment.true_cell_concentration:
-                experiment.true_cell_concentration[species] = 0.0
-            if species not in experiment.true_syringe_concentration:
-                experiment.true_syringe_concentration[species] = 0.0
-
-# Container of all models that this module provides for use
-known_models = {'TwoComponent': TwoComponentBindingModel,
-                'Competitive': CompetitiveBindingModel,
-                'RacemicMixture': RacemicMixtureBindingModel}
 
     def _zero_for_missing__concentrations(self, experiment):
         for species in self.species:
