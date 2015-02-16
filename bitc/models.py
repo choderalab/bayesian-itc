@@ -4,12 +4,11 @@
 PyMC models to describe ITC binding experiments
 """
 
-
-
 import numpy
 import pymc
 import copy
 from bitc.units import ureg, Quantity
+from bitc.experiments import Experiment
 import scipy.integrate
 import logging
 
@@ -706,11 +705,31 @@ class CompetitiveBindingModel(BindingModel):
         return q_n
 
 
+class RacemicMixtureBindingModel(CompetitiveBindingModel):
+    """
+    Racemic Mixture Binding Model
+
+    """
+    def equilibrium_concentrations(self, Ka_n, C0_R, C0_Ln, V, c0=None):
+      a = 1./Ka_n[0] + 1./Ka_n[1] + C0_Ln[0] + C0_Ln[1] - C0_R
+      b = 1./Ka_n[1]*(C0_Ln[0]-C0_R) + 1./Ka_n[0]*(C0_Ln[1]-C0_R) + 1./Ka_n[0]*1./Ka_n[1]
+      c = (-1./Ka_n[0])*1./Ka_n[1]*C0_R
+      d = numpy.sqrt(a*a-3*b)
+      theta = numpy.arccos(((-2.*a**3)+9.*a*b-27.*c)/(2.*(d**3)))
+      PA = C0_Ln[0]*(2.*d*numpy.cos(theta/3.)-a)/(3.*1./Ka_n[0]+(2.*d*numpy.cos(theta/3.)-a))
+      PB = C0_Ln[1]*(2.*d*numpy.cos(theta/3.)-a)/(3.*1./Ka_n[1]+(2.*d*numpy.cos(theta/3.)-a))
+      return numpy.array([PA, PB])
+
+#      P = (-a/3)+2./3.*(a**2.-3.*b)**.5*numpy.cos(theta/3.)
+#
+#      A = C0_Ln[0] - PA
+#      B = C0_Ln[1] - PB
+
+
 # Container of all models that this module provides for use
 known_models = {'TwoComponent': TwoComponentBindingModel,
                 'Competitive': CompetitiveBindingModel,
-                }
-
+                'RacemicMixture': RacemicMixtureBindingModel}
 
 #=============================================================================================
 # MAIN AND TESTS
