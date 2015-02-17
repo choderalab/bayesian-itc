@@ -35,10 +35,11 @@ from bitc.units import ureg, Quantity
 import pymc
 from bitc.report import Report, analyze
 from bitc.parser import optparser
-from bitc.experiments import Injection, Experiment
+from bitc.experiments import Injection, ExperimentDotITC
 from bitc.instruments import known_instruments, Instrument
 from bitc.models import RescalingStep, known_models
 import sys
+
 
 def compute_normal_statistics(x_t):
 
@@ -58,7 +59,6 @@ def compute_normal_statistics(x_t):
     xhigh = x_sorted[high_index]
 
     return [x, dx, xlow, xhigh]
-
 
 validated = optparser()
 
@@ -121,17 +121,16 @@ logging.debug(str(validated))
 logging.debug("Current state:")
 logging.debug(str(locals()))
 
-# TODO update code below this point
-
 # Close all figure windows.
 import pylab
 pylab.close('all')
 logging.info("Reading ITC data from %s" % filename)
 
-experiment = Experiment(filename, experiment_name)
+experiment = ExperimentDotITC(filename, experiment_name)
 logging.debug(str(experiment))
 #  TODO work on a markdown version for generating reports. Perhaps use sphinx
 analyze(experiment_name, experiment)
+
 # Write Origin-style integrated heats.
 filename = experiment_name + '-integrated.txt'
 experiment.write_integrated_heats(filename)
