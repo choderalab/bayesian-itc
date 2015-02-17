@@ -323,16 +323,14 @@ class CompetitiveBindingModel(BindingModel):
 
     """
 
-    def __init__(self, experiments, receptor, V0, concentration_uncertainty=0.10, verbose=False):
+    def __init__(self, experiments, instrument, receptor, concentration_uncertainty=0.10):
         """
         ARGUMENTS
 
         experiments (list of Experiment) -
+        instrument Instrument that experiment was carried out in (has to be one)
         receptor (string) - name of receptor species
-        V0 (float) - calorimeter sample cell volume
-
         OPTIONAL ARGUMENTS
-
         concentration_uncertainty (float) - relative uncertainty in concentrations
 
         """
@@ -346,26 +344,26 @@ class CompetitiveBindingModel(BindingModel):
 
         # Store copy of experiments.
         self.experiments = copy.deepcopy(experiments)
-        if verbose: print("%d experiments" % len(self.experiments))
+        logging.info("%d experiments" % len(self.experiments))
 
         # Store sample cell volume.
-        self.V0 = V0
+        self.V0 = instrument.V0
 
         # Store the name of the receptor.
         self.receptor = receptor
-        if verbose: print("species '%s' will be treated as receptor" % self.receptor)
+        logging.info("species '%s' will be treated as receptor" % self.receptor)
 
         # Make a list of names of all molecular species.
         self.species = set() # all molecular species
         for experiment in experiments:
-            self.species.update( experiment.sample_cell_concentrations.keys() )
-            self.species.update( experiment.syringe_concentrations.keys() )
-        if verbose: print("species: ", self.species)
+            self.species.update(experiment.sample_cell_concentrations.keys())
+            self.species.update(experiment.syringe_concentrations.keys())
+        logging.info("species: ", self.species)
 
         # Make a list of all ligands.
         self.ligands = copy.deepcopy(self.species)
         self.ligands.remove(receptor)
-        if verbose: print("ligands: ", self.ligands)
+        logging.info("ligands: ", self.ligands)
 
         # Create a list of all stochastics.
         self.stochastics = list()
@@ -385,17 +383,13 @@ class CompetitiveBindingModel(BindingModel):
             x = pymc.Uniform(name, lower=DeltaH_min, upper=DeltaH_max, value=0.0)
             self.thermodynamic_parameters[name] = x
             self.stochastics.append(x)
-        if verbose:
-            print("thermodynamic parameters:")
-            print(self.thermodynamic_parameters)
+        logging.debug("thermodynamic parameters:")
+        logging.debug(self.thermodynamic_parameters)
 
-        # DEBUG: Set initial thermodynamic parameters to literature values.
-        self.thermodynamic_parameters["DeltaG of HIV protease * acetyl pepstatin"].value = -9.0
-        self.thermodynamic_parameters["DeltaH of HIV protease * acetyl pepstatin"].value = +6.8
-        self.thermodynamic_parameters["DeltaG of HIV protease * KNI-10033"].value = -14.870
-        self.thermodynamic_parameters["DeltaH of HIV protease * KNI-10033"].value = -8.200
-        self.thermodynamic_parameters["DeltaG of HIV protease * KNI-10075"].value = -14.620
-        self.thermodynamic_parameters["DeltaH of HIV protease * KNI-10075"].value = -12.120
+        # # TODO: add option to set initial thermodynamic parameters to literature values.
+        # self.thermodynamic_parameters["DeltaG of HIV protease * acetyl pepstatin"].value = -9.0
+        # self.thermodynamic_parameters["DeltaH of HIV protease * acetyl pepstatin"].value = +6.8
+
 
         # Determine min and max range for log_sigma (log of instrument heat measurement error)
         # TODO: This should depend on a number of factors, like integration time, heat signal, etc.?
@@ -415,7 +409,7 @@ class CompetitiveBindingModel(BindingModel):
         for (index, experiment) in enumerate(self.experiments):
             # Number of observations
             experiment.ninjections = experiment.observed_injection_heats.size
-            if verbose: print("Experiment %d has %d injections" % (index, experiment.ninjections))
+            logging.info("Experiment %d has %d injections" % (index, experiment.ninjections))
 
             # Heat of dilution / mixing
             # We allow the heat of dilution/mixing to range in observed range of heats, plus a larger margin of the range of oberved heats.
@@ -452,12 +446,19 @@ class CompetitiveBindingModel(BindingModel):
 
             # True injection heats
             experiment.true_injection_heats = pymc.Lambda("true injection heats for experiment %d" % index,
-                                                          lambda experiment=experiment,
-                                                                 sample_cell_concentrations=experiment.true_sample_cell_concentrations,
-                                                                 syringe_concentrations=experiment.true_syringe_concentrations,
-                                                                 DeltaH_0=experiment.DeltaH_0,
-                                                                 thermodynamic_parameters=self.thermodynamic_parameters :
-                                                          self.expected_injection_heats(experiment, sample_cell_concentrations, syringe_concentrations, DeltaH_0, thermodynamic_parameters))
+                                                              lambda
+                                                                  experiment=experiment,
+                                                                  sample_cell_concentrations=experiment.true_sample_cell_concentrations,
+                                                                  syringe_concentrations=experiment.true_syringe_concentrations,                                                                 DeltaH_0=experiment.DeltaH_0,
+                                                                  thermodynamic_parameters=self.thermodynamic_parameters:
+                                                                  self.expected_injection_heats(
+                                                                      experiment,
+                                                                      sample_cell_concentrations,
+                                                                      syringe_concentrations,
+                                                                      DeltaH_0,
+                                                                      thermodynamic_parameters
+                                                                  )
+                                                         )
             self.stochastics.append(experiment.true_injection_heats)
 
             # Observed injection heats
@@ -469,28 +470,19 @@ class CompetitiveBindingModel(BindingModel):
         # Create sampler.
         print("Creating sampler...")
         mcmc = pymc.MCMC(self.stochastics, db='ram')
-        #db = pymc.database.pickle.load('MCMC.pickle') # DEBUG
-        #mcmc = pymc.MCMC(self.stochastics, db=db)
+
         for stochastic in self.stochastics:
             # print stochastic
             try:
                 mcmc.use_step_method(pymc.Metropolis, stochastic)
             except:
                 pass
-        mcmc.use_step_method(RescalingStep, { 'Ls' : self.experiments[0].true_syringe_concentrations['acetyl pepstatin'],
-                                              'P0' : self.experiments[0].true_sample_cell_concentrations['HIV protease'],
-                                              'DeltaH' : self.thermodynamic_parameters['DeltaH of HIV protease * acetyl pepstatin'],
-                                              'DeltaG' : self.thermodynamic_parameters['DeltaG of HIV protease * acetyl pepstatin'] }, self.beta)
+        for ligand in self.ligands:
+            mcmc.use_step_method(RescalingStep, { 'Ls' : self.experiments[0].true_syringe_concentrations[ligand],
+                                                  'P0' : self.experiments[0].true_sample_cell_concentrations[receptor],
+                                                  'DeltaH' : self.thermodynamic_parameters['DeltaH of %s * %s' %(receptor, ligand)],
+                                                  'DeltaG' : self.thermodynamic_parameters['DeltaG of %s * %s' %(receptor, ligand)] }, self.beta)
 
-        mcmc.use_step_method(RescalingStep, { 'Ls' : self.experiments[1].true_syringe_concentrations['KNI-10033'],
-                                              'P0' : self.experiments[1].true_sample_cell_concentrations['HIV protease'],
-                                              'DeltaH' : self.thermodynamic_parameters['DeltaH of HIV protease * KNI-10033'],
-                                              'DeltaG' : self.thermodynamic_parameters['DeltaG of HIV protease * KNI-10033'] }, self.beta)
-
-        mcmc.use_step_method(RescalingStep, { 'Ls' : self.experiments[2].true_syringe_concentrations['KNI-10075'],
-                                              'P0' : self.experiments[2].true_sample_cell_concentrations['HIV protease'],
-                                              'DeltaH' : self.thermodynamic_parameters['DeltaH of HIV protease * KNI-10075'],
-                                              'DeltaG' : self.thermodynamic_parameters['DeltaG of HIV protease * KNI-10075'] }, self.beta)
 
         self.mcmc = mcmc
 
@@ -627,7 +619,8 @@ class CompetitiveBindingModel(BindingModel):
         V_n (numpy array of floats) - V_n[n] is injection volume of injection n (L)
 
         """
-
+        # Todo get rid of units to make this much faster
+        # Todo Potentially, make this a static method
         debug = False
 
         # Number of ligand species
@@ -685,23 +678,6 @@ class CompetitiveBindingModel(BindingModel):
             d = 1.0 - (experiment.injection_volumes[i] / self.V0) # dilution factor (dimensionless)
             for n in range(nspecies):
                 q_n[i] += (1000.0*DeltaH_n[n]) * V0 * (C_RLin[i,n] - d*C_RLin[i-1,n]) # subsequent injections
-
-        # # Debug output
-        # debug = False
-        # if debug:
-        #     print experiment.name
-        #     print "DeltaG = ", DeltaG_n
-        #     print "DeltaH = ", DeltaH_n
-        #     print "DeltaH_0 = ", DeltaH_0
-        #     print "model: ",
-        #     for heat in q_n:
-        #         print "%6.1f" % (heat*1e6),
-        #     print ""
-        #     print "obs  : ",
-        #     for heat in experiment.observed_injection_heats:
-        #         print "%6.1f" % (heat*1e6),
-        #     print ""
-        #     print ""
 
         return q_n
 
