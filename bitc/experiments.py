@@ -7,6 +7,7 @@ import logging
 import numpy
 
 from bitc.units import ureg,Quantity
+from pint import DimensionalityError
 
 
 # Use logger with name of module
@@ -32,7 +33,7 @@ class Injection(object):
     # TODO Add docstring examples.
 
 
-    def __init__(self, number, volume, duration, spacing, filter_period, titrant_concentration=None):
+    def __init__(self, number, volume, duration, spacing, filter_period, evolved_heat=None, titrant_concentration=None):
         # sequence number of injection
         self.number = number
         # programmed volume of injection
@@ -44,6 +45,9 @@ class Injection(object):
         # time over which data channel is averaged to produce a single measurement
         # of applied power
         self.filter_period = filter_period
+
+        # If provided, set the evolved_heat, making sure the unit is compatible with microcalorie
+        self.evolved_heat = evolved_heat.to('microcalorie')
 
         # the quantity of compound(s) injected
         if titrant_concentration:
@@ -114,6 +118,9 @@ class BaseExperiment(object):
         # Extract and store data about the experiment.
         self.number_of_injections = None
         self.target_temperature = None
+        self.equilibration_time = None
+        self.stir_rate = None
+        self.reference_power = None
 
         # Store additional data about experiment.
         self.syringe_concentration = None
@@ -260,6 +267,7 @@ class BaseExperiment(object):
 
         return
 
+    # TODO do we want all the details, including volumes?
     def read_integrated_heats(self, heats_file, unit='microcalorie'):
         """
         Read integrated heats from an origin file
@@ -267,6 +275,7 @@ class BaseExperiment(object):
         :type heats_file:
         :return:
         :rtype:
+
         """
         heats = self._parse_heats(heats_file, unit)
 
@@ -295,8 +304,6 @@ class BaseExperiment(object):
         dataframe = pd.read_table(heats_file, skip_footer=1, engine='python')  # Need python engine for skip_footer
         heats = numpy.array(dataframe['DH'])
         return Quantity(heats, unit)
-
-
 
 
 class ExperimentDotITC(BaseExperiment):
@@ -735,6 +742,107 @@ class ExperimentDotITC(BaseExperiment):
             injection.evolved_heat = evolved_heat
 
         return
+
+
+class ExperimentYaml(BaseExperiment):
+
+    @staticmethod
+    def _parse_yaml(yaml_filename):
+        """Open the yaml file and read is contents"""
+        import yaml
+
+        with open(yaml_filename, 'r') as infile:
+            # Experiment parameters
+            yaml_input = yaml.load(infile)
+            infile.close()
+
+        return yaml_input
+
+    def __init__(self, yaml_filename, experiment_name):
+        """
+        Initialize an experiment from a Microcal VP-ITC formatted .itc file.
+
+        ARGUMENTS
+          data_filename (String) - the filename of the Microcal VP-ITC formatted .itc file to initialize the experiment from
+
+        TODO
+          * Add support for other formats of datafiles (XML, etc.).
+
+        """
+
+        # Initialize.
+        super(ExperimentYaml, self).__init__(yaml_filename, experiment_name)
+        # the source filename from which data is read
+        # concentrations of various species in syringe
+        self.syringe_contents = dict()
+        self.syringe_concentration = dict()
+        # concentrations of various species in sample cell
+        self.sample_cell_contents = dict()
+        self.cell_concentration = dict()
+        # list of injections (and their associated data)
+        self.injections = list()
+        # time at end of filtering period
+
+        self.name = experiment_name
+        # Store the datafile filename.
+        self.data_filename = yaml_filename
+
+        # Check to make sure we can access the file.
+        if not os.access(yaml_filename, os.R_OK):
+            raise IOError("The file '%s' cannot be opened." % yaml_filename)
+
+        yaml_input = self._parse_yaml(yaml_filename)
+
+        # TODO more preliminary dict entry validations
+
+        if len(yaml_input['injection_heats']) != len(yaml_input['injection_volumes']):
+            raise ValueError('Mismatch between number of heats and volumes per injection in %s.' % yaml_filename)
+
+        # Extract and store data about the experiment.
+        self.number_of_injections = len(yaml_input['injection_heats'])
+        self.target_temperature = Quantity(yaml_input['temperature'], yaml_input['temperature_unit'])
+
+        # Store the stated syringe concentration(s)
+        for key in yaml_input['syringe_concentrations'].keys():
+            self.syringe_concentration[key] = Quantity(yaml_input['syringe_concentrations'][key],
+                                                       yaml_input['concentration_unit'])
+        # Store the stated cell concentration(s)
+        for key in yaml_input['sample_cell_concentrations'].keys():
+            self.cell_concentration[key] = Quantity(yaml_input['sample_cell_concentrations'][key],
+                                                    yaml_input['concentration_unit'])
+
+        # Extract and store metadata about injections.
+
+        for index, (heat, volume) in enumerate(zip(yaml_input['injection_heats'], yaml_input['injection_volumes']), start=1):
+
+            # Extract data for injection and apply appropriate unit conversions.
+            # Entering 0.0 for any values not in the yaml.
+            # TODO some values are set in integrate_heat functions, but we currently ignore all but the heat
+            injectiondict = dict()
+            injectiondict['number'] = index
+            injectiondict['volume'] = Quantity(volume, yaml_input['volume_unit'])
+            injectiondict['duration'] = 0.0 * ureg.second
+            # time between beginning of injection and beginning of next injection
+            injectiondict['spacing'] = 0.0 * ureg.second
+            # time over which data channel is averaged to produce a single measurement
+            injectiondict['filter_period'] = 0.0 * ureg.second
+            # Possible input includes heat / moles of injectant, or raw heat
+            try:
+                injectiondict['evolved_heat'] = Quantity(heat, yaml_input['heat_unit']).to('microcalorie')
+            except DimensionalityError:
+                    # TODO This is probably only really correct for one syringe component
+                    # Multipy by number of moles injected
+                    evolved_heat = Quantity(heat, yaml_input['heat_unit']) * (Quantity(volume, yaml_input['volume_unit']) * sum(self.syringe_concentration.values()))
+                    injectiondict['evolved_heat'] = evolved_heat.to('microcalorie')
+
+                    # Store injection.
+            self.injections.append(Injection(**injectiondict))
+
+        return
+
+
+class ExperimentOrigin(BaseExperiment):
+    pass
 
 
 
