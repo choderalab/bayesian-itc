@@ -153,6 +153,7 @@ else:
 logging.info("File interpreted as %s file" % file_extension)
 logging.debug(str(experiment))
 
+# Only need to perform analysis for a .itc file.
 if file_extension in ['.itc']:
     #  TODO work on a markdown version for generating reports. Perhaps use sphinx
     analyze(experiment_name, experiment)
@@ -172,7 +173,7 @@ if not validated['mcmc']:
 # Construct a Model from Experiment object.
 import traceback
 try:
-    model = Model(experiment, instrument)
+    model = Model(experiment)
 except Exception as e:
     logging.error(str(e))
     logging.error(traceback.format_exc())

@@ -160,7 +160,7 @@ class TwoComponentBindingModel(BindingModel):
     """
     A binding model with two components (e.g. Protein and Ligand)
     """
-    def __init__(self, experiment, instrument):
+    def __init__(self, experiment):
 
         # Determine number of observations.
         self.N = experiment.number_of_injections
@@ -171,20 +171,26 @@ class TwoComponentBindingModel(BindingModel):
             self.DeltaVn[inj] = injection.volume
 
         # Store calorimeter properties.
-        self.V0 = instrument.V0
+        self.V0 = experiment.cell_volume
 
         # Extract properties from experiment
         self.experiment = experiment
-        Ls_stated = experiment.syringe_concentration
-        P0_stated = experiment.cell_concentration
+
+
+        if not len(experiment.syringe_concentration) == 1:
+            raise ValueError('TwoComponent model only supports one component in the syringe, found %d' % len(experiment.syringe_concentration))
+        lsname, Ls_stated = experiment.syringe_concentration.popitem()
+        if not len(experiment.cell_concentration) == 1:
+            raise ValueError('TwoComponent model only supports one component in the cell, found %d' % len(experiment.cell_concentration))
+        pname, P0_stated = experiment.cell_concentration.popitem()
 
         # Store temperature.
         self.temperature = experiment.target_temperature  # (kelvin)
         self.beta = 1.0 / (ureg.molar_gas_constant * self.temperature)  # inverse temperature 1/(kcal/mol)
 
         # Compute uncertainties in stated concentrations.
-        dP0 = 0.10 * P0_stated # uncertainty in protein stated concentration (M) - 10% error
-        dLs = 0.10 * Ls_stated # uncertainty in ligand stated concentration (M) - 10% error
+        dP0 = 0.10 * P0_stated  # uncertainty in protein stated concentration (M) - 10% error
+        dLs = 0.10 * Ls_stated  # uncertainty in ligand stated concentration (M) - 10% error
 
         # Determine guesses for initial values
         q_n = Quantity(numpy.zeros(len(experiment.injections)), 'microcalorie / mole')
@@ -233,7 +239,7 @@ class TwoComponentBindingModel(BindingModel):
         # Review doublecheck equation
         q_ns = Quantity(numpy.zeros(experiment.number_of_injections), 'microcalorie / mole')
         for inj,injection in enumerate(experiment.injections):
-            q_ns[inj] = injection.evolved_heat / (experiment.syringe_concentration * injection.volume)
+            q_ns[inj] = injection.evolved_heat / injection.titrant
 
 
         # Define observed data.
@@ -247,7 +253,7 @@ class TwoComponentBindingModel(BindingModel):
         mcmc.use_step_method(pymc.Metropolis, self.DeltaH)
         mcmc.use_step_method(pymc.Metropolis, self.DeltaH_0)
 
-        if experiment.cell_concentration > Quantity('0.0 molar') and experiment.syringe_concentration > Quantity('0.0 molar'):
+        if P0_stated > Quantity('0.0 molar') and Ls_stated > Quantity('0.0 molar'):
             mcmc.use_step_method(RescalingStep,
                                  {'Ls': self.Ls, 'P0': self.P0, 'DeltaH': self.DeltaH, 'DeltaG': self.DeltaG},
                                  self.beta)

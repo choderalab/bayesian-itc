@@ -33,7 +33,7 @@ class Injection(object):
     # TODO Add docstring examples.
 
 
-    def __init__(self, number, volume, duration, spacing, filter_period, evolved_heat=None, titrant_concentration=None):
+    def __init__(self, number, volume, duration, spacing, filter_period, evolved_heat=None, titrant_amount=None, titrant_concentration=None):
         # sequence number of injection
         self.number = number
         # programmed volume of injection
@@ -50,8 +50,12 @@ class Injection(object):
         self.evolved_heat = evolved_heat.to('microcalorie')
 
         # the quantity of compound(s) injected
-        if titrant_concentration:
+        if titrant_amount:
+            self.titrant = titrant_amount
+        elif titrant_concentration:
             self.contents(titrant_concentration)
+        else:
+            TypeError("Need to specify either a titrant amount, or a concentration")
 
     def contents(self, titrant_concentration):
         """
@@ -421,14 +425,14 @@ class ExperimentDotITC(BaseExperiment):
 
         # Store additional data about experiment.
         parsecline = 11 + self.number_of_injections
-        self.syringe_concentration = float(
+        self.syringe_concentration = {'ligand': float(
             lines[parsecline][
-                1:].strip()) * ureg.millimole / ureg.liter  # supposed concentration of compound in syringe
+                1:].strip()) * ureg.millimole / ureg.liter }  # supposed concentration of compound in syringe
         for inj in self.injections:
             inj.contents(self.syringe_concentration) #TODO add support for multiple components
         # supposed concentration of receptor in cell
-        self.cell_concentration = float(
-            lines[parsecline + 1][1:].strip()) * ureg.millimole / ureg.liter
+        self.cell_concentration = {'macromolecule': float(
+            lines[parsecline + 1][1:].strip()) * ureg.millimole / ureg.liter}
 
         self.cell_volume = float(
             lines[parsecline + 2][1:].strip()) * ureg.milliliter  # cell volume
@@ -833,6 +837,7 @@ class ExperimentYaml(BaseExperiment):
             # time over which data channel is averaged to produce a single measurement
             injectiondict['filter_period'] = 0.0 * ureg.second
             # Possible input includes heat / moles of injectant, or raw heat
+            injectiondict['titrant_amount'] = sum(self.syringe_concentration.values()) * Quantity(volume, yaml_input['volume_unit'])
             try:
                 injectiondict['evolved_heat'] = Quantity(heat, yaml_input['heat_unit']).to('microcalorie')
             except DimensionalityError:
