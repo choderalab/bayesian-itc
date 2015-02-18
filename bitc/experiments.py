@@ -811,7 +811,7 @@ class ExperimentYaml(BaseExperiment):
 
         # Extract and store data about the experiment.
         self.number_of_injections = len(yaml_input['injection_heats'])
-        self.target_temperature = Quantity(yaml_input['temperature'], yaml_input['temperature_unit'])
+        self.temperature = Quantity(yaml_input['temperature'], yaml_input['temperature_unit'])
 
         # Store the stated syringe concentration(s)
         for key in yaml_input['syringe_concentrations'].keys():
@@ -849,6 +849,10 @@ class ExperimentYaml(BaseExperiment):
 
                     # Store injection.
             self.injections.append(Injection(**injectiondict))
+
+        self.observed_injection_heats = Quantity(numpy.zeros(len(self.injections)), 'microcalorie')
+        for index, injection in enumerate(self.injections):
+            self.observed_injection_heats[index] = injection.evolved_heat
 
         return
 

@@ -340,7 +340,7 @@ class CompetitiveBindingModel(BindingModel):
 
     """
 
-    def __init__(self, experiments, instrument, receptor, concentration_uncertainty=0.10):
+    def __init__(self, experiments, receptor, concentration_uncertainty=0.10):
         """
         ARGUMENTS
 
@@ -351,20 +351,17 @@ class CompetitiveBindingModel(BindingModel):
         concentration_uncertainty (float) - relative uncertainty in concentrations
 
         """
-
-        self.verbose = verbose
-
         # Store temperature.
         # NOTE: Right now, there can only be one.
         self.temperature = experiments[0].temperature # temperature (kelvin)
         self.beta = 1.0 / (ureg.molar_gas_constant * self.temperature) # inverse temperature 1/(kcal/mol)
 
         # Store copy of experiments.
-        self.experiments = copy.deepcopy(experiments)
+        self.experiments = experiments
         logging.info("%d experiments" % len(self.experiments))
 
         # Store sample cell volume.
-        self.V0 = instrument.V0
+        self.V0 = self.experiments[0].cell_volume
 
         # Store the name of the receptor.
         self.receptor = receptor
@@ -373,14 +370,14 @@ class CompetitiveBindingModel(BindingModel):
         # Make a list of names of all molecular species.
         self.species = set() # all molecular species
         for experiment in experiments:
-            self.species.update(experiment.sample_cell_concentrations.keys())
-            self.species.update(experiment.syringe_concentrations.keys())
-        logging.info("species: ", self.species)
+            self.species.update(experiment.cell_concentration.keys())
+            self.species.update(experiment.syringe_concentration.keys())
+        logging.info("species: %s" % self.species)
 
         # Make a list of all ligands.
         self.ligands = copy.deepcopy(self.species)
         self.ligands.remove(receptor)
-        logging.info("ligands: ", self.ligands)
+        logging.info("ligands: %s" % self.ligands)
 
         # Create a list of all stochastics.
         self.stochastics = list()
@@ -404,7 +401,7 @@ class CompetitiveBindingModel(BindingModel):
         logging.debug(self.thermodynamic_parameters)
 
         # # TODO: add option to set initial thermodynamic parameters to literature values.
-        # self.thermodynamic_parameters["DeltaG of HIV protease * acetyl pepstatin"].value = -9.0
+        # self.thermodynamic_parameters["DeltaG of protein * ligand"].value = -9.0
         # self.thermodynamic_parameters["DeltaH of HIV protease * acetyl pepstatin"].value = +6.8
 
 
@@ -412,9 +409,9 @@ class CompetitiveBindingModel(BindingModel):
         # TODO: This should depend on a number of factors, like integration time, heat signal, etc.?
         sigma_guess = 0.0
         for experiment in self.experiments:
-            sigma_guess += experiment.observed_injection_heats[-4:].std()
+            sigma_guess += experiment.observed_injection_heats[:-4].std()
         sigma_guess /= float(len(self.experiments))
-        log_sigma_guess = log(sigma_guess)
+        log_sigma_guess = log(sigma_guess / Quantity('microcalorie')) #remove unit
         log_sigma_min = log_sigma_guess - 10
         log_sigma_max = log_sigma_guess + 5
         self.log_sigma = pymc.Uniform('log_sigma', lower=log_sigma_min, upper=log_sigma_max, value=log_sigma_guess)
@@ -438,44 +435,44 @@ class CompetitiveBindingModel(BindingModel):
             self.stochastics.append(experiment.DeltaH_0)
 
             # True concentrations
-            experiment.true_sample_cell_concentrations = dict()
-            for species, concentration in experiment.sample_cell_concentrations.iteritems():
+            experiment.true_cell_concentration = dict()
+            for species, concentration in experiment.cell_concentration.iteritems():
                 x = pymc.Lognormal("initial sample cell concentration of %s in experiment %d" % (species, index),
-                                   mu=log(concentration), tau=1.0/log(1.0+concentration_uncertainty**2),
-                                   value=concentration)
-                experiment.true_sample_cell_concentrations[species] = x
+                                   mu=log(concentration / Quantity('millimole per liter')), tau=1.0/log(1.0+concentration_uncertainty**2),
+                                   value=concentration/ Quantity('millimole per liter'))
+                experiment.true_cell_concentration[species] = x
                 self.stochastics.append(x)
 
-            experiment.true_syringe_concentrations = dict()
-            for species, concentration in experiment.syringe_concentrations.iteritems():
+            experiment.true_syringe_concentration = dict()
+            for species, concentration in experiment.syringe_concentration.iteritems():
                 x = pymc.Lognormal("initial syringe concentration of %s in experiment %d" % (species, index),
-                                   mu=log(concentration), tau=1.0/log(1.0+concentration_uncertainty**2),
-                                   value=concentration)
-                experiment.true_syringe_concentrations[species] = x
+                                   mu=log(concentration/ Quantity('millimole per liter')), tau=1.0/log(1.0+concentration_uncertainty**2),
+                                   value=concentration/ Quantity('millimole per liter'))
+                experiment.true_syringe_concentration[species] = x
                 self.stochastics.append(x)
 
             # Add species not explicitly listed with zero concentration.
             for species in self.species:
-                if species not in experiment.true_sample_cell_concentrations:
-                    experiment.true_sample_cell_concentrations[species] = 0.0
-                if species not in experiment.true_syringe_concentrations:
-                    experiment.true_syringe_concentrations[species] = 0.0
+                if species not in experiment.true_cell_concentration:
+                    experiment.true_cell_concentration[species] = 0.0
+                if species not in experiment.true_syringe_concentration:
+                    experiment.true_syringe_concentration[species] = 0.0
 
             # True injection heats
             experiment.true_injection_heats = pymc.Lambda("true injection heats for experiment %d" % index,
-                                                              lambda
-                                                                  experiment=experiment,
-                                                                  sample_cell_concentrations=experiment.true_sample_cell_concentrations,
-                                                                  syringe_concentrations=experiment.true_syringe_concentrations,                                                                 DeltaH_0=experiment.DeltaH_0,
-                                                                  thermodynamic_parameters=self.thermodynamic_parameters:
-                                                                  self.expected_injection_heats(
-                                                                      experiment,
-                                                                      sample_cell_concentrations,
-                                                                      syringe_concentrations,
-                                                                      DeltaH_0,
-                                                                      thermodynamic_parameters
-                                                                  )
-                                                         )
+                                                          lambda
+                                                              experiment=experiment,
+                                                              cell_concentration=experiment.true_cell_concentration,
+                                                              syringe_concentration=experiment.true_syringe_concentration,                                                                 DeltaH_0=experiment.DeltaH_0,
+                                                              thermodynamic_parameters=self.thermodynamic_parameters:
+                                                          self.expected_injection_heats(
+                                                              experiment,
+                                                              cell_concentration,
+                                                              syringe_concentration,
+                                                              DeltaH_0,
+                                                              thermodynamic_parameters
+                                                          )
+            )
             self.stochastics.append(experiment.true_injection_heats)
 
             # Observed injection heats
@@ -495,8 +492,8 @@ class CompetitiveBindingModel(BindingModel):
             except:
                 pass
         for ligand in self.ligands:
-            mcmc.use_step_method(RescalingStep, { 'Ls' : self.experiments[0].true_syringe_concentrations[ligand],
-                                                  'P0' : self.experiments[0].true_sample_cell_concentrations[receptor],
+            mcmc.use_step_method(RescalingStep, { 'Ls' : self.experiments[0].true_syringe_concentration[ligand],
+                                                  'P0' : self.experiments[0].true_cell_concentration[receptor],
                                                   'DeltaH' : self.thermodynamic_parameters['DeltaH of %s * %s' %(receptor, ligand)],
                                                   'DeltaG' : self.thermodynamic_parameters['DeltaG of %s * %s' %(receptor, ligand)] }, self.beta)
 
@@ -619,7 +616,7 @@ class CompetitiveBindingModel(BindingModel):
 
         return C_RLn
 
-    def expected_injection_heats(self, experiment, true_sample_cell_concentrations, true_syringe_concentrations, DeltaH_0, thermodynamic_parameters):
+    def expected_injection_heats(self, experiment, true_cell_concentration, true_syringe_concentration, DeltaH_0, thermodynamic_parameters):
         """
         Expected heats of injection for two-component binding model.
 
@@ -629,8 +626,8 @@ class CompetitiveBindingModel(BindingModel):
 
         ARGUMENTS
 
-        sample_cell_concentrations (dict of floats) - concentrations[species] is the initial concentration of species in sample cell, or zero if absent (M)
-        syringe_concentrations (dict of floats) - concentrations[species] is the initial concentration of species in sample cell, or zero if absent (M)
+        true_cell_concentration (dict of floats) - concentrations[species] is the initial concentration of species in sample cell, or zero if absent (M)
+        true_syringe_concentration (dict of floats) - concentrations[species] is the initial concentration of species in sample cell, or zero if absent (M)
         thermodynamic_parameters (dict of floats) - thermodynamic_parameters[parameter] is the value of thermodynamic parameter (kcal/mol)
           e.g. for parameter 'DeltaG of receptor * species'
         V_n (numpy array of floats) - V_n[n] is injection volume of injection n (L)
@@ -643,40 +640,42 @@ class CompetitiveBindingModel(BindingModel):
         # Number of ligand species
         nspecies = len(self.ligands)
 
+        beta = float(self.beta / Quantity('1 /(kilocalorie / mole)'))
+        V0 = self.V0
         # Compute association constants for receptor and each ligand species.
         DeltaG_n = numpy.zeros([nspecies], numpy.float64) #
         for (n, ligand) in enumerate(self.ligands):
             name = "DeltaG of %s * %s" % (self.receptor, ligand) # determine name of free energy of binding for this ligand
             DeltaG_n[n] = thermodynamic_parameters[name] # retrieve free energy of binding
 
-        Ka_n = numpy.exp(-self.beta * DeltaG_n[:]) / ureg.standard_concentration  # compute association constant (1/M)
+        Ka_n = numpy.exp(-beta * DeltaG_n[:]) # compute association constant (1/M)
 
         # Compute the quantity of each species in the sample cell after each injection.
         # NOTE: These quantities are correct for a perfusion-type model.  This would be modified for a cumulative model.
         x_Ri = numpy.zeros([experiment.ninjections], numpy.float64) # x_Ri[i] is the number of moles of receptor in sample cell after injection i
         x_Lin = numpy.zeros([experiment.ninjections, nspecies], numpy.float64) # x_Lin[i,n] is the number of moles of ligand n in sample cell after injection i
         dcum = 1.0 # cumulative dilution factor
-        for i in range(experiment.ninjections):
-            d = 1.0 - (experiment.injection_volumes[i] / self.V0) # dilution factor (dimensionless)
+        for index, injection in enumerate(experiment.injections):
+            d = 1.0 - (injection.volume / self.V0) # dilution factor (dimensionless)
             dcum *= d # cumulative dilution factor (dimensionless)
-            x_Ri[i] = true_sample_cell_concentrations[self.receptor] * dcum + true_syringe_concentrations[self.receptor] * (1.0 - dcum)
+            x_Ri[index] = true_cell_concentration[self.receptor] * dcum + true_syringe_concentration[self.receptor] * (1.0 - dcum)
             for (n, ligand) in enumerate(self.ligands):
-                x_Lin[i,n] = true_sample_cell_concentrations[ligand] * dcum + true_syringe_concentrations[ligand] * (1.0 - dcum)
+                x_Lin[index,n] = true_cell_concentration[ligand] * dcum + true_syringe_concentration[ligand] * (1.0 - dcum)
 
         # Solve for initial concentration.
-        x_R0 = true_sample_cell_concentrations[self.receptor]
+        x_R0 = true_cell_concentration[self.receptor]
         x_L0n = numpy.zeros([nspecies], numpy.float64)
         C_RL0n = numpy.zeros([nspecies], numpy.float64)
         for (n, ligand) in enumerate(self.ligands):
-            x_L0n[n] = true_sample_cell_concentrations[ligand]
+            x_L0n[n] = true_cell_concentration[ligand]
         C_RL0n[:] = self.equilibrium_concentrations(Ka_n, x_R0, x_L0n[:], self.V0)
 
 
         # Compute complex concentrations after each injection.
         # NOTE: The total cell volume would be modified for a cumulative model.
         C_RLin = numpy.zeros([experiment.ninjections,nspecies], numpy.float64) # C_RLin[i,n] is the concentration of complex RLn[n] after injection i
-        for i in range(experiment.ninjections):
-            C_RLin[i,:] = self.equilibrium_concentrations(Ka_n, x_Ri[i], x_Lin[i,:], self.V0)
+        for index, injection in enumerate(experiment.injections):
+            C_RLin[index,:] = self.equilibrium_concentrations(Ka_n, x_Ri[index], x_Lin[index,:], self.V0)
 
 
         # Compile a list of thermodynamic parameters.
@@ -687,14 +686,16 @@ class CompetitiveBindingModel(BindingModel):
 
         # Compute expected injection heats.
         # NOTE: This is for an instantaneous injection / perfusion model.
-        q_n = DeltaH_0 * numpy.ones([experiment.ninjections], numpy.float64) # q_n_model[n] is the expected heat from injection n
-        d = 1.0 - (experiment.injection_volumes[0] / self.V0) # dilution factor (dimensionless)
+        q_n = DeltaH_0 * numpy.ones([len(experiment.injections)], numpy.float64) # q_n_model[n] is the expected heat from injection n
+        d = 1.0 - (experiment.injections[0].volume / self.V0) # dilution factor (dimensionless)
         for n in range(nspecies):
-            q_n[0] += (1000.0*DeltaH_n[n]) * V0 * (C_RLin[0,n] - d*C_RL0n[n])  # first injection
-        for i in range(1,experiment.ninjections):
-            d = 1.0 - (experiment.injection_volumes[i] / self.V0) # dilution factor (dimensionless)
+            # review doublecheck order of magnitude units
+            q_n[0] += (1000.0*DeltaH_n[n]) * (V0 / Quantity('liter')) * (C_RLin[0,n] - d*C_RL0n[n])  # first injection
+        for index, injection in enumerate(experiment.injections[1:], start=1):
+            d = 1.0 - (injection.volume / V0) # dilution factor (dimensionless)
             for n in range(nspecies):
-                q_n[i] += (1000.0*DeltaH_n[n]) * V0 * (C_RLin[i,n] - d*C_RLin[i-1,n]) # subsequent injections
+                # review doublecheck units
+                q_n[index] += (1000.0*DeltaH_n[n]) * (V0 / Quantity('liter')) * (C_RLin[index,n] - d*C_RLin[index-1,n]) # subsequent injections
 
         return q_n
 
