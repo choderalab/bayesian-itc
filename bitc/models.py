@@ -491,11 +491,13 @@ class CompetitiveBindingModel(BindingModel):
                 mcmc.use_step_method(pymc.Metropolis, stochastic)
             except:
                 pass
-        for ligand in self.ligands:
-            mcmc.use_step_method(RescalingStep, { 'Ls' : self.experiments[0].true_syringe_concentration[ligand],
-                                                  'P0' : self.experiments[0].true_cell_concentration[receptor],
-                                                  'DeltaH' : self.thermodynamic_parameters['DeltaH of %s * %s' %(receptor, ligand)],
-                                                  'DeltaG' : self.thermodynamic_parameters['DeltaG of %s * %s' %(receptor, ligand)] }, self.beta)
+
+        for experiment in self.experiments:
+            for ligand in self.ligands:
+                mcmc.use_step_method(RescalingStep, { 'Ls' : experiment.true_syringe_concentration[ligand],
+                                                      'P0' : experiment.true_cell_concentration[receptor],
+                                                      'DeltaH' : self.thermodynamic_parameters['DeltaH of %s * %s' %(receptor, ligand)],
+                                                      'DeltaG' : self.thermodynamic_parameters['DeltaG of %s * %s' %(receptor, ligand)] }, self.beta)
 
 
         self.mcmc = mcmc
