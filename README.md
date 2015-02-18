@@ -12,7 +12,17 @@ A python library for the Bayesian analysis of isothermal titration calorimetry e
 
 
 ## Requirements
-Python2.7. Necessary modules are listed in `requirements.txt`. We recommend using [`Anaconda`](https://store.continuum.io/cshop/anaconda/) as your python distribution. Some of the requirements will need to be installed using pip.  
+Python2.7+, python3.3+ . We recommend using [`Anaconda`](https://store.continuum.io/cshop/anaconda/) as your python distribution. Some of the requirements will need to be installed using pip.
+```
+numpy
+nose
+pandas
+pymc
+pint
+docopt
+schema
+scikit-learn
+```
 
 ## Usage instructions and command line options:
 ```
