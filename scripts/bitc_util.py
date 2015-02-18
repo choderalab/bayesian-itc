@@ -207,7 +207,7 @@ if validated['--model'] == 'TwoComponent':
         logging.info("Sampling...")
         model.mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
         #pymc.Matplot.plot(mcmc)
-        logging.debug(str(experiment))
+
         # Plot individual terms.
         if sum(model.experiment.cell_concentration.values()) > Quantity('0.0 molar'):
             pymc.Matplot.plot(model.mcmc.trace('P0')[:], '%s-P0' % model.experiment.name)
@@ -251,3 +251,12 @@ elif validated['--model'] == 'Competitive':
         logging.error(str(e))
         logging.error(traceback.format_exc())
         raise Exception("MCMC model could not me constructed!\n" + str(e))
+
+    logging.info("Fitting model...")
+    map = pymc.MAP(model, verbose=10)
+    map.fit(iterlim=nfit, verbose=10)
+    logging.info(map)
+
+    logging.info("Sampling...")
+    model.mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
+    pymc.Matplot.plot(model.mcmc, validated['--name'])
