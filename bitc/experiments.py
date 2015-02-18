@@ -47,7 +47,8 @@ class Injection(object):
         self.filter_period = filter_period
 
         # If provided, set the evolved_heat, making sure the unit is compatible with microcalorie
-        self.evolved_heat = evolved_heat.to('microcalorie')
+        if evolved_heat:
+            self.evolved_heat = evolved_heat.to('microcalorie')
 
         # the quantity of compound(s) injected
         if titrant_amount:
@@ -429,7 +430,7 @@ class ExperimentDotITC(BaseExperiment):
             lines[parsecline][
                 1:].strip()) * ureg.millimole / ureg.liter }  # supposed concentration of compound in syringe
         for inj in self.injections:
-            inj.contents(self.syringe_concentration) #TODO add support for multiple components
+            inj.contents(sum(self.syringe_concentration.values())) #TODO add support for multiple components
         # supposed concentration of receptor in cell
         self.cell_concentration = {'macromolecule': float(
             lines[parsecline + 1][1:].strip()) * ureg.millimole / ureg.liter}
