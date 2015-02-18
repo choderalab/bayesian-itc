@@ -189,7 +189,7 @@ class TwoComponentBindingModel(BindingModel):
         if not len(experiment.cell_concentration) == 1:
             raise ValueError('TwoComponent model only supports one component in the cell, found %d' % len(experiment.cell_concentration))
 
-        # py 2/3 compatibility
+        # python 2/3 compatibility
         try:
             P0_stated = experiment.cell_concentration.itervalues().next()
         except AttributeError:
