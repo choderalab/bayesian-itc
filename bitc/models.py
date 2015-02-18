@@ -56,7 +56,7 @@ class RescalingStep(pymc.StepMethod):
 
         # Report
         logger.info("Initialization...\n" +
-                    "max_scale: ", self.max_scale)
+                    "max_scale: %s" % self.max_scale)
 
 
     def propose(self):
@@ -494,10 +494,11 @@ class CompetitiveBindingModel(BindingModel):
 
         for experiment in self.experiments:
             for ligand in self.ligands:
-                mcmc.use_step_method(RescalingStep, { 'Ls' : experiment.true_syringe_concentration[ligand],
-                                                      'P0' : experiment.true_cell_concentration[receptor],
-                                                      'DeltaH' : self.thermodynamic_parameters['DeltaH of %s * %s' %(receptor, ligand)],
-                                                      'DeltaG' : self.thermodynamic_parameters['DeltaG of %s * %s' %(receptor, ligand)] }, self.beta)
+                if isinstance(experiment.true_syringe_concentration[ligand], pymc.distributions.Lognormal):
+                    mcmc.use_step_method(RescalingStep, { 'Ls' : experiment.true_syringe_concentration[ligand],
+                                                          'P0' : experiment.true_cell_concentration[receptor],
+                                                          'DeltaH' : self.thermodynamic_parameters['DeltaH of %s * %s' %(receptor, ligand)],
+                                                          'DeltaG' : self.thermodynamic_parameters['DeltaG of %s * %s' %(receptor, ligand)] }, self.beta)
 
 
         self.mcmc = mcmc
