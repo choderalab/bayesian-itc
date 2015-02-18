@@ -1,0 +1,16 @@
+---
+concentration_unit: mole / liter
+experiment_name: acetyl_pepstatin
+heat_unit: kilocalorie per mole
+injection_heats: [6.696, 6.695, 6.698, 6.617, 6.464, 6.336, 6.184, 5.652, 4.336, 2.97,
+  1.709, 0.947, 0.643, 0.441, 0.264, 0.269, 0.214, 0.138, 0.113, 0.062, 0.088, 0.016,
+  0.063, 0.012]
+injection_volumes: [1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05,
+  1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05,
+  1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05]
+instrument: VPITC
+sample_cell_concentrations: {HIV protease: 2.0e-05}
+syringe_concentrations: {acetyl pepstatin: 0.0003}
+temperature: 298.15
+temperature_unit: kelvin
+volume_unit: liters

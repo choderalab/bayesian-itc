@@ -1,0 +1,18 @@
+---
+concentration_unit: mole / liter
+experiment_name: kni10075
+heat_unit: kilocalorie per mole
+injection_heats: [-21.012, -22.716, -22.863, -22.632, -22.48, -22.236, -22.314, -22.569,
+  -22.231, -22.529, -22.529, -21.773, -21.866, -21.412, -20.81, -18.664, -14.339,
+  -11.028, -5.219, -3.612, -3.611, -3.389, -3.354, -3.122, -3.049, -3.083, -3.253,
+  -3.089, -3.146, -3.252]
+injection_volumes: [1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05,
+  1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05,
+  1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05,
+  1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05, 1.0e-05]
+instrument: VPITC
+sample_cell_concentrations: {HIV protease: 8.6e-06, acetyl pepstatin: 0.00051}
+syringe_concentrations: {KNI-10075: 4.6e-05}
+temperature: 298.15
+temperature_unit: kelvin
+volume_unit: liters

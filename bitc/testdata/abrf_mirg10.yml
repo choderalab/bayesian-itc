@@ -1,0 +1,18 @@
+---
+concentration_unit: mole / liter
+experiment_name: abrf_mirg10
+heat_unit: kilocalorie per mole
+injection_heats: [-13.343, -13.417, -13.279, -13.199, -13.118, -12.781, -12.6, -12.124,
+  -11.633, -10.921, -10.009, -8.81, -7.661, -6.272, -5.163, -4.228, -3.519, -3.055,
+  -2.599, -2.512, -2.197, -2.096, -2.087, -1.959, -1.776, -1.879, -1.894, -1.813,
+  -1.74, -1.81]
+injection_volumes: [8.0e-06, 8.0e-06, 8.0e-06, 8.0e-06, 8.0e-06, 8.0e-06, 8.0e-06,
+  8.0e-06, 8.0e-06, 8.0e-06, 8.0e-06, 8.0e-06, 8.0e-06, 8.0e-06, 8.0e-06, 8.0e-06,
+  8.0e-06, 8.0e-06, 8.0e-06, 8.0e-06, 8.0e-06, 8.0e-06, 8.0e-06, 8.0e-06, 8.0e-06,
+  8.0e-06, 8.0e-06, 8.0e-06, 8.0e-06]
+instrument: VPITC
+sample_cell_concentrations: {carbonic anhydrase II: 3.2e-05}
+syringe_concentrations: {4-carboxybenzenesulfonamide: 0.000384}
+temperature: 298.15
+temperature_unit: kelvin
+volume_unit: liter

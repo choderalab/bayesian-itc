@@ -7,6 +7,7 @@ import logging
 import numpy
 
 from bitc.units import ureg,Quantity
+from pint import DimensionalityError
 
 
 # Use logger with name of module
@@ -32,7 +33,7 @@ class Injection(object):
     # TODO Add docstring examples.
 
 
-    def __init__(self, number, volume, duration, spacing, filter_period, titrant_concentration=None):
+    def __init__(self, number, volume, duration, spacing, filter_period, evolved_heat=None, titrant_amount=None, titrant_concentration=None):
         # sequence number of injection
         self.number = number
         # programmed volume of injection
@@ -45,9 +46,17 @@ class Injection(object):
         # of applied power
         self.filter_period = filter_period
 
+        # If provided, set the evolved_heat, making sure the unit is compatible with microcalorie
+        if evolved_heat:
+            self.evolved_heat = evolved_heat.to('microcalorie')
+
         # the quantity of compound(s) injected
-        if titrant_concentration:
+        if titrant_amount:
+            self.titrant = titrant_amount
+        elif titrant_concentration:
             self.contents(titrant_concentration)
+        else:
+            TypeError("Need to specify either a titrant amount, or a concentration")
 
     def contents(self, titrant_concentration):
         """
@@ -68,7 +77,248 @@ class Injection(object):
                 self.titrant[titr] = self.volume * self.titrant_concentration[titr]
 
 
-class Experiment(object):
+class BaseExperiment(object):
+    """
+    Abstract base class for an ITC experiment
+
+    """
+    def __init__(self, data_source, experiment_name, instrument):
+        """
+        Base init, prepare all the variables
+        :param data_source:
+        :type data_source: str
+        :param experiment_name:
+        :type experiment_name: str
+        :return:
+        :rtype:
+        """
+        # Initialize.
+        # the source filename from which data is read
+        self.data_filename = None
+        self.instrument = instrument  # the instrument that was used
+        self.number_of_injections = None  # number of syringe injections
+        self.target_temperature = None  # target temperature
+        # initial equilibration (delay) time before injections
+        self.equilibration_time = None
+        self.stir_speed = None  # rate of stirring
+        self.reference_power = None  # power applied to reference cell
+        # concentrations of various species in syringe
+        self.syringe_contents = None
+        # concentrations of various species in sample cell
+        self.sample_cell_contents = None
+        self.cell_volume = instrument.V0  # volume of liquid in sample cell
+        # list of injections (and their associated data)
+        self.injections = None
+        # time at end of filtering period
+        self.filter_period_end_time = None
+        # time at midpoint of filtering period
+        self.filter_period_midpoint_time = None
+        # "differential" power applied to sample cell
+        self.differential_power = None
+        self.cell_temperature = None  # cell temperature
+        self.name = experiment_name
+
+        self.data_source = data_source
+
+        # Extract and store data about the experiment.
+        self.number_of_injections = None
+        self.target_temperature = None
+        self.equilibration_time = None
+        self.stir_rate = None
+        self.reference_power = None
+
+        # Store additional data about experiment.
+        self.syringe_concentration = None
+
+        # supposed concentration of receptor in cell
+        self.cell_concentration = None
+
+        # Allocate storage for power measurements.
+        self.time = None
+        self.heat = None
+        self.temperature = None
+
+        # Store data about measured heat liberated during each injection.
+        self.filter_period_end_time = None  # time at end of filtering period (s)
+        self.differential_power = None  # "differential" power applied to sample cell (ucal/s)
+        self.cell_temperature = None  # cell temperature (K)
+        self.jacket_temperature = None  # adiabatic jacket temperature (K)
+
+    def __str__(self):
+        """
+        Show details of experiment in human-readable form.
+
+        """
+        # TODO Clean up this definition
+        string = ""
+        string += "EXPERIMENT\n"
+        string += "\n"
+        string += "Source filename: %s\n" % self.data_filename
+        string += "Number of injections: %d\n" % self.number_of_injections
+        string += "Target temperature: %.1f K\n" % (
+            self.target_temperature / ureg.kelvin)
+        try:
+            string += "Equilibration time before first injection: %.1f s\n" % (self.equilibration_time / ureg.second)
+        except TypeError:
+            string += "Equilibration time unknown"
+
+        # TODO temporary, needs to be uniform type among all experiment classes
+        if isinstance(self.syringe_concentration, Quantity):
+            string += "Syringe concentration: %.3f mM\n" % (
+                self.syringe_concentration / (ureg.millimole / ureg.liter))
+        if isinstance(self.cell_concentration, Quantity):
+            string += "Cell concentration: %.3f mM\n" % (
+                self.cell_concentration / (ureg.millimole / ureg.liter))
+
+        string += "Cell volume: %.3f ml\n" % (self.cell_volume / ureg.milliliter)
+
+        if isinstance(self.cell_concentration, Quantity):
+            string += "Reference power: %.3f ucal/s\n" % (
+                self.reference_power / (ureg.microcalorie / ureg.second))
+
+        string += "\n"
+        string += "INJECTIONS\n"
+        string += "\n"
+        string += "%16s %24s %24s %24s %24s %24s\n" % (
+            'injection', 'volume (uL)', 'duration (s)', 'collection time (s)',
+            'time step (s)', 'evolved heat (ucal)')
+        # for injection in range(self.number_of_injections):
+        #            string += "%16d %16.3f %16.3f %16.3f %16.3f" % (injection, self.injection_volume[injection] / unit.microliter, self.injection_duration[injection] / unit.second, self.collection_time[injection] / unit.second, self.time_step[injection] / unit.second)
+        for injection in self.injections:
+            string += "%16d %24.3f %24.3f %24.3f %24.3f %24.3f\n" % (
+                injection.number,
+                injection.volume / ureg.microliter, injection.duration / ureg.second,
+                injection.spacing / ureg.second, injection.filter_period /
+                ureg.second, injection.evolved_heat / ureg.microcalorie)
+
+        return string
+
+    def write_integrated_heats(self, filename):
+        """
+        Write integrated heats in a format similar to that used by Origin.
+        """
+        DeltaV = self.injections[0].volume
+        V0 = self.cell_volume
+        P0 = self.cell_concentration
+        Ls = self.syringe_concentration
+
+        string = "%12s %5s %12s %12s %12s %12s\n" % (
+            "DH", "INJV", "Xt", "Mt", "XMt", "NDH")
+        for (n, injection) in enumerate(self.injections):
+            # Instantaneous injection model (perfusion)
+            # d = 1.0 - (DeltaV / V0) # dilution factor (dimensionless)
+            # P = V0 * P0 * d**(n+1) # total quantity of protein in sample cell after n injections (mol)
+            # L = V0 * Ls * (1. - d**(n+1)) # total quantity of ligand in sample cell after n injections (mol)
+            # PLn = 0.5/V0 * ((P + L + Kd*V0) - numpy.sqrt((P + L + Kd*V0)**2 - 4*P*L));  # complex concentration (M)
+            # Pn = P/V0 - PLn; # free protein concentration in sample cell after n injections (M)
+            # Ln = L/V0 - PLn; # free ligand concentration in sample cell after
+            # n injections (M)
+
+            Pn = 0.0 * (ureg.millimole / ureg.liter)
+            Ln = 0.0 * (ureg.millimole / ureg.liter)
+            PLn = 0.0 * (ureg.millimole / ureg.liter)
+            NDH = 0.0  # review Not sure what this is
+
+            # Form string.
+            string += "%12.5f %5.1f %12.5f %12.5f %12.5f %12.5f\n" % (
+                injection.evolved_heat / ureg.microcalorie, injection.volume /
+                ureg.microliter, Pn / (ureg.millimole / ureg.liter), Ln / (ureg.millimole / ureg.liter),
+                PLn / (ureg.millimole / ureg.liter), NDH)
+
+        # Final line.
+        string += "        --      %12.5f %12.5f --\n" % (
+            Pn / (ureg.millimole / ureg.liter), Ln / (ureg.millimole / ureg.liter))
+
+        # Write file contents.
+        outfile = open(filename, 'w')
+        outfile.write(string)
+        outfile.close()
+
+        return
+
+    def write_heats_csv(self, filename):
+        """
+         Write integrated heats in a csv format
+        """
+        DeltaV = self.injections[0].volume
+        V0 = self.cell_volume
+        P0 = self.cell_concentration
+        Ls = self.syringe_concentration
+
+        string = "%12s, %5s, %12s, %12s, %12s, %12s\n" % (
+            "DH", "INJV", "Xt", "Mt", "XMt", "NDH")
+        for (n, injection) in enumerate(self.injections):
+            # Instantaneous injection model (perfusion)
+            # d = 1.0 - (DeltaV / V0) # dilution factor (dimensionless)
+            # P = V0 * P0 * d**(n+1) # total quantity of protein in sample cell after n injections (mol)
+            # L = V0 * Ls * (1. - d**(n+1)) # total quantity of ligand in sample cell after n injections (mol)
+            # PLn = 0.5/V0 * ((P + L + Kd*V0) - numpy.sqrt((P + L + Kd*V0)**2 - 4*P*L));  # complex concentration (M)
+            # Pn = P/V0 - PLn; # free protein concentration in sample cell after n injections (M)
+            # Ln = L/V0 - PLn; # free ligand concentration in sample cell after
+            # n injections (M)
+
+            Pn = 0.0 * (ureg.millimole / ureg.liter)
+            Ln = 0.0 * (ureg.millimole / ureg.liter)
+            PLn = 0.0 * (ureg.millimole / ureg.liter)
+            NDH = 0.0  # review Not sure what this is
+
+            # Form string.
+            string += "%12.5f %5.1f %12.5f %12.5f %12.5f %12.5f\n" % (
+                injection.evolved_heat / ureg.microcalorie, injection.volume /
+                ureg.microliter, Pn / (ureg.millimole / ureg.liter), Ln / (ureg.millimole / ureg.liter),
+                PLn / (ureg.millimole / ureg.liter), NDH)
+
+        # Final line.
+        string += "        --      %12.5f %12.5f --\n" % (
+            Pn / (ureg.millimole / ureg.liter), Ln / (ureg.millimole / ureg.liter))
+
+        # Write file contents.
+        outfile = open(filename, 'w')
+        outfile.write(string)
+        outfile.close()
+
+        return
+
+    # TODO do we want all the details, including volumes?
+    def read_integrated_heats(self, heats_file, unit='microcalorie'):
+        """
+        Read integrated heats from an origin file
+        :param heats_file:
+        :type heats_file:
+        :return:
+        :rtype:
+
+        """
+        heats = self._parse_heats(heats_file, unit)
+
+        if heats.size != self.number_of_injections:
+            raise ValueError(
+                "The number of injections does not match the number of integrated heats in %s" % heats_file)
+
+        for inj, heat in enumerate(heats):
+            self.injections[inj].evolved_heat = heat
+
+    @staticmethod
+    def _parse_heats(heats_file, unit):
+        """
+        Take as input a file with heats, format specification. Output a list of integrated heats in units of microcalorie
+
+        :param heats_file:
+        :type heats_file:
+        :param write_heats_compatible:
+        :type write_heats_compatible:
+        :return:
+        :rtype:
+        """
+        import pandas as pd
+
+        assert isinstance(heats_file, str)
+        dataframe = pd.read_table(heats_file, skip_footer=1, engine='python')  # Need python engine for skip_footer
+        heats = numpy.array(dataframe['DH'])
+        return Quantity(heats, unit)
+
+
+class ExperimentDotITC(BaseExperiment):
 
     """
     Data from an ITC experiment.
@@ -85,7 +335,7 @@ class Experiment(object):
 
     # TODO Add type verification
 
-    def __init__(self, data_filename, experiment_name):
+    def __init__(self, data_filename, experiment_name, instrument):
         """
         Initialize an experiment from a Microcal VP-ITC formatted .itc file.
 
@@ -96,33 +346,18 @@ class Experiment(object):
           * Add support for other formats of datafiles (XML, etc.).
 
         """
-
         # Initialize.
+        super(ExperimentDotITC, self).__init__(data_filename, experiment_name, instrument)
         # the source filename from which data is read
-        self.data_filename = None
-        self.instrument = None  # the instrument that was used
-        self.number_of_injections = None  # number of syringe injections
-        self.target_temperature = None  # target temperature
-        # initial equilibration (delay) time before injections
-        self.equilibration_time = None
-        self.stir_speed = None  # rate of stirring
-        self.reference_power = None  # power applied to reference cell
         # concentrations of various species in syringe
         self.syringe_contents = list()
-        # TODO syringe and cells could contain chemical contained objects
-        # TODO as in chemicals.SimpleSolution in choderalab/itctools
         # concentrations of various species in sample cell
         self.sample_cell_contents = list()
-        self.cell_volume = None  # volume of liquid in sample cell
+
         # list of injections (and their associated data)
         self.injections = list()
         # time at end of filtering period
-        self.filter_period_end_time = None
-        # time at midpoint of filtering period
-        self.filter_period_midpoint_time = None
-        # "differential" power applied to sample cell
-        self.differential_power = None
-        self.cell_temperature = None            # cell temperature
+        # cell temperature
         self.name = experiment_name
 
         # Check to make sure we can access the file.
@@ -191,14 +426,14 @@ class Experiment(object):
 
         # Store additional data about experiment.
         parsecline = 11 + self.number_of_injections
-        self.syringe_concentration = float(
+        self.syringe_concentration = {'ligand': float(
             lines[parsecline][
-                1:].strip()) * ureg.millimole / ureg.liter  # supposed concentration of compound in syringe
+                1:].strip()) * ureg.millimole / ureg.liter }  # supposed concentration of compound in syringe
         for inj in self.injections:
-            inj.contents(self.syringe_concentration) #TODO add support for multiple components
+            inj.contents(sum(self.syringe_concentration.values())) #TODO add support for multiple components
         # supposed concentration of receptor in cell
-        self.cell_concentration = float(
-            lines[parsecline + 1][1:].strip()) * ureg.millimole / ureg.liter
+        self.cell_concentration = {'macromolecule': float(
+            lines[parsecline + 1][1:].strip()) * ureg.millimole / ureg.liter}
 
         self.cell_volume = float(
             lines[parsecline + 2][1:].strip()) * ureg.milliliter  # cell volume
@@ -321,6 +556,27 @@ class Experiment(object):
 
         return
 
+    def write_power(self, filename):
+        """
+        DEBUG: Write power.
+
+        """
+
+        outfile = open(filename, 'w')
+        outfile.write(
+            "%%%7s %16s %16s\n" %
+            ('time (s)', 'heat (ucal/s)', 'temperature (K)'))
+        for index in range(len(self.filter_period_end_time)):
+            outfile.write("%8.1f %16.8f %16.8f\n" %
+                          (self.filter_period_end_time[index] /
+                           ureg.second, self.differential_power[index] /
+                           (ureg.microcalorie /
+                            ureg.second), self.cell_temperature[index] /
+                           ureg.kelvin))
+        outfile.close()
+
+        return
+
     @staticmethod
     def _plot_confidence_interval(axes, full_x, sigma, y_pred):
         # Confidence interval
@@ -328,7 +584,6 @@ class Experiment(object):
                   numpy.concatenate([y_pred - 1.9600 * sigma,
                                      (y_pred + 1.9600 * sigma)[::-1]]),
                   alpha=.7, fc='black', ec='None', label='95% confidence interval')
-
 
     def _plot_gaussian_baseline(self, full_x, full_y, sigma, x, y, y_pred):
         from matplotlib.figure import Figure
@@ -339,10 +594,10 @@ class Experiment(object):
         axes = figure.add_subplot(1, 1, 1, axisbg='whitesmoke')
 
         # Adds a 95% confidence interval to the plot
-        Experiment._plot_confidence_interval(axes, full_x, sigma, y_pred)
+        ExperimentDotITC._plot_confidence_interval(axes, full_x, sigma, y_pred)
         # Entire set of data
         axes.plot(full_x, full_y, 'o', markersize=2, lw=1, color='deepskyblue', alpha=.5, label='Raw data')
-        #Points for fit
+        # Points for fit
         axes.plot(x, y, 'o', color='crimson', markersize=2, alpha=.8, label='Fitted data')
         # Prediction
         axes.plot(full_x, y_pred, 'o', markersize=1, mec='w', mew=1, color='k', alpha=.5, label='Predicted baseline')
@@ -365,7 +620,8 @@ class Experiment(object):
 
         axes.set_xlabel('time (s)')
         axes.set_ylabel(r'differential power ($\mu$cal / s)')
-        axes.legend(loc='upper center', bbox_to_anchor=(0.5, 0.1), ncol=4, fancybox=True, shadow=True, markerscale=3, prop={'size': 6})
+        axes.legend(loc='upper center', bbox_to_anchor=(0.5, 0.1), ncol=4, fancybox=True, shadow=True, markerscale=3,
+                    prop={'size': 6})
         axes.set_title(self.data_filename)
         canvas.print_figure(self.name + '-baseline.png', dpi=500)
 
@@ -389,8 +645,9 @@ class Experiment(object):
             axes2 = axes1.twinx()
             axes2.plot(x, self.differential_power, 'o', color='gray', markersize=2, alpha=.3, label='Raw data')
             axes2.set_ylabel(r'raw differential power ($\mu$cal / s)')
-            axes2.legend(loc='upper center', bbox_to_anchor=(0.8, 0.95), ncol=1, fancybox=True, shadow=True, markerscale=3,
-                     prop={'size': 6})
+            axes2.legend(loc='upper center', bbox_to_anchor=(0.8, 0.95), ncol=1, fancybox=True, shadow=True,
+                         markerscale=3,
+                         prop={'size': 6})
             if baseline:
                 axes2.plot(x, self.baseline_power, '-', color='black', alpha=.3, label='baseline')
 
@@ -446,7 +703,8 @@ class Experiment(object):
         full_y = numpy.array(self.differential_power).T
         y = numpy.array(y).T
 
-        gp = gaussian_process.GaussianProcess(regr='quadratic', corr='squared_exponential', theta0=theta0, nugget=nugget,
+        gp = gaussian_process.GaussianProcess(regr='quadratic', corr='squared_exponential', theta0=theta0,
+                                              nugget=nugget,
                                               random_start=100)
 
         # Fit only based on the reduced set of the data
@@ -479,14 +737,15 @@ class Experiment(object):
             last_index = injection.last_index
 
             # Determine excess energy input into sample cell (with respect to reference cell) throughout this injection and measurement period.
-            #excess_energy_input = injection['filter_period'] * (self.differential_power[first_index:(last_index+1)] - self.reference_power + self.baseline_power[first_index:(last_index+1)]).sum()
+            # excess_energy_input = injection['filter_period'] * (self.differential_power[first_index:(last_index+1)] - self.reference_power + self.baseline_power[first_index:(last_index+1)]).sum()
             excess_energy_input = injection.filter_period * (
                 self.differential_power[
-                    first_index:(
-                        last_index + 1)] - self.baseline_power[
-                    first_index:(
-                        last_index + 1)]).sum()
-            logger.debug("injection %d, filter period %f s, integrating sample %d to %d" % (injection.number, injection.filter_period / ureg.second, first_index, last_index))
+                first_index:(
+                    last_index + 1)] - self.baseline_power[
+                                       first_index:(
+                                           last_index + 1)]).sum()
+            logger.debug("injection %d, filter period %f s, integrating sample %d to %d" % (
+                injection.number, injection.filter_period / ureg.second, first_index, last_index))
 
             # Determine total heat evolved.
             evolved_heat = - excess_energy_input
@@ -494,189 +753,112 @@ class Experiment(object):
             # Store heat evolved from this injection.
             injection.evolved_heat = evolved_heat
 
-
         return
 
-    def __str__(self):
-        """
-        Show details of experiment in human-readable form.
 
-        """
-        # TODO Clean up this definition
-        string = ""
-        string += "EXPERIMENT\n"
-        string += "\n"
-        string += "Source filename: %s\n" % self.data_filename
-        string += "Number of injections: %d\n" % self.number_of_injections
-        string += "Target temperature: %.1f K\n" % (
-            self.target_temperature / ureg.kelvin)
-        string += "Equilibration time before first injection: %.1f s\n" % (
-            self.equilibration_time / ureg.second)
-        string += "Syringe concentration: %.3f mM\n" % (
-            self.syringe_concentration / (ureg.millimole / ureg.liter))
-        string += "Cell concentration: %.3f mM\n" % (
-            self.cell_concentration / (ureg.millimole / ureg.liter))
-        string += "Cell volume: %.3f ml\n" % (self.cell_volume / ureg.milliliter)
-        string += "Reference power: %.3f ucal/s\n" % (
-            self.reference_power / (ureg.microcalorie / ureg.second))
-
-        string += "\n"
-        string += "INJECTIONS\n"
-        string += "\n"
-        string += "%16s %24s %24s %24s %24s %24s\n" % (
-            'injection', 'volume (uL)', 'duration (s)', 'collection time (s)',
-            'time step (s)', 'evolved heat (ucal)')
-#        for injection in range(self.number_of_injections):
-#            string += "%16d %16.3f %16.3f %16.3f %16.3f" % (injection, self.injection_volume[injection] / unit.microliter, self.injection_duration[injection] / unit.second, self.collection_time[injection] / unit.second, self.time_step[injection] / unit.second)
-        for injection in self.injections:
-            string += "%16d %24.3f %24.3f %24.3f %24.3f %24.3f\n" % (
-                injection.number,
-                injection.volume / ureg.microliter, injection.duration / ureg.second,
-                injection.spacing / ureg.second, injection.filter_period /
-                ureg.second, injection.evolved_heat / ureg.microcalorie)
-
-        return string
-
-    def write_integrated_heats(self, filename):
-        """
-        Write integrated heats in a format similar to that used by Origin.
-        """
-        DeltaV = self.injections[0].volume
-        V0 = self.cell_volume
-        P0 = self.cell_concentration
-        Ls = self.syringe_concentration
-
-        string = "%12s %5s %12s %12s %12s %12s\n" % (
-            "DH", "INJV", "Xt", "Mt", "XMt", "NDH")
-        for (n, injection) in enumerate(self.injections):
-            # Instantaneous injection model (perfusion)
-            # d = 1.0 - (DeltaV / V0) # dilution factor (dimensionless)
-            # P = V0 * P0 * d**(n+1) # total quantity of protein in sample cell after n injections (mol)
-            # L = V0 * Ls * (1. - d**(n+1)) # total quantity of ligand in sample cell after n injections (mol)
-            # PLn = 0.5/V0 * ((P + L + Kd*V0) - numpy.sqrt((P + L + Kd*V0)**2 - 4*P*L));  # complex concentration (M)
-            # Pn = P/V0 - PLn; # free protein concentration in sample cell after n injections (M)
-            # Ln = L/V0 - PLn; # free ligand concentration in sample cell after
-            # n injections (M)
-
-            Pn = 0.0 * (ureg.millimole / ureg.liter)
-            Ln = 0.0 * (ureg.millimole / ureg.liter)
-            PLn = 0.0 * (ureg.millimole / ureg.liter)
-            NDH = 0.0  # review Not sure what this is
-
-            # Form string.
-            string += "%12.5f %5.1f %12.5f %12.5f %12.5f %12.5f\n" % (
-                injection.evolved_heat / ureg.microcalorie, injection.volume /
-                ureg.microliter, Pn / (ureg.millimole / ureg.liter), Ln / (ureg.millimole / ureg.liter), PLn / (ureg.millimole / ureg.liter), NDH)
-
-        # Final line.
-        string += "        --      %12.5f %12.5f --\n" % (Pn / (ureg.millimole / ureg.liter) , Ln / (ureg.millimole / ureg.liter))
-
-        # Write file contents.
-        outfile = open(filename, 'w')
-        outfile.write(string)
-        outfile.close()
-
-        return
-
-    def write_heats_csv(self, filename):
-        """
-         Write integrated heats in a csv format
-        """
-        DeltaV = self.injections[0].volume
-        V0 = self.cell_volume
-        P0 = self.cell_concentration
-        Ls = self.syringe_concentration
-
-        string = "%12s, %5s, %12s, %12s, %12s, %12s\n" % (
-            "DH", "INJV", "Xt", "Mt", "XMt", "NDH")
-        for (n, injection) in enumerate(self.injections):
-            # Instantaneous injection model (perfusion)
-            # d = 1.0 - (DeltaV / V0) # dilution factor (dimensionless)
-            # P = V0 * P0 * d**(n+1) # total quantity of protein in sample cell after n injections (mol)
-            # L = V0 * Ls * (1. - d**(n+1)) # total quantity of ligand in sample cell after n injections (mol)
-            # PLn = 0.5/V0 * ((P + L + Kd*V0) - numpy.sqrt((P + L + Kd*V0)**2 - 4*P*L));  # complex concentration (M)
-            # Pn = P/V0 - PLn; # free protein concentration in sample cell after n injections (M)
-            # Ln = L/V0 - PLn; # free ligand concentration in sample cell after
-            # n injections (M)
-
-            Pn = 0.0 * (ureg.millimole / ureg.liter)
-            Ln = 0.0 * (ureg.millimole / ureg.liter)
-            PLn = 0.0 * (ureg.millimole / ureg.liter)
-            NDH = 0.0  # review Not sure what this is
-
-            # Form string.
-            string += "%12.5f %5.1f %12.5f %12.5f %12.5f %12.5f\n" % (
-                injection.evolved_heat / ureg.microcalorie, injection.volume /
-                ureg.microliter, Pn / (ureg.millimole / ureg.liter), Ln / (ureg.millimole / ureg.liter),
-                PLn / (ureg.millimole / ureg.liter), NDH)
-
-        # Final line.
-        string += "        --      %12.5f %12.5f --\n" % (
-            Pn / (ureg.millimole / ureg.liter), Ln / (ureg.millimole / ureg.liter))
-
-        # Write file contents.
-        outfile = open(filename, 'w')
-        outfile.write(string)
-        outfile.close()
-
-        return
-
-    def read_integrated_heats(self, heats_file, unit='microcalorie'):
-        """
-        Read integrated heats from an origin file
-        :param heats_file:
-        :type heats_file:
-        :return:
-        :rtype:
-        """
-        heats = self._parse_heats(heats_file, unit)
-
-        if heats.size != self.number_of_injections:
-            raise ValueError("The number of injections does not match the number of integrated heats in %s" % heats_file)
-
-        for inj, heat in enumerate(heats):
-            self.injections[inj].evolved_heat = heat
+class ExperimentYaml(BaseExperiment):
 
     @staticmethod
-    def _parse_heats(heats_file, unit):
+    def _parse_yaml(yaml_filename):
+        """Open the yaml file and read is contents"""
+        import yaml
+
+        with open(yaml_filename, 'r') as infile:
+            # Experiment parameters
+            yaml_input = yaml.load(infile)
+            infile.close()
+
+        return yaml_input
+
+    def __init__(self, yaml_filename, experiment_name, instrument):
         """
-        Take as input a file with heats, format specification. Output a list of integrated heats in units of microcalorie
+        Initialize an experiment from a Microcal VP-ITC formatted .itc file.
 
-        :param heats_file:
-        :type heats_file:
-        :param write_heats_compatible:
-        :type write_heats_compatible:
-        :return:
-        :rtype:
-        """
-        import pandas as pd
+        ARGUMENTS
+          data_filename (String) - the filename of the Microcal VP-ITC formatted .itc file to initialize the experiment from
 
-        assert isinstance(heats_file, str)
-        dataframe = pd.read_table(heats_file, skip_footer=1, engine='python')  # Need python engine for skip_footer
-        heats = numpy.array(dataframe['DH'])
-        return Quantity(heats, unit)
-
-    def write_power(self, filename):
-        """
-        DEBUG: Write power.
+        TODO
+          * Add support for other formats of datafiles (XML, etc.).
 
         """
 
-        outfile = open(filename, 'w')
-        outfile.write(
-            "%%%7s %16s %16s\n" %
-            ('time (s)', 'heat (ucal/s)', 'temperature (K)'))
-        for index in range(len(self.filter_period_end_time)):
-            outfile.write("%8.1f %16.8f %16.8f\n" %
-                          (self.filter_period_end_time[index] /
-                           ureg.second, self.differential_power[index] /
-                           (ureg.microcalorie /
-                            ureg.second), self.cell_temperature[index] /
-                              ureg.kelvin))
-        outfile.close()
+        # Initialize.
+        super(ExperimentYaml, self).__init__(yaml_filename, experiment_name, instrument)
+        # the source filename from which data is read
+        # concentrations of various species in syringe
+        self.syringe_contents = dict()
+        self.syringe_concentration = dict()
+        # concentrations of various species in sample cell
+        self.sample_cell_contents = dict()
+        self.cell_concentration = dict()
+        # list of injections (and their associated data)
+        self.injections = list()
+        # time at end of filtering period
+
+        self.name = experiment_name
+        # Store the datafile filename.
+        self.data_filename = yaml_filename
+
+        # Check to make sure we can access the file.
+        if not os.access(yaml_filename, os.R_OK):
+            raise IOError("The file '%s' cannot be opened." % yaml_filename)
+
+        yaml_input = self._parse_yaml(yaml_filename)
+        # TODO more preliminary dict entry validations
+
+        if len(yaml_input['injection_heats']) != len(yaml_input['injection_volumes']):
+            raise ValueError('Mismatch between number of heats and volumes per injection in %s.' % yaml_filename)
+
+        # Extract and store data about the experiment.
+        self.number_of_injections = len(yaml_input['injection_heats'])
+        self.temperature = Quantity(yaml_input['temperature'], yaml_input['temperature_unit'])
+
+        # Store the stated syringe concentration(s)
+        for key in yaml_input['syringe_concentrations'].keys():
+            self.syringe_concentration[key] = Quantity(yaml_input['syringe_concentrations'][key],
+                                                       yaml_input['concentration_unit']).to('millimole per liter')
+        # Store the stated cell concentration(s)
+        for key in yaml_input['sample_cell_concentrations'].keys():
+            self.cell_concentration[key] = Quantity(yaml_input['sample_cell_concentrations'][key],
+                                                    yaml_input['concentration_unit']).to('millimole per liter')
+
+        # Extract and store metadata about injections.
+
+        for index, (heat, volume) in enumerate(zip(yaml_input['injection_heats'], yaml_input['injection_volumes']), start=1):
+
+            # Extract data for injection and apply appropriate unit conversions.
+            # Entering 0.0 for any values not in the yaml.
+            # TODO some values are set in integrate_heat functions, but we currently ignore all but the heat
+            injectiondict = dict()
+            injectiondict['number'] = index
+            injectiondict['volume'] = Quantity(volume, yaml_input['volume_unit'])
+            injectiondict['duration'] = 0.0 * ureg.second
+            # time between beginning of injection and beginning of next injection
+            injectiondict['spacing'] = 0.0 * ureg.second
+            # time over which data channel is averaged to produce a single measurement
+            injectiondict['filter_period'] = 0.0 * ureg.second
+            # Possible input includes heat / moles of injectant, or raw heat
+            injectiondict['titrant_amount'] = sum(self.syringe_concentration.values()) * Quantity(volume, yaml_input['volume_unit'])
+            try:
+                injectiondict['evolved_heat'] = Quantity(heat, yaml_input['heat_unit']).to('microcalorie')
+            except DimensionalityError:
+                    # TODO This is probably only really correct for one syringe component
+                    # Multipy by number of moles injected
+                    evolved_heat = Quantity(heat, yaml_input['heat_unit']) * (Quantity(volume, yaml_input['volume_unit']) * sum(self.syringe_concentration.values()))
+                    injectiondict['evolved_heat'] = evolved_heat.to('microcalorie')
+
+                    # Store injection.
+            self.injections.append(Injection(**injectiondict))
+
+        self.observed_injection_heats = Quantity(numpy.zeros(len(self.injections)), 'microcalorie')
+        for index, injection in enumerate(self.injections):
+            self.observed_injection_heats[index] = injection.evolved_heat
 
         return
 
+
+class ExperimentOrigin(BaseExperiment):
+    pass
 
 
 

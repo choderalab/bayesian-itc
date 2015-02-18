@@ -32,7 +32,7 @@ class Instrument(object):
             raise ValueError("Correction was specified, but volume is not set.")
 
         self.V_correction = V_correction
-        self.V0 = float(V0) - float(V_correction)  # volume of calorimeter sample cell
+        self.V0 = V0 - V_correction  # volume of calorimeter sample cell
         self.description = description
         if itcfile:
             self.instrument_from_file(itcfile)
