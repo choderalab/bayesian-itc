@@ -76,8 +76,7 @@ pp = pprint.PrettyPrinter(indent=4)
 
 for yml in glob("*.yml"):
     with open(yml, 'r') as ymlstream:
-        pp.pprint(yaml.load(ymlstream)['sample_cell_concentrations'])
-
+        pp.pprint(yaml.load(ymlstream))
 
     try:
         raw_input("Press Return to continue to the next file.")
