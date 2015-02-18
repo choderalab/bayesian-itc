@@ -816,11 +816,11 @@ class ExperimentYaml(BaseExperiment):
         # Store the stated syringe concentration(s)
         for key in yaml_input['syringe_concentrations'].keys():
             self.syringe_concentration[key] = Quantity(yaml_input['syringe_concentrations'][key],
-                                                       yaml_input['concentration_unit'])
+                                                       yaml_input['concentration_unit']).to('millimole per liter')
         # Store the stated cell concentration(s)
         for key in yaml_input['sample_cell_concentrations'].keys():
             self.cell_concentration[key] = Quantity(yaml_input['sample_cell_concentrations'][key],
-                                                    yaml_input['concentration_unit'])
+                                                    yaml_input['concentration_unit']).to('millimole per liter')
 
         # Extract and store metadata about injections.
 

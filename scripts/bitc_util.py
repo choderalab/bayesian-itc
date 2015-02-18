@@ -189,11 +189,11 @@ logging.info(map)
 logging.info("Sampling...")
 model.mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
 #pymc.Matplot.plot(mcmc)
-
+logging.debug(str(experiment))
 # Plot individual terms.
-if experiment.cell_concentration > Quantity('0.0 molar'):
+if sum(experiment.cell_concentration.values()) > Quantity('0.0 molar'):
     pymc.Matplot.plot(model.mcmc.trace('P0')[:] , '%s-P0' % experiment_name)
-if experiment.syringe_concentration > Quantity('0.0 molar'):
+if sum(experiment.syringe_concentration.values()) > Quantity('0.0 molar'):
     pymc.Matplot.plot(model.mcmc.trace('Ls')[:] , '%s-Ls' % experiment_name)
 pymc.Matplot.plot(model.mcmc.trace('DeltaG')[:] , '%s-DeltaG' % experiment_name)
 pymc.Matplot.plot(model.mcmc.trace('DeltaH')[:] , '%s-DeltaH' % experiment_name)

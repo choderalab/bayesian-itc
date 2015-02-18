@@ -179,10 +179,21 @@ class TwoComponentBindingModel(BindingModel):
 
         if not len(experiment.syringe_concentration) == 1:
             raise ValueError('TwoComponent model only supports one component in the syringe, found %d' % len(experiment.syringe_concentration))
-        lsname, Ls_stated = experiment.syringe_concentration.popitem()
+
+        # python 2/3 compatibility
+        try:
+            Ls_stated = experiment.syringe_concentration.itervalues().next()
+        except AttributeError:
+            Ls_stated = next (iter (experiment.syringe_concentration.values()))
+
         if not len(experiment.cell_concentration) == 1:
             raise ValueError('TwoComponent model only supports one component in the cell, found %d' % len(experiment.cell_concentration))
-        pname, P0_stated = experiment.cell_concentration.popitem()
+
+        # py 2/3 compatibility
+        try:
+            P0_stated = experiment.cell_concentration.itervalues().next()
+        except AttributeError:
+            P0_stated = next(iter(experiment.cell_concentration.values()))
 
         # Store temperature.
         self.temperature = experiment.target_temperature  # (kelvin)
