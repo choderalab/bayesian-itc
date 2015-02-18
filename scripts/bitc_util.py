@@ -35,7 +35,7 @@ from bitc.units import ureg, Quantity
 import pymc
 from bitc.report import Report, analyze
 from bitc.parser import optparser
-from bitc.experiments import Injection, ExperimentDotITC
+from bitc.experiments import Injection, ExperimentDotITC, ExperimentYaml
 from bitc.instruments import known_instruments, Instrument
 from bitc.models import RescalingStep, known_models
 import sys
@@ -91,10 +91,11 @@ logging.basicConfig(format='%(levelname)s::%(module)s:L%(lineno)s\n%(message)s',
 
 # Files for procesysing
 filename = validated['<datafile>']  # .itc file to process
+file_basename, file_extension = splitext(basename(filename))
 
 if not validated['--name']:
     # Name of the experiment, and output files
-    experiment_name, file_extension = splitext(basename(filename))
+    experiment_name = file_basename
 else:
     experiment_name = validated['--name']
 
@@ -113,8 +114,24 @@ if validated['--instrument']:
     # Use an instrument from the brochure
     instrument = known_instruments[validated['--instrument']]()
 else:
-    # Read instrument properties from the .itc file
-    instrument = Instrument(itcfile=filename)
+    # Read instrument properties from the .itc or yml file
+    if file_extension in ['.yaml', '.yml']:
+        import yaml
+        import importlib
+
+        with open(filename, 'r') as yamlfile:
+            yamldict = yaml.load(yamlfile)
+            instrument_name = yamldict['instrument']
+            if instrument_name in known_instruments.keys():
+                import bitc.instruments
+                # Get the instrument class from bitc.instruments and instance it
+                instrument = getattr(bitc.instruments, instrument_name)()
+
+    elif file_extension in ['.itc']:
+        instrument = Instrument(itcfile=filename)
+
+    else:
+        raise ValueError("The instrument needs to be specified on the commandline for non-standard files")
 
 logging.debug("Received this input from the user:")
 logging.debug(str(validated))
@@ -126,10 +143,19 @@ import pylab
 pylab.close('all')
 logging.info("Reading ITC data from %s" % filename)
 
-experiment = ExperimentDotITC(filename, experiment_name)
+if file_extension in ['.yaml', '.yml']:
+    experiment = ExperimentYaml(filename, experiment_name, instrument)
+elif file_extension in ['.itc']:
+    experiment = ExperimentDotITC(filename, experiment_name, instrument)
+else:
+    raise ValueError('Unknown file type. Check your file extension')
+
+logging.info("File interpreted as %s file" % file_extension)
 logging.debug(str(experiment))
-#  TODO work on a markdown version for generating reports. Perhaps use sphinx
-analyze(experiment_name, experiment)
+
+if file_extension in ['.itc']:
+    #  TODO work on a markdown version for generating reports. Perhaps use sphinx
+    analyze(experiment_name, experiment)
 
 # Write Origin-style integrated heats.
 filename = experiment_name + '-integrated.txt'

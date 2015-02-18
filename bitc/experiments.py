@@ -77,7 +77,7 @@ class BaseExperiment(object):
     Abstract base class for an ITC experiment
 
     """
-    def __init__(self, data_source, experiment_name):
+    def __init__(self, data_source, experiment_name, instrument):
         """
         Base init, prepare all the variables
         :param data_source:
@@ -90,7 +90,7 @@ class BaseExperiment(object):
         # Initialize.
         # the source filename from which data is read
         self.data_filename = None
-        self.instrument = None  # the instrument that was used
+        self.instrument = instrument  # the instrument that was used
         self.number_of_injections = None  # number of syringe injections
         self.target_temperature = None  # target temperature
         # initial equilibration (delay) time before injections
@@ -101,7 +101,7 @@ class BaseExperiment(object):
         self.syringe_contents = None
         # concentrations of various species in sample cell
         self.sample_cell_contents = None
-        self.cell_volume = None  # volume of liquid in sample cell
+        self.cell_volume = instrument.V0  # volume of liquid in sample cell
         # list of injections (and their associated data)
         self.injections = None
         # time at end of filtering period
@@ -128,8 +128,6 @@ class BaseExperiment(object):
         # supposed concentration of receptor in cell
         self.cell_concentration = None
 
-        self.cell_volume = None
-
         # Allocate storage for power measurements.
         self.time = None
         self.heat = None
@@ -154,15 +152,24 @@ class BaseExperiment(object):
         string += "Number of injections: %d\n" % self.number_of_injections
         string += "Target temperature: %.1f K\n" % (
             self.target_temperature / ureg.kelvin)
-        string += "Equilibration time before first injection: %.1f s\n" % (
-            self.equilibration_time / ureg.second)
-        string += "Syringe concentration: %.3f mM\n" % (
-            self.syringe_concentration / (ureg.millimole / ureg.liter))
-        string += "Cell concentration: %.3f mM\n" % (
-            self.cell_concentration / (ureg.millimole / ureg.liter))
+        try:
+            string += "Equilibration time before first injection: %.1f s\n" % (self.equilibration_time / ureg.second)
+        except TypeError:
+            string += "Equilibration time unknown"
+
+        # TODO temporary, needs to be uniform type among all experiment classes
+        if isinstance(self.syringe_concentration, Quantity):
+            string += "Syringe concentration: %.3f mM\n" % (
+                self.syringe_concentration / (ureg.millimole / ureg.liter))
+        if isinstance(self.cell_concentration, Quantity):
+            string += "Cell concentration: %.3f mM\n" % (
+                self.cell_concentration / (ureg.millimole / ureg.liter))
+
         string += "Cell volume: %.3f ml\n" % (self.cell_volume / ureg.milliliter)
-        string += "Reference power: %.3f ucal/s\n" % (
-            self.reference_power / (ureg.microcalorie / ureg.second))
+
+        if isinstance(self.cell_concentration, Quantity):
+            string += "Reference power: %.3f ucal/s\n" % (
+                self.reference_power / (ureg.microcalorie / ureg.second))
 
         string += "\n"
         string += "INJECTIONS\n"
@@ -323,7 +330,7 @@ class ExperimentDotITC(BaseExperiment):
 
     # TODO Add type verification
 
-    def __init__(self, data_filename, experiment_name):
+    def __init__(self, data_filename, experiment_name, instrument):
         """
         Initialize an experiment from a Microcal VP-ITC formatted .itc file.
 
@@ -335,7 +342,7 @@ class ExperimentDotITC(BaseExperiment):
 
         """
         # Initialize.
-        super(ExperimentDotITC, self).__init__(data_filename, experiment_name)
+        super(ExperimentDotITC, self).__init__(data_filename, experiment_name, instrument)
         # the source filename from which data is read
         # concentrations of various species in syringe
         self.syringe_contents = list()
@@ -758,7 +765,7 @@ class ExperimentYaml(BaseExperiment):
 
         return yaml_input
 
-    def __init__(self, yaml_filename, experiment_name):
+    def __init__(self, yaml_filename, experiment_name, instrument):
         """
         Initialize an experiment from a Microcal VP-ITC formatted .itc file.
 
@@ -771,7 +778,7 @@ class ExperimentYaml(BaseExperiment):
         """
 
         # Initialize.
-        super(ExperimentYaml, self).__init__(yaml_filename, experiment_name)
+        super(ExperimentYaml, self).__init__(yaml_filename, experiment_name, instrument)
         # the source filename from which data is read
         # concentrations of various species in syringe
         self.syringe_contents = dict()
@@ -792,7 +799,6 @@ class ExperimentYaml(BaseExperiment):
             raise IOError("The file '%s' cannot be opened." % yaml_filename)
 
         yaml_input = self._parse_yaml(yaml_filename)
-
         # TODO more preliminary dict entry validations
 
         if len(yaml_input['injection_heats']) != len(yaml_input['injection_volumes']):
