@@ -18,28 +18,29 @@ Bayesian analysis of ITC data. Uses MicroCal .itc files, or custom format .yml f
 
 Usage:
   ITC.py <datafiles>... [-w <workdir> | --workdir=<workdir>] [-n <name> | --name=<name>] [-q <file> | --heats=<file>] [-i <ins> | --instrument=<ins> ] [-v | -vv | -vvv] [-r <file> | --report=<file>] [ -l <logfile> | --log=<logfile>]
-  ITC.py mcmc <datafiles>...  (-m <model> | --model=<model>) [-w <workdir> | --workdir=<workdir>] [-n <name> | --name=<name>] [-q <file> | --heats=<file>] [-i <ins> | --instrument=<ins> ] [ -l <logfile> | --log=<logfile>] [-v | -vv | -vvv] [-r <file> | --report=<file>] [options]
+  ITC.py mcmc <datafiles>...  (-m <model> | --model=<model>) [-w <workdir> | --workdir=<workdir>] [ -r <receptor> | --receptor=<receptor>] [-n <name> | --name=<name>] [-q <file> | --heats=<file>] [-i <ins> | --instrument=<ins> ] [ -l <logfile> | --log=<logfile>] [-v | -vv | -vvv] [--report=<file>] [options]
   ITC.py (-h | --help)
   ITC.py --license
   ITC.py --version
 
 Options:
-  -h, --help                         Show this screen
-  --version                          Show version
-  --license                          Show license
-  -l <logfile>, --log=<logfile>      File to write logs to. Will be placed in workdir.
-  -v,                                Verbose output level. Multiple flags increase verbosity.
-  <datafiles>                        Datafile(s) to perform the analysis on, .itc, .yml
-  -w <workdir>, --workdir=<workdir>  Directory for output files                      [default: ./]
-  -n <name>, --name=<name>           Name for the experiment. Will be used for output files. Defaults to inputfile name.
-  -i <ins>, --instrument=<ins>       The name of the instrument used for the experiment. Overrides .itc file instrument.
-  -q <file>, --heats=<file>          Origin format integrated heats file. (From NITPIC use .dat file)
-  -m <model>, --model=<model>        Model to use for mcmc sampling                  [default: TwoComponent]
-  --nfit=<n>                         No. of iteration for maximum a posteriori fit   [default: 20000]
-  --niters=<n>                       No. of iterations for mcmc sampling             [default: 2000000]
-  --nburn=<n>                        No. of Burn-in iterations for mcmc sampling     [default: 500000]
-  --nthin=<n>                        Thinning period for mcmc sampling               [default: 250]
-  -r <file>, --report=<file>         Output file with summary in markdown
+  -h, --help                            Show this screen
+  --version                              Show version
+  --license                              Show license
+  -l <logfile>, --log=<logfile>          File to write logs to. Will be placed in workdir.
+  -v,                                    Verbose output level. Multiple flags increase verbosity.
+  <datafiles>                            Datafile(s) to perform the analysis on, .itc, .yml
+  -w <workdir>, --workdir=<workdir>      Directory for output files                      [default: ./]
+  -r <receptor> | --receptor=<receptor>  The name of the receptor for a Competitive Binding model.
+  -n <name>, --name=<name>               Name for the experiment. Will be used for output files. Defaults to inputfile name.
+  -i <ins>, --instrument=<ins>           The name of the instrument used for the experiment. Overrides .itc file instrument.
+  -q <file>, --heats=<file>              Origin format integrated heats file. (From NITPIC use .dat file)
+  -m <model>, --model=<model>            Model to use for mcmc sampling                  [default: TwoComponent]
+  --nfit=<n>                             No. of iteration for maximum a posteriori fit   [default: 20000]
+  --niters=<n>                           No. of iterations for mcmc sampling             [default: 2000000]
+  --nburn=<n>                            No. of Burn-in iterations for mcmc sampling     [default: 500000]
+  --nthin=<n>                            Thinning period for mcmc sampling               [default: 250]
+  --report=<file>                        Output file with summary in markdown
 """
     arguments = docopt(__usage__, argv=argv, version='ITC.py, pre-alpha')
     schema = Schema({'--heats': Or(None, And(str, os.path.isfile, Use(os.path.abspath))),  # str, verify that it exists
@@ -59,6 +60,7 @@ Options:
                      '--instrument': Or(None, And(str, lambda m: m in known_instruments)),
                      # None, or str and found in this dict
                      '--version': bool,  # True or False are accepted
+                     '--receptor': str,  # str
                      '--workdir': str,  # str
                      # list and ensure it contains existing files
                      '<datafiles>': And(list, lambda inpfiles : [os.path.isfile(inpfile) for inpfile in inpfiles], Use(lambda inpfiles: [os.path.abspath(inpfile) for inpfile in inpfiles])),

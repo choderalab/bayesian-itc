@@ -238,3 +238,16 @@ if validated['--model'] == 'TwoComponent':
         outfile.write('sigma:  %8.5f +- %8.5f ucal/s^(1/2) [%8.5f, %8.5f] \n' % (x, dx, xlow, xhigh))
         outfile.write('\n')
         outfile.close()
+
+elif validated['--model'] == 'Competitive':
+    if not validated['--receptor']:
+        raise ValueError('Need to specify a receptor for Competitive model')
+    else:
+        receptor = validated['--receptor']
+    try:
+        for experiment in experiments:
+            model = Model(experiments, receptor)
+    except Exception as e:
+        logging.error(str(e))
+        logging.error(traceback.format_exc())
+        raise Exception("MCMC model could not me constructed!\n" + str(e))
