@@ -490,7 +490,7 @@ class CompetitiveBindingModel(BindingModel):
             # review check the units on this
             experiment.observation = pymc.Normal("observed injection heats for experiment %d" % index,
                                                  mu=experiment.true_injection_heats, tau=tau,
-                                                 observed=True, value=numpy.ndarray(experiment.observed_injection_heats / Quantity('microcalorie')))
+                                                 observed=True, value=experiment.observed_injection_heats / Quantity('microcalorie'))
             self.stochastics.append(experiment.observation)
 
         # Create sampler.
@@ -633,7 +633,7 @@ class CompetitiveBindingModel(BindingModel):
         return C_RLn
 
     @staticmethod
-    @ureg.wraps(ret=[ureg.microcalorie], args=[None,ureg.milliliter,ureg.milliliter, None,None,None,None,None,1/(ureg.kilocalories/ureg.mole),None])
+    @ureg.wraps(ret=ureg.microcalorie, args=[None,ureg.milliliter,ureg.milliliter, None,None,None,None,None,1/(ureg.kilocalories/ureg.mole),None])
     def expected_injection_heats(N, V0, injection_volumes, true_cell_concentration, true_syringe_concentration, DeltaH_0, ligands, receptor, beta, thermodynamic_parameters):
         """
         Expected heats of injection for two-component binding model.
