@@ -851,8 +851,12 @@ class ExperimentYaml(BaseExperiment):
             self.injections.append(Injection(**injectiondict))
 
         self.observed_injection_heats = Quantity(numpy.zeros(len(self.injections)), 'microcalorie')
+        self.injection_volumes = Quantity(numpy.zeros(len(self.injections)), 'milliliter')
         for index, injection in enumerate(self.injections):
             self.observed_injection_heats[index] = injection.evolved_heat
+            self.injection_volumes[index] = injection.volume
+
+
 
         return
 
