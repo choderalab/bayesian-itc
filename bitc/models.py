@@ -461,12 +461,13 @@ class CompetitiveBindingModel(BindingModel):
             # True injection heats
             experiment.true_injection_heats = pymc.Lambda("true injection heats for experiment %d" % index,
                                                           lambda
-                                                              experiment=experiment,
+                                                              N=experiment.ninjections,
+                                                              injection_volumes=[injection.volume for injection in experiment.injections],
                                                               cell_concentration=experiment.true_cell_concentration,
                                                               syringe_concentration=experiment.true_syringe_concentration,                                                                 DeltaH_0=experiment.DeltaH_0,
                                                               thermodynamic_parameters=self.thermodynamic_parameters:
                                                           self.expected_injection_heats(
-                                                              experiment,
+                                                              N,
                                                               cell_concentration,
                                                               syringe_concentration,
                                                               DeltaH_0,
@@ -619,13 +620,9 @@ class CompetitiveBindingModel(BindingModel):
 
         return C_RLn
 
-    def expected_injection_heats(self, experiment, true_cell_concentration, true_syringe_concentration, DeltaH_0, thermodynamic_parameters):
+    def expected_injection_heats(self, injection_volumes, true_cell_concentration, true_syringe_concentration, DeltaH_0, thermodynamic_parameters, N):
         """
         Expected heats of injection for two-component binding model.
-
-        TODO
-
-        - Make experiment a dict, or somehow tell it how to replace members of 'experiment'?
 
         ARGUMENTS
 
@@ -655,11 +652,11 @@ class CompetitiveBindingModel(BindingModel):
 
         # Compute the quantity of each species in the sample cell after each injection.
         # NOTE: These quantities are correct for a perfusion-type model.  This would be modified for a cumulative model.
-        x_Ri = numpy.zeros([experiment.ninjections], numpy.float64) # x_Ri[i] is the number of moles of receptor in sample cell after injection i
-        x_Lin = numpy.zeros([experiment.ninjections, nspecies], numpy.float64) # x_Lin[i,n] is the number of moles of ligand n in sample cell after injection i
+        x_Ri = numpy.zeros(N, numpy.float64) # x_Ri[i] is the number of moles of receptor in sample cell after injection i
+        x_Lin = numpy.zeros([N, nspecies], numpy.float64) # x_Lin[i,n] is the number of moles of ligand n in sample cell after injection i
         dcum = 1.0 # cumulative dilution factor
-        for index, injection in enumerate(experiment.injections):
-            d = 1.0 - (injection.volume / self.V0) # dilution factor (dimensionless)
+        for index, volume in enumerate(injection_volumes):
+            d = 1.0 - (volume / self.V0) # dilution factor (dimensionless)
             dcum *= d # cumulative dilution factor (dimensionless)
             x_Ri[index] = true_cell_concentration[self.receptor] * dcum + true_syringe_concentration[self.receptor] * (1.0 - dcum)
             for (n, ligand) in enumerate(self.ligands):
@@ -676,8 +673,8 @@ class CompetitiveBindingModel(BindingModel):
 
         # Compute complex concentrations after each injection.
         # NOTE: The total cell volume would be modified for a cumulative model.
-        C_RLin = numpy.zeros([experiment.ninjections,nspecies], numpy.float64) # C_RLin[i,n] is the concentration of complex RLn[n] after injection i
-        for index, injection in enumerate(experiment.injections):
+        C_RLin = numpy.zeros([N,nspecies], numpy.float64) # C_RLin[i,n] is the concentration of complex RLn[n] after injection i
+        for index in range(N):
             C_RLin[index,:] = self.equilibrium_concentrations(Ka_n, x_Ri[index], x_Lin[index,:], self.V0)
 
 
@@ -689,13 +686,13 @@ class CompetitiveBindingModel(BindingModel):
 
         # Compute expected injection heats.
         # NOTE: This is for an instantaneous injection / perfusion model.
-        q_n = DeltaH_0 * numpy.ones([len(experiment.injections)], numpy.float64) # q_n_model[n] is the expected heat from injection n
-        d = 1.0 - (experiment.injections[0].volume / self.V0) # dilution factor (dimensionless)
+        q_n = DeltaH_0 * numpy.ones(N, numpy.float64) # q_n_model[n] is the expected heat from injection n
+        d = 1.0 - (injection_volumes[0] / self.V0) # dilution factor (dimensionless)
         for n in range(nspecies):
             # review doublecheck order of magnitude units
             q_n[0] += (1000.0*DeltaH_n[n]) * (V0 / Quantity('liter')) * (C_RLin[0,n] - d*C_RL0n[n])  # first injection
-        for index, injection in enumerate(experiment.injections[1:], start=1):
-            d = 1.0 - (injection.volume / V0) # dilution factor (dimensionless)
+        for index, volume in enumerate(injection_volumes[1:], start=1):
+            d = 1.0 - (volume / V0) # dilution factor (dimensionless)
             for n in range(nspecies):
                 # review doublecheck units
                 q_n[index] += (1000.0*DeltaH_n[n]) * (V0 / Quantity('liter')) * (C_RLin[index,n] - d*C_RLin[index-1,n]) # subsequent injections
