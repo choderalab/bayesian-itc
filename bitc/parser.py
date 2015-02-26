@@ -60,7 +60,7 @@ Options:
                      '--instrument': Or(None, And(str, lambda m: m in known_instruments)),
                      # None, or str and found in this dict
                      '--version': bool,  # True or False are accepted
-                     '--receptor': str,  # str
+                     '--receptor': Or(None, str),  # str or None
                      '--workdir': str,  # str
                      # list and ensure it contains existing files
                      '<datafiles>': And(list, lambda inpfiles : [os.path.isfile(inpfile) for inpfile in inpfiles], Use(lambda inpfiles: [os.path.abspath(inpfile) for inpfile in inpfiles])),
