@@ -129,5 +129,6 @@ setup(
         'docopt',
         'schema',
         'scikit-learn',
+        'matplotlib',
         ],
     )

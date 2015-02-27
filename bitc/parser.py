@@ -1,12 +1,12 @@
-from docopt import docopt
-from schema import Schema, And, Or, Use
-from bitc.models import known_models
-from bitc.instruments import known_instruments
 import sys
 import os
-import numpy as np
-import pandas as pd
-from bitc.units import Quantity
+
+from docopt import docopt
+from schema import Schema, And, Or, Use
+
+from bitc.models import known_models
+from bitc.instruments import known_instruments
+
 
 #  TODO add options for multiple types of output files
 #  TODO implement license
@@ -46,9 +46,11 @@ Options:
     schema = Schema({'--heats': Or(None, And(str, os.path.isfile, Use(os.path.abspath))),  # str, verify that it exists
                      '--help': bool,  # True or False are accepted
                      '--license': bool,  # True or False are accepted
-                     '-v': And(int, lambda n: 0 <= n <= 3),  # integer between 0 and 3
-                     '--model': And(str, lambda m: m in known_models),  # str and found in this dict
-                     '--nfit':And(Use(int), lambda n: n > 0),
+                     # integer between 0 and 3
+                     '-v': And(int, lambda n: 0 <= n <= 3),
+                     # str and found in this dict
+                     '--model': And(str, lambda m: m in known_models),
+                     '--nfit': And(Use(int), lambda n: n > 0),
                      # Convert str to int, make sure that it is larger than 0
                      '--nburn': And(Use(int), lambda n: n > 0),
                      # Convert str to int, make sure that it is larger than 0
@@ -63,12 +65,11 @@ Options:
                      '--receptor': Or(None, str),  # str or None
                      '--workdir': str,  # str
                      # list and ensure it contains existing files
-                     '<datafiles>': And(list, lambda inpfiles : [os.path.isfile(inpfile) for inpfile in inpfiles], Use(lambda inpfiles: [os.path.abspath(inpfile) for inpfile in inpfiles])),
+                     '<datafiles>': And(list, lambda inpfiles: [os.path.isfile(inpfile) for inpfile in inpfiles], Use(lambda inpfiles: [os.path.abspath(inpfile) for inpfile in inpfiles])),
                      'mcmc': bool,  # True or False are accepted
                      '--report': Or(None, Use(lambda f: open(f, 'w'))),
                      # Don't use, or open file with writing permissions
                      '--log': Or(None, str),  # Don't use, or str
-                    })
+                     })
 
     return schema.validate(arguments)
-

@@ -5,9 +5,10 @@ import os
 import logging
 
 import numpy
-
-from bitc.units import ureg,Quantity
 from pint import DimensionalityError
+
+from bitc.units import ureg, Quantity
+
 
 
 # Use logger with name of module
@@ -32,7 +33,6 @@ class Injection(object):
     """
     # TODO Add docstring examples.
 
-
     def __init__(self, number, volume, duration, spacing, filter_period, evolved_heat=None, titrant_amount=None, titrant_concentration=None):
         # sequence number of injection
         self.number = number
@@ -46,7 +46,8 @@ class Injection(object):
         # of applied power
         self.filter_period = filter_period
 
-        # If provided, set the evolved_heat, making sure the unit is compatible with microcalorie
+        # If provided, set the evolved_heat, making sure the unit is compatible
+        # with microcalorie
         if evolved_heat:
             self.evolved_heat = evolved_heat.to('microcalorie')
 
@@ -56,7 +57,8 @@ class Injection(object):
         elif titrant_concentration:
             self.contents(titrant_concentration)
         else:
-            TypeError("Need to specify either a titrant amount, or a concentration")
+            TypeError(
+                "Need to specify either a titrant amount, or a concentration")
 
     def contents(self, titrant_concentration):
         """
@@ -65,23 +67,28 @@ class Injection(object):
         Takes a list/array of concentrations
         """
         # Concentration of syringe contents
-        self.titrant_concentration = Quantity(numpy.array(titrant_concentration), ureg.millimole / ureg.liter)
+        self.titrant_concentration = Quantity(
+            numpy.array(titrant_concentration), ureg.millimole / ureg.liter)
 
-        self.titrant = Quantity(numpy.zeros(self.titrant_concentration.size), ureg.millimole)
+        self.titrant = Quantity(
+            numpy.zeros(self.titrant_concentration.size), ureg.millimole)
 
         for titr in range(self.titrant_concentration.size):
             # Amount of titrant in the syringe (mole)
             if titr == 0:
                 self.titrant[titr] = self.volume * self.titrant_concentration
             else:
-                self.titrant[titr] = self.volume * self.titrant_concentration[titr]
+                self.titrant[titr] = self.volume * \
+                    self.titrant_concentration[titr]
 
 
 class BaseExperiment(object):
+
     """
     Abstract base class for an ITC experiment
 
     """
+
     def __init__(self, data_source, experiment_name, instrument):
         """
         Base init, prepare all the variables
@@ -139,8 +146,10 @@ class BaseExperiment(object):
         self.temperature = None
 
         # Store data about measured heat liberated during each injection.
-        self.filter_period_end_time = None  # time at end of filtering period (s)
-        self.differential_power = None  # "differential" power applied to sample cell (ucal/s)
+        # time at end of filtering period (s)
+        self.filter_period_end_time = None
+        # "differential" power applied to sample cell (ucal/s)
+        self.differential_power = None
         self.cell_temperature = None  # cell temperature (K)
         self.jacket_temperature = None  # adiabatic jacket temperature (K)
 
@@ -158,7 +167,8 @@ class BaseExperiment(object):
         string += "Target temperature: %.1f K\n" % (
             self.target_temperature / ureg.kelvin)
         try:
-            string += "Equilibration time before first injection: %.1f s\n" % (self.equilibration_time / ureg.second)
+            string += "Equilibration time before first injection: %.1f s\n" % (
+                self.equilibration_time / ureg.second)
         except TypeError:
             string += "Equilibration time unknown"
 
@@ -170,7 +180,8 @@ class BaseExperiment(object):
             string += "Cell concentration: %.3f mM\n" % (
                 self.cell_concentration / (ureg.millimole / ureg.liter))
 
-        string += "Cell volume: %.3f ml\n" % (self.cell_volume / ureg.milliliter)
+        string += "Cell volume: %.3f ml\n" % (
+            self.cell_volume / ureg.milliliter)
 
         if isinstance(self.cell_concentration, Quantity):
             string += "Reference power: %.3f ucal/s\n" % (
@@ -187,7 +198,8 @@ class BaseExperiment(object):
         for injection in self.injections:
             string += "%16d %24.3f %24.3f %24.3f %24.3f %24.3f\n" % (
                 injection.number,
-                injection.volume / ureg.microliter, injection.duration / ureg.second,
+                injection.volume /
+                ureg.microliter, injection.duration / ureg.second,
                 injection.spacing / ureg.second, injection.filter_period /
                 ureg.second, injection.evolved_heat / ureg.microcalorie)
 
@@ -222,7 +234,9 @@ class BaseExperiment(object):
             # Form string.
             string += "%12.5f %5.1f %12.5f %12.5f %12.5f %12.5f\n" % (
                 injection.evolved_heat / ureg.microcalorie, injection.volume /
-                ureg.microliter, Pn / (ureg.millimole / ureg.liter), Ln / (ureg.millimole / ureg.liter),
+                ureg.microliter, Pn /
+                (ureg.millimole / ureg.liter), Ln /
+                (ureg.millimole / ureg.liter),
                 PLn / (ureg.millimole / ureg.liter), NDH)
 
         # Final line.
@@ -265,7 +279,9 @@ class BaseExperiment(object):
             # Form string.
             string += "%12.5f %5.1f %12.5f %12.5f %12.5f %12.5f\n" % (
                 injection.evolved_heat / ureg.microcalorie, injection.volume /
-                ureg.microliter, Pn / (ureg.millimole / ureg.liter), Ln / (ureg.millimole / ureg.liter),
+                ureg.microliter, Pn /
+                (ureg.millimole / ureg.liter), Ln /
+                (ureg.millimole / ureg.liter),
                 PLn / (ureg.millimole / ureg.liter), NDH)
 
         # Final line.
@@ -313,7 +329,8 @@ class BaseExperiment(object):
         import pandas as pd
 
         assert isinstance(heats_file, str)
-        dataframe = pd.read_table(heats_file, skip_footer=1, engine='python')  # Need python engine for skip_footer
+        # Need python engine for skip_footer
+        dataframe = pd.read_table(heats_file, skip_footer=1, engine='python')
         heats = numpy.array(dataframe['DH'])
         return Quantity(heats, unit)
 
@@ -347,7 +364,8 @@ class ExperimentDotITC(BaseExperiment):
 
         """
         # Initialize.
-        super(ExperimentDotITC, self).__init__(data_filename, experiment_name, instrument)
+        super(ExperimentDotITC, self).__init__(
+            data_filename, experiment_name, instrument)
         # the source filename from which data is read
         # concentrations of various species in syringe
         self.syringe_contents = list()
@@ -369,7 +387,6 @@ class ExperimentDotITC(BaseExperiment):
         lines = infile.readlines()
         infile.close()
 
-
         # Check the header to make sure it is a VP-ITC text-formatted .itc
         # file.
         if lines[0][0:4] != '$ITC':
@@ -381,7 +398,7 @@ class ExperimentDotITC(BaseExperiment):
         # Extract and store data about the experiment.
         self.number_of_injections = int(lines[1][1:].strip())
         self.target_temperature = (
-            int(lines[3][1:].strip()) + 273.15 ) * ureg.kelvin   # convert from C to K
+            int(lines[3][1:].strip()) + 273.15) * ureg.kelvin   # convert from C to K
         self.equilibration_time = int(lines[4][1:].strip()) * ureg.second
         self.stir_rate = int(
             lines[5][
@@ -416,7 +433,8 @@ class ExperimentDotITC(BaseExperiment):
                 injectiondict['spacing'] = float(spacing) * ureg.second
                 # time over which data channel is averaged to produce a single
                 # measurement
-                injectiondict['filter_period'] = float(filter_period) * ureg.second
+                injectiondict['filter_period'] = float(
+                    filter_period) * ureg.second
 
                 # Store injection.
                 self.injections.append(Injection(**injectiondict))
@@ -428,9 +446,10 @@ class ExperimentDotITC(BaseExperiment):
         parsecline = 11 + self.number_of_injections
         self.syringe_concentration = {'ligand': float(
             lines[parsecline][
-                1:].strip()) * ureg.millimole / ureg.liter }  # supposed concentration of compound in syringe
+                1:].strip()) * ureg.millimole / ureg.liter}  # supposed concentration of compound in syringe
         for inj in self.injections:
-            inj.contents(sum(self.syringe_concentration.values())) #TODO add support for multiple components
+            # TODO add support for multiple components
+            inj.contents(sum(self.syringe_concentration.values()))
         # supposed concentration of receptor in cell
         self.cell_concentration = {'macromolecule': float(
             lines[parsecline + 1][1:].strip()) * ureg.millimole / ureg.liter}
@@ -472,7 +491,8 @@ class ExperimentDotITC(BaseExperiment):
             numpy.float64), ureg.kelvin)  # adiabatic jacket temperature (K)
 
         # Process data.
-        # TODO this is a mess, need to clean up and do proper input verification
+        # TODO this is a mess, need to clean up and do proper input
+        # verification
         nmeasurements = 0
         injection_labels = list()
         for (index, line) in enumerate(measurement_lines):
@@ -511,36 +531,41 @@ class ExperimentDotITC(BaseExperiment):
                         (time, power, temperature) = line.strip().split(",")
 
                 # Store data about this measurement.
-                self.filter_period_end_time[nmeasurements] = float(time) * ureg.second
-                self.differential_power[nmeasurements] = float(power) * ureg.microcalorie / ureg.second
-                self.cell_temperature[nmeasurements] = (float(temperature) + 273.15) * ureg.kelvin  # in Kelvin
-                self.jacket_temperature[nmeasurements] = (float(jacket_temperature) + 273.15) * ureg.kelvin  # in Kelvin
+                self.filter_period_end_time[
+                    nmeasurements] = float(time) * ureg.second
+                self.differential_power[nmeasurements] = float(
+                    power) * ureg.microcalorie / ureg.second
+                self.cell_temperature[nmeasurements] = (
+                    float(temperature) + 273.15) * ureg.kelvin  # in Kelvin
+                self.jacket_temperature[nmeasurements] = (
+                    float(jacket_temperature) + 273.15) * ureg.kelvin  # in Kelvin
 
                 nmeasurements += 1
         # number of injections read, not including @0
         number_of_injections_read = len(injection_labels) - 1
 
-        #print injection_labels
+        # print injection_labels
 
         # Perform a self-consistency check on the data to make sure all
         # injections are accounted for.
-        if (number_of_injections_read != self.number_of_injections):
+        if number_of_injections_read != self.number_of_injections:
             logger.warning("Number of injections read (%d) is not equal to number of injections declared (%d)." % (number_of_injections_read, self.number_of_injections) +
                            "This is usually a sign that the experimental run was terminated prematurely." +
-                           "The analysis will not include the final %d injections declared." % (self.number_of_injections - number_of_injections_read),
-                            q)
+                           "The analysis will not include the final %d injections declared." % (self.number_of_injections - number_of_injections_read))
 
             # Remove extra injections.
             self.injections = self.injections[0:number_of_injections_read]
             self.number_of_injections = number_of_injections_read
 
         # DEBUG
-        logger.debug("self.injections has %d elements" % (len(self.injections)))
+        logger.debug("self.injections has %d elements" %
+                     (len(self.injections)))
 
         # Annotate list of injections.
         for injection in self.injections:
             injection_number = injection.number
-            logger.debug("%5d %8d" % (injection_number, injection_labels[injection_number]))
+            logger.debug("%5d %8d" %
+                         (injection_number, injection_labels[injection_number]))
             injection.first_index = injection_labels[injection_number]
             if injection_number < len(injection_labels) - 1:
                 injection.last_index = injection_labels[
@@ -596,11 +621,14 @@ class ExperimentDotITC(BaseExperiment):
         # Adds a 95% confidence interval to the plot
         ExperimentDotITC._plot_confidence_interval(axes, full_x, sigma, y_pred)
         # Entire set of data
-        axes.plot(full_x, full_y, 'o', markersize=2, lw=1, color='deepskyblue', alpha=.5, label='Raw data')
+        axes.plot(full_x, full_y, 'o', markersize=2, lw=1,
+                  color='deepskyblue', alpha=.5, label='Raw data')
         # Points for fit
-        axes.plot(x, y, 'o', color='crimson', markersize=2, alpha=.8, label='Fitted data')
+        axes.plot(x, y, 'o', color='crimson', markersize=2,
+                  alpha=.8, label='Fitted data')
         # Prediction
-        axes.plot(full_x, y_pred, 'o', markersize=1, mec='w', mew=1, color='k', alpha=.5, label='Predicted baseline')
+        axes.plot(full_x, y_pred, 'o', markersize=1, mec='w', mew=1,
+                  color='k', alpha=.5, label='Predicted baseline')
 
         # Plot injection time markers.
         [ymin, ymax] = axes.get_ybound()
@@ -635,7 +663,8 @@ class ExperimentDotITC(BaseExperiment):
         axes1 = figure.add_subplot(1, 1, 1, axisbg='whitesmoke')
 
         # Points for fit
-        axes1.plot(x, y, 'o', color='deepskyblue', markersize=2, alpha=1, label='Baseline-subtracted data')
+        axes1.plot(x, y, 'o', color='deepskyblue', markersize=2,
+                   alpha=1, label='Baseline-subtracted data')
         axes1.set_xlabel('time (s)')
         axes1.set_ylabel(r' corr. differential power ($\mu$cal / s)')
         axes1.legend(loc='upper center', bbox_to_anchor=(0.2, 0.95), ncol=1, fancybox=True, shadow=True, markerscale=3,
@@ -643,13 +672,15 @@ class ExperimentDotITC(BaseExperiment):
 
         if raw:
             axes2 = axes1.twinx()
-            axes2.plot(x, self.differential_power, 'o', color='gray', markersize=2, alpha=.3, label='Raw data')
+            axes2.plot(x, self.differential_power, 'o',
+                       color='gray', markersize=2, alpha=.3, label='Raw data')
             axes2.set_ylabel(r'raw differential power ($\mu$cal / s)')
             axes2.legend(loc='upper center', bbox_to_anchor=(0.8, 0.95), ncol=1, fancybox=True, shadow=True,
                          markerscale=3,
                          prop={'size': 6})
             if baseline:
-                axes2.plot(x, self.baseline_power, '-', color='black', alpha=.3, label='baseline')
+                axes2.plot(
+                    x, self.baseline_power, '-', color='black', alpha=.3, label='baseline')
 
         axes1.set_title(self.data_filename)
         canvas.print_figure(self.name + '-subtracted.png', dpi=500)
@@ -664,7 +695,8 @@ class ExperimentDotITC(BaseExperiment):
         # Add data prior to first injection
         for index in range(0, self.injections[0].first_index):
             x.append(self.filter_period_end_time[index] / ureg.second)
-            y.append(self.differential_power[index] / (ureg.microcalorie / ureg.second ))
+            y.append(
+                self.differential_power[index] / (ureg.microcalorie / ureg.second))
             fit_indices.append(index)
         # Add last x% of each injection.
         for injection in self.injections:
@@ -673,7 +705,8 @@ class ExperimentDotITC(BaseExperiment):
             start_index = end_index - int((end_index - start_index) * frac)
             for index in range(start_index, end_index):
                 x.append(self.filter_period_end_time[index] / ureg.second)
-                y.append(self.differential_power[index] / (ureg.microcalorie / ureg.second))
+                y.append(
+                    self.differential_power[index] / (ureg.microcalorie / ureg.second))
                 fit_indices.append(index)
 
         x = numpy.array(x)
@@ -681,7 +714,7 @@ class ExperimentDotITC(BaseExperiment):
         fit_indices = numpy.array(fit_indices)
         return fit_indices, x, y
 
-    def fit_gaussian_process_baseline(self, frac=0.1, theta0=4.7, nugget=1.0, plot=True):
+    def fit_gaussian_process_baseline(self, frac=0.3, theta0=4.7, nugget=1.0, plot=True):
         """
         Gaussian Process fit of baseline.
 
@@ -713,8 +746,10 @@ class ExperimentDotITC(BaseExperiment):
         sigma = numpy.sqrt(mean_squared_error)
 
         self.baseline_power = Quantity(y_pred, 'microcalories per second')
-        self.baseline_fit_data = {'x': full_x, 'y': y_pred, 'indices': fit_indices}
-        self.baseline_subtracted = self.differential_power - self.baseline_power
+        self.baseline_fit_data = {
+            'x': full_x, 'y': y_pred, 'indices': fit_indices}
+        self.baseline_subtracted = self.differential_power - \
+            self.baseline_power
 
         if plot:
             self._plot_gaussian_baseline(full_x, full_y, sigma, x, y, y_pred)
@@ -740,10 +775,10 @@ class ExperimentDotITC(BaseExperiment):
             # excess_energy_input = injection['filter_period'] * (self.differential_power[first_index:(last_index+1)] - self.reference_power + self.baseline_power[first_index:(last_index+1)]).sum()
             excess_energy_input = injection.filter_period * (
                 self.differential_power[
-                first_index:(
-                    last_index + 1)] - self.baseline_power[
-                                       first_index:(
-                                           last_index + 1)]).sum()
+                    first_index:(
+                        last_index + 1)] - self.baseline_power[
+                    first_index:(
+                        last_index + 1)]).sum()
             logger.debug("injection %d, filter period %f s, integrating sample %d to %d" % (
                 injection.number, injection.filter_period / ureg.second, first_index, last_index))
 
@@ -783,7 +818,8 @@ class ExperimentYaml(BaseExperiment):
         """
 
         # Initialize.
-        super(ExperimentYaml, self).__init__(yaml_filename, experiment_name, instrument)
+        super(ExperimentYaml, self).__init__(
+            yaml_filename, experiment_name, instrument)
         # the source filename from which data is read
         # concentrations of various species in syringe
         self.syringe_contents = dict()
@@ -807,11 +843,13 @@ class ExperimentYaml(BaseExperiment):
         # TODO more preliminary dict entry validations
 
         if len(yaml_input['injection_heats']) != len(yaml_input['injection_volumes']):
-            raise ValueError('Mismatch between number of heats and volumes per injection in %s.' % yaml_filename)
+            raise ValueError(
+                'Mismatch between number of heats and volumes per injection in %s.' % yaml_filename)
 
         # Extract and store data about the experiment.
         self.number_of_injections = len(yaml_input['injection_heats'])
-        self.temperature = Quantity(yaml_input['temperature'], yaml_input['temperature_unit'])
+        self.temperature = Quantity(
+            yaml_input['temperature'], yaml_input['temperature_unit'])
 
         # Store the stated syringe concentration(s)
         for key in yaml_input['syringe_concentrations'].keys():
@@ -828,41 +866,45 @@ class ExperimentYaml(BaseExperiment):
 
             # Extract data for injection and apply appropriate unit conversions.
             # Entering 0.0 for any values not in the yaml.
-            # TODO some values are set in integrate_heat functions, but we currently ignore all but the heat
+            # TODO some values are set in integrate_heat functions, but we
+            # currently ignore all but the heat
             injectiondict = dict()
             injectiondict['number'] = index
-            injectiondict['volume'] = Quantity(volume, yaml_input['volume_unit'])
+            injectiondict['volume'] = Quantity(
+                volume, yaml_input['volume_unit'])
             injectiondict['duration'] = 0.0 * ureg.second
-            # time between beginning of injection and beginning of next injection
+            # time between beginning of injection and beginning of next
+            # injection
             injectiondict['spacing'] = 0.0 * ureg.second
-            # time over which data channel is averaged to produce a single measurement
+            # time over which data channel is averaged to produce a single
+            # measurement
             injectiondict['filter_period'] = 0.0 * ureg.second
             # Possible input includes heat / moles of injectant, or raw heat
-            injectiondict['titrant_amount'] = sum(self.syringe_concentration.values()) * Quantity(volume, yaml_input['volume_unit'])
+            injectiondict['titrant_amount'] = sum(
+                self.syringe_concentration.values()) * Quantity(volume, yaml_input['volume_unit'])
             try:
-                injectiondict['evolved_heat'] = Quantity(heat, yaml_input['heat_unit']).to('microcalorie')
+                injectiondict['evolved_heat'] = Quantity(
+                    heat, yaml_input['heat_unit']).to('microcalorie')
             except DimensionalityError:
                     # TODO This is probably only really correct for one syringe component
                     # Multipy by number of moles injected
-                    evolved_heat = Quantity(heat, yaml_input['heat_unit']) * (Quantity(volume, yaml_input['volume_unit']) * sum(self.syringe_concentration.values()))
-                    injectiondict['evolved_heat'] = evolved_heat.to('microcalorie')
+                evolved_heat = Quantity(heat, yaml_input['heat_unit']) * (Quantity(
+                    volume, yaml_input['volume_unit']) * sum(self.syringe_concentration.values()))
+                injectiondict['evolved_heat'] = evolved_heat.to('microcalorie')
 
-                    # Store injection.
+                # Store injection.
             self.injections.append(Injection(**injectiondict))
 
-        self.observed_injection_heats = Quantity(numpy.zeros(len(self.injections)), 'microcalorie')
-        self.injection_volumes = Quantity(numpy.zeros(len(self.injections)), 'milliliter')
+        self.observed_injection_heats = Quantity(
+            numpy.zeros(len(self.injections)), 'microcalorie')
+        self.injection_volumes = Quantity(
+            numpy.zeros(len(self.injections)), 'milliliter')
         for index, injection in enumerate(self.injections):
             self.observed_injection_heats[index] = injection.evolved_heat
             self.injection_volumes[index] = injection.volume
-
-
 
         return
 
 
 class ExperimentOrigin(BaseExperiment):
     pass
-
-
-
