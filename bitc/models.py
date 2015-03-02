@@ -172,20 +172,18 @@ class TwoComponentBindingModel(BindingModel):
     A binding model with two components (e.g. Protein and Ligand)
     """
 
-
-
     def __init__(self, experiment):
 
         # Determine number of observations.
         self.N = experiment.number_of_injections
 
         # Store injection volumes
-        self.DeltaVn = Quantity(numpy.zeros(self.N), ureg.microliter)
+        self.DeltaVn = Quantity(numpy.zeros(self.N), ureg.liter)
         for inj, injection in enumerate(experiment.injections):
             self.DeltaVn[inj] = injection.volume
 
         # Store calorimeter properties.
-        self.V0 = experiment.cell_volume
+        self.V0 = experiment.cell_volume.to('liter')
 
         # Extract properties from experiment
         self.experiment = experiment
@@ -214,31 +212,30 @@ class TwoComponentBindingModel(BindingModel):
         dP0 = 0.10 * P0_stated
 
         # Define priors for concentrations.
-        self.P0 = self._lognormal_molar_concentration_prior('P0', P0_stated, dP0)
-        self.Ls = self._lognormal_molar_concentration_prior('Ls', Ls_stated, dLs)
+        self.P0 = self._lognormal_concentration_prior('P0', P0_stated, dP0, ureg.millimolar)
+        self.Ls = self._lognormal_concentration_prior('Ls', Ls_stated, dLs, ureg.millimolar)
 
         # Extract heats from experiment
-        q_n = Quantity(numpy.zeros(len(experiment.injections)), 'microcalorie / mole')
+        q_n = Quantity(numpy.zeros(len(experiment.injections)), 'calorie')
         for inj, injection in enumerate(experiment.injections):
-            # TODO reduce to one titrant (from .itc file)
-            q_n[inj] = injection.evolved_heat / (numpy.sum(injection.titrant))
+            q_n[inj] = injection.evolved_heat
 
         # Guess for the noise parameter log(sigma)
-        log_sigma_guess, log_sigma_max, log_sigma_min = self._logsigma_guesses(q_n, 4, ureg.microcalorie / ureg.mole)
+        log_sigma_guess, log_sigma_max, log_sigma_min = self._logsigma_guesses(q_n, 4, ureg.calorie)
 
         # Determine range for priors for thermodynamic parameters.
         # TODO add literature value guesses
         # review check out all the units to make sure that they're appropriate
-        DeltaG_guess, DeltaG_max, DeltaG_min = self._deltaX_guesses(0.-40.,40.,ureg.kilocalorie / ureg.mole)
-        DeltaH_guess, DeltaH_max, DeltaH_min = self._deltaX_guesses(0.-100.,100.,ureg.kilocalorie / ureg.mole)
+        DeltaG_guess, DeltaG_max, DeltaG_min = self._deltaX_guesses(0., -40., 40., ureg.kilocalorie / ureg.mole)
+        DeltaH_guess, DeltaH_max, DeltaH_min = self._deltaX_guesses(0., -100., 100., ureg.kilocalorie / ureg.mole)
         DeltaH_0_guess, DeltaH_0_max, DeltaH_0_min = self._deltaH0_guesses(q_n)
 
 
         # Define priors for thermodynamic quantities.
-        self.log_sigma = self._uniform_prior('logsigma',log_sigma_guess, log_sigma_max, log_sigma_min)
+        self.log_sigma = self._uniform_prior('log_sigma', log_sigma_guess, log_sigma_max, log_sigma_min)
         self.DeltaG = self._uniform_prior_with_units('DeltaG', DeltaG_guess, DeltaG_max, DeltaG_min, ureg.kcal / ureg.mole)
         self.DeltaH = self._uniform_prior_with_units('DeltaH', DeltaH_guess, DeltaH_max, DeltaH_min, ureg.kcal / ureg.mole)
-        self.DeltaH_0 = self._uniform_prior_with_units('DeltaH_0', DeltaH_0_guess, DeltaH_0_max, DeltaH_0_min, ureg.microcalorie)
+        self.DeltaH_0 = self._uniform_prior_with_units('DeltaH_0', DeltaH_0_guess, DeltaH_0_max, DeltaH_0_min, ureg.calorie)
 
         # Define the model
         q_n_model = self._lambda_heats_model()
@@ -247,13 +244,93 @@ class TwoComponentBindingModel(BindingModel):
         self.q_n_obs = self._normal_observation_with_units('q_n', q_n_model, q_n, tau, ureg.microcalorie / ureg.mole)
 
         # Create sampler.
-        self.mcmc = self._create_sampler(Ls_stated, P0_stated, experiment)
+        # self.mcmc = self._create_sampler(Ls_stated, P0_stated, experiment)
+        self.mcmc = self._create_metropolis_sampler()
         return
 
+
+
     @staticmethod
-    def _lognormal_molar_concentration_prior(name, stated_concentration, uncertainty):
+    @ureg.wraps(ret=ureg.calorie, args=[ureg.liter, ureg.liter, None, None, None, None, None,  ureg.mole / ureg.kilocalories, None], strict=True)
+    def expected_injection_heats(V0, DeltaVn, P0, Ls, DeltaG, DeltaH, DeltaH_0, beta, N):
+        """
+        Expected heats of injection for two-component binding model.
+
+        ARGUMENTS
+        V0 - cell volume (liter)
+        DeltaVn - injection volumes (liter)
+        P0 - Cell concentration (millimolar)
+        Ls - Syringe concentration (millimolar)
+        DeltaG - free energy of binding (kcal/mol)
+        DeltaH - enthalpy of binding (kcal/mol)
+        DeltaH_0 - heat of injection (cal)
+        beta - inverse temperature * gas constant (mole / kcal)
+        N - number of injections
+
+        Returns
+        -------
+        expected injection heats -
+
+
+        """
+        # TODO Units that go into this need to be verified
+        # TODO update docstring with new input
+
+        Kd = exp(beta * DeltaG)   # dissociation constant (M)
+        N = N
+
+        # Compute complex concentrations.
+        # Pn[n] is the protein concentration in sample cell after n injections
+        # (M)
+        Pn = numpy.zeros([N])
+        # Ln[n] is the ligand concentration in sample cell after n injections
+        # (M)
+        Ln = numpy.zeros([N])
+        # PLn[n] is the complex concentration in sample cell after n injections
+        # (M)
+        PLn = numpy.zeros([N])
+        dcum = 1.0  # cumulative dilution factor (dimensionless)
+        for n in range(N):
+            # Instantaneous injection model (perfusion)
+            # TODO: Allow injection volume to vary for each injection.
+            # dilution factor for this injection (dimensionless)
+            d = 1.0 - (DeltaVn[n] / V0)
+            dcum *= d  # cumulative dilution factor
+            # total quantity of protein in sample cell after n injections (mol)
+            P = V0 * P0 * 1.e-3 * dcum
+            # total quantity of ligand in sample cell after n injections (mol)
+            L = V0 * Ls * 1.e-3 * (1. - dcum)
+            # complex concentration (M)
+            PLn[n] = (0.5 / V0 * ((P + L + Kd * V0) - ((P + L + Kd * V0) ** 2 - 4 * P * L) ** 0.5))
+            # free protein concentration in sample cell after n injections (M)
+            Pn[n] = P / V0 - PLn[n]
+            # free ligand concentration in sample cell after n injections (M)
+            Ln[n] = L / V0 - PLn[n]
+
+        # Compute expected injection heats.
+        # q_n_model[n] is the expected heat from injection n
+        q_n = numpy.zeros([N])
+        # Instantaneous injection model (perfusion)
+        # first injection
+        q_n[0] = (DeltaH * V0 * PLn[0])*1000 + DeltaH_0
+        for n in range(1, N):
+            d = 1.0 - (DeltaVn[n] / V0)  # dilution factor (dimensionless)
+            # subsequent injections
+            q_n[n] = (DeltaH * V0 * (PLn[n] - d * PLn[n - 1])) * 1000 + DeltaH_0
+
+        return q_n
+
+    @staticmethod
+    def tau(log_sigma):
+        """
+        Injection heat measurement precision.
+
+        """
+        return numpy.exp(-2.0 * log_sigma)
+
+    @staticmethod
+    def _lognormal_concentration_prior(name, stated_concentration, uncertainty, unit):
         """Define a pymc prior for a concentration, using micromolar units"""
-        unit = ureg.molar
         return pymc.Lognormal(name,
                               mu=log(stated_concentration / unit),
                               tau=1.0 / log(1.0 + (uncertainty / stated_concentration) ** 2),
@@ -304,6 +381,18 @@ class TwoComponentBindingModel(BindingModel):
             mcmc.use_step_method(pymc.Metropolis, self.Ls)
         return mcmc
 
+    def _create_metropolis_sampler(self):
+        """Create an MCMC sampler for the two component model.
+           Uses rescalingstep only when concentrations exist for both P and L."""
+        mcmc = pymc.MCMC(self, db='ram')
+        mcmc.use_step_method(pymc.Metropolis, self.DeltaG)
+        mcmc.use_step_method(pymc.Metropolis, self.DeltaH)
+        mcmc.use_step_method(pymc.Metropolis, self.DeltaH_0)
+        mcmc.use_step_method(pymc.Metropolis, self.P0)
+        mcmc.use_step_method(pymc.Metropolis, self.Ls)
+        return mcmc
+
+
     def _lambda_heats_model(self):
         return pymc.Lambda('q_n_model',
                            lambda
@@ -351,10 +440,10 @@ class TwoComponentBindingModel(BindingModel):
     @staticmethod
     def _deltaH0_guesses(q_n):
         # Assume the last injection has the best guess for H0
-        DeltaH_0_guess = q_n[-1]  # ucal/injection
+        DeltaH_0_guess = q_n[-1]
         heat_interval = (q_n.max() - q_n.min())
-        DeltaH_0_min = q_n.min() - heat_interval  # (cal/mol)
-        DeltaH_0_max = q_n.max() + heat_interval  # (cal/mol)
+        DeltaH_0_min = q_n.min() - heat_interval
+        DeltaH_0_max = q_n.max() + heat_interval
         return DeltaH_0_guess, DeltaH_0_max, DeltaH_0_min
 
     @staticmethod
@@ -375,78 +464,6 @@ class TwoComponentBindingModel(BindingModel):
             P0_stated = next(iter(experiment.cell_concentration.values()))
 
         return P0_stated
-
-    @staticmethod
-    @ureg.wraps(ret=ureg.kilocalorie, args=[ureg.milliliter, ureg.milliliter, None, None, None, None, None,  ureg.mole / ureg.kilocalories, None], strict=True)
-    def expected_injection_heats(V0, DeltaVn, P0, Ls, DeltaG, DeltaH, DeltaH_0, beta, N):
-        """
-        Expected heats of injection for two-component binding model.
-
-        ARGUMENTS
-
-        DeltaG - free energy of binding (kcal/mol)
-        DeltaH - enthalpy of binding (kcal/mol)
-        DeltaH_0 - heat of injection (cal/mol)
-        """
-        # TODO Units that go into this need to be verified
-        # TODO update docstring with new input
-
-        Kd = exp(beta * DeltaG)   # dissociation constant (M)
-        N = N
-
-        # Compute complex concentrations.
-        # Pn[n] is the protein concentration in sample cell after n injections
-        # (M)
-        Pn = numpy.zeros([N])
-        # Ln[n] is the ligand concentration in sample cell after n injections
-        # (M)
-        Ln = numpy.zeros([N])
-        # PLn[n] is the complex concentration in sample cell after n injections
-        # (M)
-        PLn = numpy.zeros([N])
-        dcum = 1.0  # cumulative dilution factor (dimensionless)
-        for n in range(N):
-            # Instantaneous injection model (perfusion)
-            # TODO: Allow injection volume to vary for each injection.
-            # dilution factor for this injection (dimensionless)
-            d = 1.0 - (DeltaVn[n] / V0)
-            dcum *= d  # cumulative dilution factor
-            # total quantity of protein in sample cell after n injections (mol)
-            P = V0 * P0 * dcum
-            # total quantity of ligand in sample cell after n injections (mol)
-            L = V0 * Ls * (1. - dcum)
-            # complex concentration (M)
-            PLn[n] = (
-                0.5 / V0 * ((P + L + Kd * V0) - ((P + L + Kd * V0) ** 2 - 4 * P * L) ** 0.5))
-            # free protein concentration in sample cell after n injections (M)
-            Pn[n] = P / V0 - PLn[n]
-            # free ligand concentration in sample cell after n injections (M)
-            Ln[n] = L / V0 - PLn[n]
-
-        # Compute expected injection heats.
-        # q_n_model[n] is the expected heat from injection n
-        q_n = numpy.zeros([N])
-        # Instantaneous injection model (perfusion)
-        # first injection
-        # review removed a factor 1000 here, presumably leftover from a unit conversion
-        q_n[0] = (DeltaH) * V0 * PLn[0] + DeltaH_0
-        for n in range(1, N):
-            d = 1.0 - (DeltaVn[n] / V0)  # dilution factor (dimensionless)
-            # subsequent injections
-            # review removed a factor 1000 here, presumably leftover from a unit conversion
-            q_n[n] = DeltaH * V0 * (PLn[n] - d * PLn[n - 1]) + DeltaH_0
-
-        return q_n
-
-    @staticmethod
-    def tau(log_sigma):
-        """
-        Injection heat measurement precision.
-
-        """
-        return numpy.exp(-2.0 * log_sigma)
-
-
 
 class CompetitiveBindingModel(BindingModel):
 
