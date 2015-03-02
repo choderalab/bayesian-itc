@@ -172,13 +172,15 @@ class TwoComponentBindingModel(BindingModel):
     A binding model with two components (e.g. Protein and Ligand)
     """
 
+
+
     def __init__(self, experiment):
 
         # Determine number of observations.
         self.N = experiment.number_of_injections
 
-        self.DeltaVn = Quantity(numpy.zeros(self.N), ureg.microliter)
         # Store injection volumes
+        self.DeltaVn = Quantity(numpy.zeros(self.N), ureg.microliter)
         for inj, injection in enumerate(experiment.injections):
             self.DeltaVn[inj] = injection.volume
 
@@ -188,122 +190,191 @@ class TwoComponentBindingModel(BindingModel):
         # Extract properties from experiment
         self.experiment = experiment
 
+        # Store temperature.
+        self.temperature = experiment.target_temperature  # (kelvin)
+        # inverse temperature 1/(kcal/mol)
+        self.beta = 1.0 / (ureg.molar_gas_constant * self.temperature)
+
+        # Syringe concentration
         if not len(experiment.syringe_concentration) == 1:
             raise ValueError('TwoComponent model only supports one component in the syringe, found %d' % len(
                 experiment.syringe_concentration))
 
+        Ls_stated = self._get_syringe_concentration(experiment)
+        # Uncertainty
+        dLs = 0.10 * Ls_stated
+
+        #Cell concentrations
+        if not len(experiment.cell_concentration) == 1:
+            raise ValueError('TwoComponent model only supports one component in the cell, found %d' % len(
+                experiment.cell_concentration))
+
+        P0_stated = self._get_cell_concentration(experiment)
+        # Uncertainty
+        dP0 = 0.10 * P0_stated
+
+        # Define priors for concentrations.
+        self.P0 = self._lognormal_molar_concentration_prior('P0', P0_stated, dP0)
+        self.Ls = self._lognormal_molar_concentration_prior('Ls', Ls_stated, dLs)
+
+        # Extract heats from experiment
+        q_n = Quantity(numpy.zeros(len(experiment.injections)), 'microcalorie / mole')
+        for inj, injection in enumerate(experiment.injections):
+            # TODO reduce to one titrant (from .itc file)
+            q_n[inj] = injection.evolved_heat / (numpy.sum(injection.titrant))
+
+        # Guess for the noise parameter log(sigma)
+        log_sigma_guess, log_sigma_max, log_sigma_min = self._logsigma_guesses(q_n, 4, ureg.microcalorie / ureg.mole)
+
+        # Determine range for priors for thermodynamic parameters.
+        # TODO add literature value guesses
+        # review check out all the units to make sure that they're appropriate
+        DeltaG_guess, DeltaG_max, DeltaG_min = self._deltaX_guesses(0.-40.,40.,ureg.kilocalorie / ureg.mole)
+        DeltaH_guess, DeltaH_max, DeltaH_min = self._deltaX_guesses(0.-100.,100.,ureg.kilocalorie / ureg.mole)
+        DeltaH_0_guess, DeltaH_0_max, DeltaH_0_min = self._deltaH0_guesses(q_n)
+
+
+        # Define priors for thermodynamic quantities.
+        self.log_sigma = self._uniform_prior('logsigma',log_sigma_guess, log_sigma_max, log_sigma_min)
+        self.DeltaG = self._uniform_prior_with_units('DeltaG', DeltaG_guess, DeltaG_max, DeltaG_min, ureg.kcal / ureg.mole)
+        self.DeltaH = self._uniform_prior_with_units('DeltaH', DeltaH_guess, DeltaH_max, DeltaH_min, ureg.kcal / ureg.mole)
+        self.DeltaH_0 = self._uniform_prior_with_units('DeltaH_0', DeltaH_0_guess, DeltaH_0_max, DeltaH_0_min, ureg.microcalorie)
+
+        # Define the model
+        q_n_model = self._lambda_heats_model()
+        tau = self._lambda_tau_model()
+
+        self.q_n_obs = self._normal_observation_with_units('q_n', q_n_model, q_n, tau, ureg.microcalorie / ureg.mole)
+
+        # Create sampler.
+        self.mcmc = self._create_sampler(Ls_stated, P0_stated, experiment)
+        return
+
+    @staticmethod
+    def _lognormal_molar_concentration_prior(name, stated_concentration, uncertainty):
+        """Define a pymc prior for a concentration, using micromolar units"""
+        unit = ureg.molar
+        return pymc.Lognormal(name,
+                              mu=log(stated_concentration / unit),
+                              tau=1.0 / log(1.0 + (uncertainty / stated_concentration) ** 2),
+                              value=stated_concentration / unit
+        )
+
+    @staticmethod
+    def _uniform_prior(name, log_sigma_guess, log_sigma_max, log_sigma_min):
+        """Define a uniform prior"""
+        return pymc.Uniform(name,
+                            lower=log_sigma_min,
+                            upper=log_sigma_max,
+                            value=log_sigma_guess
+        )
+
+    @staticmethod
+    def _uniform_prior_with_units(name, guess, maximum, minimum, unit):
+        """Define a uniform prior, while stripping units"""
+        return pymc.Uniform(name,
+                            lower=minimum / unit,
+                            upper=maximum / unit,
+                            value=guess / unit
+        )
+
+    @staticmethod
+    def _normal_observation_with_units(name, q_n_model, q_ns, tau, unit):
+        """Define a set of normally distributed observations, while stripping units"""
+        return pymc.Normal(name, mu=q_n_model, tau=tau, observed=True, value=q_ns / unit)
+
+    def _create_sampler(self, Ls_stated, P0_stated, experiment):
+        """Create an MCMC sampler for the two component model.
+           Uses rescalingstep only when concentrations exist for both P and L."""
+        mcmc = pymc.MCMC(self, db='ram')
+        mcmc.use_step_method(pymc.Metropolis, self.DeltaG)
+        mcmc.use_step_method(pymc.Metropolis, self.DeltaH)
+        mcmc.use_step_method(pymc.Metropolis, self.DeltaH_0)
+        if P0_stated > Quantity('0.0 molar') and Ls_stated > Quantity('0.0 molar'):
+            mcmc.use_step_method(RescalingStep,
+                                 {'Ls': self.Ls,
+                                  'P0': self.P0,
+                                  'DeltaH': self.DeltaH,
+                                  'DeltaG': self.DeltaG},
+                                 self.beta
+            )
+        elif experiment.cell_concentration > Quantity('0.0 molar'):
+            mcmc.use_step_method(pymc.Metropolis, self.P0)
+        elif experiment.syringe_concentration > Quantity('0.0 molar'):
+            mcmc.use_step_method(pymc.Metropolis, self.Ls)
+        return mcmc
+
+    def _lambda_heats_model(self):
+        return pymc.Lambda('q_n_model',
+                           lambda
+                               P0=self.P0,
+                               Ls=self.Ls,
+                               DeltaG=self.DeltaG,
+                               DeltaH=self.DeltaH,
+                               DeltaH_0=self.DeltaH_0:
+                           self.expected_injection_heats(
+                               self.V0,
+                               self.DeltaVn,
+                               P0,
+                               Ls,
+                               DeltaG,
+                               DeltaH,
+                               DeltaH_0,
+                               self.beta,
+                               self.N
+                           )
+        )
+
+    def _lambda_tau_model(self):
+        return pymc.Lambda('tau', lambda log_sigma=self.log_sigma: self.tau(log_sigma))
+
+    @staticmethod
+    def _deltaX_guesses(mean, minimum, maximum, unit):
+        DeltaG_guess = mean * unit
+        DeltaG_min = minimum * unit
+        DeltaG_max = maximum * unit
+        return DeltaG_guess, DeltaG_max, DeltaG_min
+
+    @staticmethod
+    def _logsigma_guesses(q_n, number_of_inj, standard_unit):
+        """
+        q_n: list/array of heats
+        number_of_inj: number of injections at end of protocol to use for estimating sigma
+        standard_unit: unit by which to correct the magnitude of sigma
+        """
+        # review: how can we do this better?
+        log_sigma_guess = log(q_n[-number_of_inj:].std() / standard_unit)
+        log_sigma_min = log_sigma_guess - 10
+        log_sigma_max = log_sigma_guess + 5
+        return log_sigma_guess, log_sigma_max, log_sigma_min
+
+    @staticmethod
+    def _deltaH0_guesses(q_n):
+        # Assume the last injection has the best guess for H0
+        DeltaH_0_guess = q_n[-1]  # ucal/injection
+        heat_interval = (q_n.max() - q_n.min())
+        DeltaH_0_min = q_n.min() - heat_interval  # (cal/mol)
+        DeltaH_0_max = q_n.max() + heat_interval  # (cal/mol)
+        return DeltaH_0_guess, DeltaH_0_max, DeltaH_0_min
+
+    @staticmethod
+    def _get_syringe_concentration(experiment):
         # python 2/3 compatibility
         try:
             Ls_stated = experiment.syringe_concentration.itervalues().next()
         except AttributeError:
             Ls_stated = next(iter(experiment.syringe_concentration.values()))
+        return Ls_stated
 
-        if not len(experiment.cell_concentration) == 1:
-            raise ValueError('TwoComponent model only supports one component in the cell, found %d' % len(
-                experiment.cell_concentration))
-
+    @staticmethod
+    def _get_cell_concentration(experiment):
         # python 2/3 compatibility
         try:
             P0_stated = experiment.cell_concentration.itervalues().next()
         except AttributeError:
             P0_stated = next(iter(experiment.cell_concentration.values()))
 
-        # Store temperature.
-        self.temperature = experiment.target_temperature  # (kelvin)
-        # inverse temperature 1/(kcal/mol)
-        self.beta = 1.0 / (ureg.molar_gas_constant * self.temperature)
-
-        # Compute uncertainties in stated concentrations.
-        # uncertainty in protein stated concentration (M) - 10% error
-        dP0 = 0.10 * P0_stated
-        # uncertainty in ligand stated concentration (M) - 10% error
-        dLs = 0.10 * Ls_stated
-
-        # Determine guesses for initial values
-        q_n = Quantity(
-            numpy.zeros(len(experiment.injections)), 'microcalorie / mole')
-        for inj, injection in enumerate(experiment.injections):
-            # TODO reduce to one titrant (from .itc file)
-            q_n[inj] = injection.evolved_heat / (numpy.sum(injection.titrant))
-
-        # TODO better initial guesses for everything
-        # review: how can we do this better?
-        log_sigma_guess = log(q_n[-4:].std() / (ureg.microcalorie / ureg.mole))
-        # todo add option to supply literature values
-        DeltaG_guess = -8.3 * ureg.kilocalorie / ureg.mol
-        DeltaH_guess = -12.0 * ureg.kilocalorie / ureg.mol
-
-        # Assume the last injection has the best guess for H0
-        DeltaH_0_guess = q_n[-1]  # ucal/injection
-
-        # Determine min and max range for log_sigma
-        log_sigma_min = log_sigma_guess - 10
-        log_sigma_max = log_sigma_guess + 5
-
-        # Determine range for priors for thermodynamic parameters.
-        DeltaG_min = -40. * ureg.kilocalorie / ureg.mol  # (kcal/mol)
-        DeltaG_max = +40. * ureg.kilocalorie / ureg.mol  # (kcal/mol)
-        DeltaH_min = -100. * ureg.kilocalorie / ureg.mol  # (kcal/mol)
-        DeltaH_max = +100. * ureg.kilocalorie / ureg.mol  # (kcal/mol)
-        # review dH = dQ, so is the unit of H0 cal, or cal/mol? Where does the
-        # mol come into the equation.
-        heat_interval = (q_n.max() - q_n.min())
-        DeltaH_0_min = q_n.min() - heat_interval  # (cal/mol)
-        DeltaH_0_max = q_n.max() + heat_interval  # (cal/mol)
-
-        # Define priors for concentrations.
-        # TODO convert everything to a consistent unit system
-        # review check out all the units to make sure that they're appropriate
-        self.P0 = pymc.Lognormal('P0', mu=log(P0_stated / ureg.micromolar), tau=1.0 / log(
-            1.0 + (dP0 / P0_stated) ** 2), value=P0_stated / ureg.micromolar)
-        self.Ls = pymc.Lognormal('Ls', mu=log(Ls_stated / ureg.micromolar), tau=1.0 / log(
-            1.0 + (dLs / Ls_stated) ** 2), value=Ls_stated / ureg.micromolar)
-
-        # Define priors for thermodynamic quantities.
-        self.log_sigma = pymc.Uniform(
-            'log_sigma', lower=log_sigma_min, upper=log_sigma_max, value=log_sigma_guess)
-        self.DeltaG = pymc.Uniform('DeltaG', lower=DeltaG_min / (ureg.kilocalorie / ureg.mol), upper=DeltaG_max / (
-            ureg.kilocalorie / ureg.mol), value=DeltaG_guess / (ureg.kilocalorie / ureg.mol))
-        self.DeltaH = pymc.Uniform('DeltaH', lower=DeltaH_min / (ureg.kilocalorie / ureg.mol), upper=DeltaH_max / (
-            ureg.kilocalorie / ureg.mol), value=DeltaH_guess / (ureg.kilocalorie / ureg.mol))
-        # review make sure we get the units right on this.
-        self.DeltaH_0 = pymc.Uniform('DeltaH_0', lower=DeltaH_0_min / ureg.microcalorie,
-                                     upper=DeltaH_0_max / ureg.microcalorie, value=DeltaH_0_guess / ureg.microcalorie)
-
-        q_n_model = pymc.Lambda('q_n_model', lambda P0=self.P0, Ls=self.Ls, DeltaG=self.DeltaG, DeltaH=self.DeltaH, DeltaH_0=self.DeltaH_0:
-                                self.expected_injection_heats(self.V0, self.DeltaVn, P0, Ls, DeltaG, DeltaH, DeltaH_0, self.beta, self.N))
-        tau = pymc.Lambda(
-            'tau', lambda log_sigma=self.log_sigma: self.tau(log_sigma))
-
-        # Review doublecheck equation
-        q_ns = Quantity(
-            numpy.zeros(experiment.number_of_injections), 'microcalorie / mole')
-        for inj, injection in enumerate(experiment.injections):
-            q_ns[inj] = injection.evolved_heat / injection.titrant
-
-        # Define observed data.
-        self.q_n_obs = pymc.Normal(
-            'q_n', mu=q_n_model, tau=tau, observed=True, value=q_ns / Quantity('microcalorie / mole'))
-
-        # Create sampler.
-
-        mcmc = pymc.MCMC(self, db='ram')
-        mcmc.use_step_method(pymc.Metropolis, self.DeltaG)
-        mcmc.use_step_method(pymc.Metropolis, self.DeltaH)
-        mcmc.use_step_method(pymc.Metropolis, self.DeltaH_0)
-
-        if P0_stated > Quantity('0.0 molar') and Ls_stated > Quantity('0.0 molar'):
-            mcmc.use_step_method(RescalingStep,
-                                 {'Ls': self.Ls, 'P0': self.P0,
-                                     'DeltaH': self.DeltaH, 'DeltaG': self.DeltaG},
-                                 self.beta)
-        elif experiment.cell_concentration > Quantity('0.0 molar'):
-            mcmc.use_step_method(pymc.Metropolis, self.P0)
-        elif experiment.syringe_concentration > Quantity('0.0 molar'):
-            mcmc.use_step_method(pymc.Metropolis, self.Ls)
-
-        self.mcmc = mcmc
-        return
+        return P0_stated
 
     @staticmethod
     @ureg.wraps(ret=ureg.kilocalorie, args=[ureg.milliliter, ureg.milliliter, None, None, None, None, None,  ureg.mole / ureg.kilocalories, None], strict=True)
@@ -316,11 +387,9 @@ class TwoComponentBindingModel(BindingModel):
         DeltaG - free energy of binding (kcal/mol)
         DeltaH - enthalpy of binding (kcal/mol)
         DeltaH_0 - heat of injection (cal/mol)
-
         """
-
-        # TODO this can be removed at some point, or exposed to logger
-        debug = True
+        # TODO Units that go into this need to be verified
+        # TODO update docstring with new input
 
         Kd = exp(beta * DeltaG)   # dissociation constant (M)
         N = N
@@ -358,13 +427,13 @@ class TwoComponentBindingModel(BindingModel):
         # q_n_model[n] is the expected heat from injection n
         q_n = numpy.zeros([N])
         # Instantaneous injection model (perfusion)
-        # first injection # review removed a factor 1000 here, presumably
-        # leftover from a unit conversion
+        # first injection
+        # review removed a factor 1000 here, presumably leftover from a unit conversion
         q_n[0] = (DeltaH) * V0 * PLn[0] + DeltaH_0
         for n in range(1, N):
             d = 1.0 - (DeltaVn[n] / V0)  # dilution factor (dimensionless)
-            # subsequent injections # review removed a factor 1000 here,
-            # presumably leftover from a unit conversion
+            # subsequent injections
+            # review removed a factor 1000 here, presumably leftover from a unit conversion
             q_n[n] = DeltaH * V0 * (PLn[n] - d * PLn[n - 1]) + DeltaH_0
 
         return q_n
@@ -377,8 +446,6 @@ class TwoComponentBindingModel(BindingModel):
         """
         return numpy.exp(-2.0 * log_sigma)
 
-    # TODO Add specific createModel() for this binding model (move from
-    # ITC.py).
 
 
 class CompetitiveBindingModel(BindingModel):
