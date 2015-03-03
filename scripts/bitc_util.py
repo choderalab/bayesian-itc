@@ -264,6 +264,6 @@ elif validated['--model'] == 'Competitive':
 
     logging.info("Sampling...")
     model.mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
-    pymc.Matplot.plot(model.mcmc, validated['--name'] + '.pdf')
+    pymc.Matplot.plot(model.mcmc, "MCMC.png")
 
 pymc.graph.dag(model.mcmc)

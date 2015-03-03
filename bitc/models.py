@@ -42,8 +42,8 @@ class RescalingStep(pymc.StepMethod):
         # Initialize superclass.
         pymc.StepMethod.__init__(self, dictionary.values(), verbose)
 
-        self._id = 'RescalingMetropolis_' + \
-            '_'.join([p.__name__ for p in self.stochastics])
+        self._id = 'RescalingMetropolis_' + '_'.join([p.__name__ for p in self.stochastics])
+
         # State variables used to restore the state in a later session.
         self._state += ['max_scale', '_current_iter', 'interval']
 
@@ -57,8 +57,7 @@ class RescalingStep(pymc.StepMethod):
         self.rejected = 0
 
         # Report
-        logger.info("Initialization...\n" +
-                    "max_scale: %s" % self.max_scale)
+        logger.info("Initialization...\n" + "max_scale: %s" % self.max_scale)
 
     def propose(self):
         # Choose trial scaling factor or its inverse with equal probability, so
@@ -70,11 +69,9 @@ class RescalingStep(pymc.StepMethod):
         # Scale thermodynamic parameters and variables with this factor.
         self.dictionary['Ls'].value = self.dictionary['Ls'].value * factor
         self.dictionary['P0'].value = self.dictionary['P0'].value * factor
-        self.dictionary['DeltaH'].value = self.dictionary[
-            'DeltaH'].value / factor
-        self.dictionary['DeltaG'].value = self.dictionary[
-            'DeltaG'].value + (1. / self.beta.magnitude) * numpy.log(factor)
+        self.dictionary['DeltaH'].value = self.dictionary['DeltaH'].value / factor
         # calling magnitude seems flaky, where are the units here?
+        self.dictionary['DeltaG'].value = self.dictionary['DeltaG'].value + (1. / self.beta.magnitude) * numpy.log(factor)
 
         return
 
@@ -166,11 +163,11 @@ class BindingModel(object):
         pass
 
     @staticmethod
-    def _deltaX_guesses(mean, minimum, maximum, unit):
-        DeltaG_guess = mean * unit
-        DeltaG_min = minimum * unit
-        DeltaG_max = maximum * unit
-        return DeltaG_guess, DeltaG_max, DeltaG_min
+    def _add_unit_to_guesses(value, maximum, minimum, unit):
+        value *= unit
+        maximum *= unit
+        minimum *= unit
+        return value, maximum, minimum
 
     @staticmethod
     def _deltaH0_guesses(q_n):
@@ -215,22 +212,39 @@ class BindingModel(object):
         return pymc.Normal(name, mu=q_n_model, tau=tau, observed=True, value=q_ns / unit)
 
     @staticmethod
-    def _uniform_prior(name, log_sigma_guess, log_sigma_max, log_sigma_min):
+    def _uniform_prior(name, guess, maximum, minimum):
         """Define a uniform prior"""
         return pymc.Uniform(name,
-                            lower=log_sigma_min,
-                            upper=log_sigma_max,
-                            value=log_sigma_guess
+                            lower=minimum,
+                            upper=maximum,
+                            value=guess
         )
 
     @staticmethod
-    def _uniform_prior_with_units(name, guess, maximum, minimum, unit):
+    def _uniform_prior_with_units(name, value, maximum, minimum, unit):
         """Define a uniform prior, while stripping units"""
         return pymc.Uniform(name,
                             lower=minimum / unit,
                             upper=maximum / unit,
-                            value=guess / unit
+                            value=value / unit
         )
+
+    @staticmethod
+    def _uniform_prior_with_guesses_and_units(name, value, maximum, minimum, prior_unit, guess_unit=None):
+
+        # guess provided already has units
+        if guess_unit is True:
+            pass
+        # guess provided has no units, but should be same as prior
+        elif guess_unit in {None, False}:
+            guess_unit = prior_unit
+            value, maximum, minimum = BindingModel._add_unit_to_guesses(value, maximum, minimum, guess_unit)
+        # guess unit is a unit and needs to be assigned to the guesses first
+        else:
+            value, maximum, minimum = BindingModel._add_unit_to_guesses(value, maximum, minimum, guess_unit)
+
+        return BindingModel._uniform_prior_with_units(name, value, maximum, minimum, prior_unit)
+
 
 class TwoComponentBindingModel(BindingModel):
 
@@ -292,16 +306,14 @@ class TwoComponentBindingModel(BindingModel):
         # Determine range for priors for thermodynamic parameters.
         # TODO add literature value guesses
         # review check out all the units to make sure that they're appropriate
-        DeltaG_guess, DeltaG_max, DeltaG_min = self._deltaX_guesses(0., -40., 40., ureg.kilocalorie / ureg.mole)
-        DeltaH_guess, DeltaH_max, DeltaH_min = self._deltaX_guesses(0., -100., 100., ureg.kilocalorie / ureg.mole)
-        DeltaH_0_guess, DeltaH_0_max, DeltaH_0_min = self._deltaH0_guesses(q_n)
 
+
+        self.DeltaH_0 = self._uniform_prior_with_guesses_and_units('DeltaH_0', *self._deltaH0_guesses(q_n), prior_unit=ureg.calorie, guess_unit=True)
+        self.DeltaG = self._uniform_prior_with_guesses_and_units('DeltaG', 0., 40., -40., ureg.kilocalorie/ureg.mole)
+        self.DeltaH = self._uniform_prior_with_guesses_and_units('DeltaH', 0., 100., -100., ureg.kilocalorie/ureg.mole)
 
         # Define priors for thermodynamic quantities.
         self.log_sigma = self._uniform_prior('log_sigma', log_sigma_guess, log_sigma_max, log_sigma_min)
-        self.DeltaG = self._uniform_prior_with_units('DeltaG', DeltaG_guess, DeltaG_max, DeltaG_min, ureg.kcal / ureg.mole)
-        self.DeltaH = self._uniform_prior_with_units('DeltaH', DeltaH_guess, DeltaH_max, DeltaH_min, ureg.kcal / ureg.mole)
-        self.DeltaH_0 = self._uniform_prior_with_units('DeltaH_0', DeltaH_0_guess, DeltaH_0_max, DeltaH_0_min, ureg.calorie)
 
         # Define the model
         q_n_model = self._lambda_heats_model()
@@ -482,9 +494,6 @@ class CompetitiveBindingModel(BindingModel):
     """
     Competitive binding model.
     """
-
-
-
     def __init__(self, experiments, receptor, concentration_uncertainty=0.10):
         """
         ARGUMENTS
@@ -529,23 +538,20 @@ class CompetitiveBindingModel(BindingModel):
         # Create a list of all stochastics.
         self.stochastics = list()
 
-        # Create a prior for thermodynamic parameters of binding for each
-        # ligand-receptor interaction.
-        DeltaG_guess, DeltaG_max, DeltaG_min = self._deltaX_guesses(0., -40., 40., ureg.kilocalorie / ureg.mole)
-        DeltaH_guess, DeltaH_max, DeltaH_min = self._deltaX_guesses(0., -100., 100., ureg.kilocalorie / ureg.mole)
+        # Create a prior for thermodynamic parameters of binding for each ligand-receptor interaction.
 
         self.thermodynamic_parameters = dict()
         # TODO: add option to set initial thermodynamic parameters to literature values.
         for ligand in self.ligands:
-            #define the name and prior for each receptor ligand combination
+            # define the name and prior for each receptor ligand combination
 
             # delta G of binding
             dg_name = "DeltaG of %s * %s" % (self.receptor, ligand)
-            prior_deltag = self._uniform_prior_with_units(dg_name,DeltaG_guess,DeltaG_max,DeltaG_min, ureg.kilocalorie / ureg.mole)
+            prior_deltag = self._uniform_prior_with_guesses_and_units(dg_name, 0., 40., -40., ureg.kilocalorie / ureg.mole)
 
             # delta H of binding
             dh_name = "DeltaH of %s * %s" % (self.receptor, ligand)
-            prior_deltah = self._uniform_prior_with_units(dh_name, DeltaH_guess, DeltaH_max, DeltaH_min, ureg.kilocalorie / ureg.mole)
+            prior_deltah = self._uniform_prior_with_guesses_and_units(dh_name, 0., 100., -100.,ureg.kilocalorie / ureg.mole)
 
             self.thermodynamic_parameters[dg_name] = prior_deltag
             self.thermodynamic_parameters[dh_name] = prior_deltah
@@ -570,9 +576,8 @@ class CompetitiveBindingModel(BindingModel):
             logging.info("Experiment %d has %d injections" %
                          (index, experiment.ninjections))
 
-            DeltaH_0_guess, DeltaH_0_max, DeltaH_0_min = self._deltaH0_guesses(experiment.observed_injection_heats)
             dh0_name = "DeltaH_0 for experiment %d" % index
-            experiment.DeltaH_0 = self._uniform_prior_with_units(dh0_name, DeltaH_0_guess, DeltaH_0_max, DeltaH_0_min, ureg.calorie)
+            experiment.DeltaH_0 = self._uniform_prior_with_guesses_and_units(dh0_name, *self._deltaH0_guesses(experiment.observed_injection_heats), prior_unit=ureg.calorie, guess_unit=True)
             self.stochastics.append(experiment.DeltaH_0)
 
             # Define priors for the true concentration of each component
