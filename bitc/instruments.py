@@ -58,15 +58,13 @@ class Instrument(object):
                 # Fourth line of hash block has volume
                 if hash_count == 4:
                     logger.info("Read current field as V0: %s" % line)
-                    self.V0 = float(
-                        line[2:]) * ureg.milliliter - self.V_correction
+                    self.V0 = float(line[2:]) * ureg.milliliter - self.V_correction
 
                 if re.match('#', line):
                     hash_count += 1
                 # First line in % block describes device
                 elif re.match('%', line) and self.description == "":
-                    logger.debug(
-                        "Read current field as instrument description: %s" % line)
+                    logger.debug("Read current field as instrument description: %s" % line)
                     self.description = line[2:]
         finally:
             dotitc.close()
@@ -82,8 +80,7 @@ class VPITC(Instrument):
     """
 
     def __init__(self):
-        super(VPITC, self).__init__(V0=1.400 * ureg.milliliter, V_correction=0.044 *
-                                    ureg.milliliter, itcfile=None, description="MicroCal VP-iTC")
+        super(VPITC, self).__init__(V0=1.400 * ureg.milliliter, V_correction=0.044 * ureg.milliliter, itcfile=None, description="MicroCal VP-iTC")
 
 
 class ITC200(Instrument):
@@ -96,16 +93,15 @@ class ITC200(Instrument):
     """
 
     def __init__(self):
-        super(ITC200, self).__init__(V0=200 * ureg.microliter,
-                                     V_correction=0, itcfile=None, description="MicroCal Auto-iTC200")
+        super(ITC200, self).__init__(V0=200 * ureg.microliter, V_correction=0, itcfile=None, description="MicroCal Auto-iTC200")
 
 AutoITC200 = ITC200
 
 # Container for all instruments that this module provides
 known_instruments = dict()
-known_instruments.update(
-    dict.fromkeys(['VPITC', 'VPiTC', 'VP-iTC', 'vpitc', 'vp-itc'], VPITC))
-known_instruments.update(
-    dict.fromkeys(['ITC200', 'iTC200', 'ITC200', 'itc200'], ITC200))
-known_instruments.update(dict.fromkeys(['autoitc', 'auto-itc', 'auto-itc200', 'AUTOITC',  'AUTO-ITC',
-                                        'AUTO-ITC200', 'AUTOITC200', 'AutoiTC', 'Auto-iTC', 'Auto-ITC',  'Auto-iTC200', 'Auto-ITC200', ], AutoITC200))
+known_instruments.update(dict.fromkeys(['VPITC', 'VPiTC', 'VP-iTC', 'vpitc', 'vp-itc'], VPITC))
+known_instruments.update(dict.fromkeys(['ITC200', 'iTC200', 'ITC200', 'itc200'], ITC200))
+known_instruments.update(dict.fromkeys(['autoitc', 'auto-itc', 'auto-itc200', 'AUTOITC',  'AUTO-ITC', 'AUTO-ITC200',
+                                        'AUTOITC200', 'AutoiTC', 'Auto-iTC', 'Auto-ITC',  'Auto-iTC200', 'Auto-ITC200',
+                                        ],
+                                       AutoITC200))
