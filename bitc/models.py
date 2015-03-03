@@ -307,8 +307,7 @@ class TwoComponentBindingModel(BindingModel):
 
         # Syringe concentration
         if not len(experiment.syringe_concentration) == 1:
-            raise ValueError('TwoComponent model only supports one component in the syringe, found %d' % len(
-                experiment.syringe_concentration))
+            raise ValueError('TwoComponent model only supports one component in the syringe, found %d' % len(experiment.syringe_concentration))
 
         Ls_stated = self._get_syringe_concentration(experiment)
         # Uncertainty
@@ -316,8 +315,7 @@ class TwoComponentBindingModel(BindingModel):
 
         #Cell concentrations
         if not len(experiment.cell_concentration) == 1:
-            raise ValueError('TwoComponent model only supports one component in the cell, found %d' % len(
-                experiment.cell_concentration))
+            raise ValueError('TwoComponent model only supports one component in the cell, found %d' % len(experiment.cell_concentration))
 
         P0_stated = self._get_cell_concentration(experiment)
         # Uncertainty
@@ -544,8 +542,7 @@ class CompetitiveBindingModel(BindingModel):
 
         # Store the name of the receptor.
         self.receptor = receptor
-        logging.info("species '%s' will be treated as receptor" %
-                     self.receptor)
+        logging.info("species '%s' will be treated as receptor" % self.receptor)
 
         # Make a list of names of all molecular species.
         self.species = self._species_from_experiments(experiments)
@@ -572,7 +569,7 @@ class CompetitiveBindingModel(BindingModel):
 
             # delta H of binding
             dh_name = "DeltaH of %s * %s" % (self.receptor, ligand)
-            prior_deltah = BindingModel._uniform_prior_with_guesses_and_units(dh_name, 0., 100., -100.,ureg.kilocalorie / ureg.mole)
+            prior_deltah = BindingModel._uniform_prior_with_guesses_and_units(dh_name, 0., 100., -100., ureg.kilocalorie / ureg.mole)
 
             self.thermodynamic_parameters[dg_name] = prior_deltag
             self.thermodynamic_parameters[dh_name] = prior_deltah
@@ -695,8 +692,7 @@ class CompetitiveBindingModel(BindingModel):
 
         # Define optimization functions
         def func(C_RLn):
-            f_n = V * \
-                (x_R / V - C_RLn[:].sum()) * (x_Ln[:] / V - C_RLn[:]) * Ka_n[:] - V * C_RLn[:]
+            f_n = V * (x_R / V - C_RLn[:].sum()) * (x_Ln[:] / V - C_RLn[:]) * Ka_n[:] - V * C_RLn[:]
             return f_n
 
         def fprime(C_RLn):
