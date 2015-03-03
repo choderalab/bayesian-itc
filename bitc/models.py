@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 """
 PyMC models to describe ITC binding experiments
 """
@@ -13,7 +12,6 @@ import pymc
 import scipy.integrate
 
 from bitc.units import ureg, Quantity
-
 
 # Use module name for logger
 logger = logging.getLogger(__name__)
@@ -153,7 +151,6 @@ class RescalingStep(pymc.StepMethod):
 
 
 class BindingModel(object):
-
     """
     Abstract base class for reaction models.
     """
@@ -283,7 +280,6 @@ class BindingModel(object):
 
 
 class TwoComponentBindingModel(BindingModel):
-
     """
     A binding model with two components (e.g. Protein and Ligand)
     """
@@ -517,9 +513,7 @@ class TwoComponentBindingModel(BindingModel):
         return log_sigma_guess, log_sigma_max, log_sigma_min
 
 
-
 class CompetitiveBindingModel(BindingModel):
-
     """
     Competitive binding model.
     """
