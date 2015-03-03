@@ -165,6 +165,72 @@ class BindingModel(object):
     def __init__(self):
         pass
 
+    @staticmethod
+    def _deltaX_guesses(mean, minimum, maximum, unit):
+        DeltaG_guess = mean * unit
+        DeltaG_min = minimum * unit
+        DeltaG_max = maximum * unit
+        return DeltaG_guess, DeltaG_max, DeltaG_min
+
+    @staticmethod
+    def _deltaH0_guesses(q_n):
+        # Assume the last injection has the best guess for H0
+        DeltaH_0_guess = q_n[-1]
+        heat_interval = (q_n.max() - q_n.min())
+        DeltaH_0_min = q_n.min() - heat_interval
+        DeltaH_0_max = q_n.max() + heat_interval
+        return DeltaH_0_guess, DeltaH_0_max, DeltaH_0_min
+
+    @staticmethod
+    def _get_syringe_concentration(experiment):
+        # python 2/3 compatibility
+        try:
+            Ls_stated = experiment.syringe_concentration.itervalues().next()
+        except AttributeError:
+            Ls_stated = next(iter(experiment.syringe_concentration.values()))
+        return Ls_stated
+
+    @staticmethod
+    def _get_cell_concentration(experiment):
+        # python 2/3 compatibility
+        try:
+            P0_stated = experiment.cell_concentration.itervalues().next()
+        except AttributeError:
+            P0_stated = next(iter(experiment.cell_concentration.values()))
+
+        return P0_stated
+
+    @staticmethod
+    def _lognormal_concentration_prior(name, stated_concentration, uncertainty, unit):
+        """Define a pymc prior for a concentration, using micromolar units"""
+        return pymc.Lognormal(name,
+                              mu=log(stated_concentration / unit),
+                              tau=1.0 / log(1.0 + (uncertainty / stated_concentration) ** 2),
+                              value=stated_concentration / unit
+        )
+
+    @staticmethod
+    def _normal_observation_with_units(name, q_n_model, q_ns, tau, unit):
+        """Define a set of normally distributed observations, while stripping units"""
+        return pymc.Normal(name, mu=q_n_model, tau=tau, observed=True, value=q_ns / unit)
+
+    @staticmethod
+    def _uniform_prior(name, log_sigma_guess, log_sigma_max, log_sigma_min):
+        """Define a uniform prior"""
+        return pymc.Uniform(name,
+                            lower=log_sigma_min,
+                            upper=log_sigma_max,
+                            value=log_sigma_guess
+        )
+
+    @staticmethod
+    def _uniform_prior_with_units(name, guess, maximum, minimum, unit):
+        """Define a uniform prior, while stripping units"""
+        return pymc.Uniform(name,
+                            lower=minimum / unit,
+                            upper=maximum / unit,
+                            value=guess / unit
+        )
 
 class TwoComponentBindingModel(BindingModel):
 
@@ -244,7 +310,7 @@ class TwoComponentBindingModel(BindingModel):
         self.q_n_obs = self._normal_observation_with_units('q_n', q_n_model, q_n, tau, ureg.microcalorie / ureg.mole)
 
         # Create sampler.
-        # self.mcmc = self._create_sampler(Ls_stated, P0_stated, experiment)
+        # self.mcmc = self._create_rescaling_sampler(Ls_stated, P0_stated, experiment)
         self.mcmc = self._create_metropolis_sampler()
         return
 
@@ -328,39 +394,9 @@ class TwoComponentBindingModel(BindingModel):
         """
         return numpy.exp(-2.0 * log_sigma)
 
-    @staticmethod
-    def _lognormal_concentration_prior(name, stated_concentration, uncertainty, unit):
-        """Define a pymc prior for a concentration, using micromolar units"""
-        return pymc.Lognormal(name,
-                              mu=log(stated_concentration / unit),
-                              tau=1.0 / log(1.0 + (uncertainty / stated_concentration) ** 2),
-                              value=stated_concentration / unit
-        )
 
-    @staticmethod
-    def _uniform_prior(name, log_sigma_guess, log_sigma_max, log_sigma_min):
-        """Define a uniform prior"""
-        return pymc.Uniform(name,
-                            lower=log_sigma_min,
-                            upper=log_sigma_max,
-                            value=log_sigma_guess
-        )
 
-    @staticmethod
-    def _uniform_prior_with_units(name, guess, maximum, minimum, unit):
-        """Define a uniform prior, while stripping units"""
-        return pymc.Uniform(name,
-                            lower=minimum / unit,
-                            upper=maximum / unit,
-                            value=guess / unit
-        )
-
-    @staticmethod
-    def _normal_observation_with_units(name, q_n_model, q_ns, tau, unit):
-        """Define a set of normally distributed observations, while stripping units"""
-        return pymc.Normal(name, mu=q_n_model, tau=tau, observed=True, value=q_ns / unit)
-
-    def _create_sampler(self, Ls_stated, P0_stated, experiment):
+    def _create_rescaling_sampler(self, Ls_stated, P0_stated, experiment):
         """Create an MCMC sampler for the two component model.
            Uses rescalingstep only when concentrations exist for both P and L."""
         mcmc = pymc.MCMC(self, db='ram')
@@ -418,13 +454,6 @@ class TwoComponentBindingModel(BindingModel):
         return pymc.Lambda('tau', lambda log_sigma=self.log_sigma: self.tau(log_sigma))
 
     @staticmethod
-    def _deltaX_guesses(mean, minimum, maximum, unit):
-        DeltaG_guess = mean * unit
-        DeltaG_min = minimum * unit
-        DeltaG_max = maximum * unit
-        return DeltaG_guess, DeltaG_max, DeltaG_min
-
-    @staticmethod
     def _logsigma_guesses(q_n, number_of_inj, standard_unit):
         """
         q_n: list/array of heats
@@ -446,31 +475,15 @@ class TwoComponentBindingModel(BindingModel):
         DeltaH_0_max = q_n.max() + heat_interval
         return DeltaH_0_guess, DeltaH_0_max, DeltaH_0_min
 
-    @staticmethod
-    def _get_syringe_concentration(experiment):
-        # python 2/3 compatibility
-        try:
-            Ls_stated = experiment.syringe_concentration.itervalues().next()
-        except AttributeError:
-            Ls_stated = next(iter(experiment.syringe_concentration.values()))
-        return Ls_stated
 
-    @staticmethod
-    def _get_cell_concentration(experiment):
-        # python 2/3 compatibility
-        try:
-            P0_stated = experiment.cell_concentration.itervalues().next()
-        except AttributeError:
-            P0_stated = next(iter(experiment.cell_concentration.values()))
-
-        return P0_stated
 
 class CompetitiveBindingModel(BindingModel):
 
     """
     Competitive binding model.
-
     """
+
+
 
     def __init__(self, experiments, receptor, concentration_uncertainty=0.10):
         """
@@ -481,8 +494,8 @@ class CompetitiveBindingModel(BindingModel):
         receptor (string) - name of receptor species
         OPTIONAL ARGUMENTS
         concentration_uncertainty (float) - relative uncertainty in concentrations
-
         """
+
         # Store temperature.
         # NOTE: Right now, there can only be one.
         self.temperature = experiments[0].temperature  # temperature (kelvin)
@@ -518,45 +531,36 @@ class CompetitiveBindingModel(BindingModel):
 
         # Create a prior for thermodynamic parameters of binding for each
         # ligand-receptor interaction.
-        DeltaG_min = -40.  # (kcal/mol)
-        DeltaG_max = +40.  # (kcal/mol)
-        DeltaH_min = -100.  # (kcal/mol)
-        DeltaH_max = +100.  # (kcal/mol)
+        DeltaG_guess, DeltaG_max, DeltaG_min = self._deltaX_guesses(0., -40., 40., ureg.kilocalorie / ureg.mole)
+        DeltaH_guess, DeltaH_max, DeltaH_min = self._deltaX_guesses(0., -100., 100., ureg.kilocalorie / ureg.mole)
+
         self.thermodynamic_parameters = dict()
+        # TODO: add option to set initial thermodynamic parameters to literature values.
         for ligand in self.ligands:
-            name = "DeltaG of %s * %s" % (self.receptor, ligand)
-            x = pymc.Uniform(
-                name, lower=DeltaG_min, upper=DeltaG_max, value=0.0)
-            self.thermodynamic_parameters[name] = x
-            self.stochastics.append(x)
-            name = "DeltaH of %s * %s" % (self.receptor, ligand)
-            x = pymc.Uniform(
-                name, lower=DeltaH_min, upper=DeltaH_max, value=0.0)
-            self.thermodynamic_parameters[name] = x
-            self.stochastics.append(x)
+            #define the name and prior for each receptor ligand combination
+
+            # delta G of binding
+            dg_name = "DeltaG of %s * %s" % (self.receptor, ligand)
+            prior_deltag = self._uniform_prior_with_units(dg_name,DeltaG_guess,DeltaG_max,DeltaG_min, ureg.kilocalorie / ureg.mole)
+
+            # delta H of binding
+            dh_name = "DeltaH of %s * %s" % (self.receptor, ligand)
+            prior_deltah = self._uniform_prior_with_units(dh_name, DeltaH_guess, DeltaH_max, DeltaH_min, ureg.kilocalorie / ureg.mole)
+
+            self.thermodynamic_parameters[dg_name] = prior_deltag
+            self.thermodynamic_parameters[dh_name] = prior_deltah
+
+            self.stochastics.append(prior_deltag)
+            self.stochastics.append(prior_deltah)
+
         logging.debug("thermodynamic parameters:")
         logging.debug(self.thermodynamic_parameters)
 
-        # TODO: add option to set initial thermodynamic parameters to literature values.
-        # self.thermodynamic_parameters["DeltaG of protein * ligand"].value = -9.0
-        # self.thermodynamic_parameters["DeltaH of HIV protease * acetyl pepstatin"].value = +6.8
-
-        # Determine min and max range for log_sigma (log of instrument heat measurement error)
-        # TODO: This should depend on a number of factors, like integration
-        # time, heat signal, etc.?
-        sigma_guess = 0.0
-        for experiment in self.experiments:
-            sigma_guess += experiment.observed_injection_heats[:-4].std()
-        sigma_guess /= float(len(self.experiments))
-        log_sigma_guess = log(
-            sigma_guess / Quantity('microcalorie'))  # remove unit
-        log_sigma_min = log_sigma_guess - 10
-        log_sigma_max = log_sigma_guess + 5
-        self.log_sigma = pymc.Uniform(
-            'log_sigma', lower=log_sigma_min, upper=log_sigma_max, value=log_sigma_guess)
+        log_sigma_guess, log_sigma_max, log_sigma_min = self._logsigma_guesses_from_multiple_experiments(ureg.calorie)
+        self.log_sigma = self._uniform_prior('log_sigma', log_sigma_guess, log_sigma_max, log_sigma_min)
         self.stochastics.append(self.log_sigma)
-        tau = pymc.Lambda(
-            'tau', lambda log_sigma=self.log_sigma: exp(-2.0 * log_sigma))
+
+        tau = pymc.Lambda('tau', lambda log_sigma=self.log_sigma: exp(-2.0 * log_sigma))
         self.stochastics.append(tau)
 
         # Define priors for unknowns for each experiment.
@@ -566,95 +570,42 @@ class CompetitiveBindingModel(BindingModel):
             logging.info("Experiment %d has %d injections" %
                          (index, experiment.ninjections))
 
-            # Heat of dilution / mixing
-            # We allow the heat of dilution/mixing to range in observed range
-            # of heats, plus a larger margin of the range of oberved heats.
-            max_heat = experiment.observed_injection_heats.max()
-            min_heat = experiment.observed_injection_heats.min()
-            heat_interval = max_heat - min_heat
-            # last injection heat provides a good initial guess for heat of
-            # dilution/mixing
-            last_heat = experiment.observed_injection_heats[-1]
-            experiment.DeltaH_0 = pymc.Uniform(
-                "DeltaH_0 for experiment %d" % index, lower=min_heat - heat_interval, upper=max_heat + heat_interval, value=last_heat)
+            DeltaH_0_guess, DeltaH_0_max, DeltaH_0_min = self._deltaH0_guesses(experiment.observed_injection_heats)
+            dh0_name = "DeltaH_0 for experiment %d" % index
+            experiment.DeltaH_0 = self._uniform_prior_with_units(dh0_name, DeltaH_0_guess, DeltaH_0_max, DeltaH_0_min, ureg.calorie)
             self.stochastics.append(experiment.DeltaH_0)
 
-            # True concentrations
+            # Define priors for the true concentration of each component
             experiment.true_cell_concentration = dict()
             for species, concentration in experiment.cell_concentration.iteritems():
-                x = pymc.Lognormal("initial sample cell concentration of %s in experiment %d" % (species, index),
-                                   mu=log(concentration / Quantity('millimole per liter')), tau=1.0 / log(1.0 + concentration_uncertainty ** 2),
-                                   value=concentration / Quantity('millimole per liter'))
-                experiment.true_cell_concentration[species] = x
-                self.stochastics.append(x)
+                name = "initial sample cell concentration of %s in experiment %d" % (species, index)
+                cell_concentration_prior = self._lognormal_concentration_prior(name, concentration, concentration_uncertainty * concentration, ureg.millimole / ureg.liter)
+                experiment.true_cell_concentration[species] = cell_concentration_prior
+                self.stochastics.append(cell_concentration_prior)
 
             experiment.true_syringe_concentration = dict()
             for species, concentration in experiment.syringe_concentration.iteritems():
-                x = pymc.Lognormal("initial syringe concentration of %s in experiment %d" % (species, index),
-                                   mu=log(concentration / Quantity('millimole per liter')), tau=1.0 / log(1.0 + concentration_uncertainty ** 2),
-                                   value=concentration / Quantity('millimole per liter'))
-                experiment.true_syringe_concentration[species] = x
-                self.stochastics.append(x)
+                name = "initial syringe concentration of %s in experiment %d" % (species, index)
+                syringe_concentration_prior = self._lognormal_concentration_prior(name, concentration, concentration_uncertainty * concentration, ureg.millimole / ureg.liter)
+                experiment.true_cell_concentration[species] = syringe_concentration_prior
+                self.stochastics.append(syringe_concentration_prior)
 
             # Add species not explicitly listed with zero concentration.
-            for species in self.species:
-                if species not in experiment.true_cell_concentration:
-                    experiment.true_cell_concentration[species] = 0.0
-                if species not in experiment.true_syringe_concentration:
-                    experiment.true_syringe_concentration[species] = 0.0
+            self._zero_for_missing__concentrations(experiment)
 
             # True injection heats
-            experiment.true_injection_heats = pymc.Lambda("true injection heats for experiment %d" % index,
-                                                          lambda
-                                                          ligands=self.ligands,
-                                                          receptor=self.receptor,
-                                                          V0=self.V0,
-                                                          N=experiment.ninjections,
-                                                          volumes=experiment.injection_volumes,
-                                                          beta=self.beta,
-                                                          cell_concentration=experiment.true_cell_concentration,
-                                                          syringe_concentration=experiment.true_syringe_concentration,
-                                                          DeltaH_0=experiment.DeltaH_0,
-                                                          thermodynamic_parameters=self.thermodynamic_parameters:
-                                                          self.expected_injection_heats(
-                                                              ligands,
-                                                              receptor,
-                                                              V0,
-                                                              N,
-                                                              volumes,
-                                                              beta,
-                                                              cell_concentration,
-                                                              syringe_concentration,
-                                                              DeltaH_0,
-                                                              thermodynamic_parameters
-                                                          )
-                                                          )
+            q_name = "true injection heats for experiment %d" % index
+            experiment.true_injection_heats = self._lambda_heats_model(experiment, q_name)
             self.stochastics.append(experiment.true_injection_heats)
 
             # Observed injection heats
-            experiment.observation = pymc.Normal("observed injection heats for experiment %d" % index,
-                                                 mu=experiment.true_injection_heats, tau=tau,
-                                                 observed=True, value=experiment.observed_injection_heats)
+            q_n_obs_name = "observed injection heats for experiment %d" % index
+            experiment.observation = self._normal_observation_with_units(q_n_obs_name, experiment.true_injection_heats, experiment.observed_injection_heats, tau, ureg.microcalorie)
             self.stochastics.append(experiment.observation)
 
         # Create sampler.
-        print("Creating sampler...")
-        mcmc = pymc.MCMC(self.stochastics, db='ram')
-
-        for stochastic in self.stochastics:
-            # print stochastic
-            try:
-                mcmc.use_step_method(pymc.Metropolis, stochastic)
-            except:
-                pass
-
-        for experiment in self.experiments:
-            for ligand in self.ligands:
-                if isinstance(experiment.true_syringe_concentration[ligand], pymc.distributions.Lognormal):
-                    mcmc.use_step_method(RescalingStep, {'Ls': experiment.true_syringe_concentration[ligand],
-                                                         'P0': experiment.true_cell_concentration[receptor],
-                                                         'DeltaH': self.thermodynamic_parameters['DeltaH of %s * %s' % (receptor, ligand)],
-                                                         'DeltaG': self.thermodynamic_parameters['DeltaG of %s * %s' % (receptor, ligand)]}, self.beta)
+        logger.info("Creating sampler...")
+        mcmc = self._create_metropolis_sampler()
 
         self.mcmc = mcmc
 
@@ -719,8 +670,7 @@ class CompetitiveBindingModel(BindingModel):
         # Define optimization functions
         def func(C_RLn):
             f_n = V * \
-                (x_R / V - C_RLn[:].sum()) * \
-                (x_Ln[:] / V - C_RLn[:]) * Ka_n[:] - V * C_RLn[:]
+                (x_R / V - C_RLn[:].sum()) * (x_Ln[:] / V - C_RLn[:]) * Ka_n[:] - V * C_RLn[:]
             return f_n
 
         def fprime(C_RLn):
@@ -733,8 +683,7 @@ class CompetitiveBindingModel(BindingModel):
             return G_nm
 
         def sfunc(s):
-            f_n = V * (x_R / V - (s[:] ** 2).sum()) * \
-                (x_Ln[:] / V - s[:] ** 2) * Ka_n[:] - V * s[:] ** 2
+            f_n = V * (x_R / V - (s[:] ** 2).sum()) * (x_Ln[:] / V - s[:] ** 2) * Ka_n[:] - V * s[:] ** 2
             return f_n
 
         def sfprime(s):
@@ -743,8 +692,7 @@ class CompetitiveBindingModel(BindingModel):
             G_nm = numpy.zeros([nspecies, nspecies], numpy.float64)
             for n in range(nspecies):
                 G_nm[n, :] = - V * (x_Ln[:] / V - s[:] ** 2) * Ka_n[:]
-                G_nm[n, n] -= V * \
-                    (Ka_n[n] * (x_R / V - (s[:] ** 2).sum()) + 1.0)
+                G_nm[n, n] -= V * (Ka_n[n] * (x_R / V - (s[:] ** 2).sum()) + 1.0)
                 G_nm[n, :] *= 2. * s[n]
             return G_nm
 
@@ -760,8 +708,7 @@ class CompetitiveBindingModel(BindingModel):
             return (obj, grad)
 
         def ode(c_n, t, Ka_n, x_Ln, x_R):
-            dc_n = - c_n[:] + Ka_n[:] * \
-                (x_Ln[:] / V - c_n[:]) * (x_R / V - c_n[:].sum())
+            dc_n = - c_n[:] + Ka_n[:] * (x_Ln[:] / V - c_n[:]) * (x_R / V - c_n[:].sum())
             return dc_n
 
         def odegrad(c_n, t, Ka_n, x_Ln, x_R):
@@ -776,35 +723,28 @@ class CompetitiveBindingModel(BindingModel):
         sorted_indices = numpy.argsort(-x_Ln)
         for n in range(nspecies):
             indices = sorted_indices[0:n + 1]
-            c[indices] = scipy.optimize.fsolve(ode, c[indices], fprime=odegrad, args=(
-                0.0, Ka_n[indices], x_Ln[indices], x_R), xtol=1.0e-6)
+            c[indices] = scipy.optimize.fsolve(ode, c[indices], fprime=odegrad, args=(0.0, Ka_n[indices], x_Ln[indices], x_R), xtol=1.0e-6)
         C_RLn = c
 
         return C_RLn
 
     @staticmethod
-    @ureg.wraps(ret=ureg.microcalorie, args=[None, None, ureg.microliter, None, ureg.microliter, ureg.mole / ureg.kilocalorie, None, None, None, None])
+    @ureg.wraps(ret=ureg.calorie, args=[None, None, ureg.liter, None, ureg.liter, ureg.mole / ureg.kilocalorie, None, None, None, None])
     def expected_injection_heats(ligands, receptor, V0, N, volumes, beta, true_cell_concentration, true_syringe_concentration, DeltaH_0, thermodynamic_parameters):
         """
         Expected heats of injection for two-component binding model.
-
-        TODO
-
-        - Make experiment a dict, or somehow tell it how to replace members of 'experiment'?
-
-        ARGUMENTS
-
-        true_cell_concentration (dict of floats) - concentrations[species] is the initial concentration of species in sample cell, or zero if absent (M)
-        true_syringe_concentration (dict of floats) - concentrations[species] is the initial concentration of species in sample cell, or zero if absent (M)
+        ligands - set of strings containing ligand name
+        receptor - string with receptor name
+        V0 - cell volume in liters
+        N - int number of injections
+        volumes - injection volumes in liters
+        beta = 1 over temperature * R, in mole / kcal
+        true_cell_concentration - (dict of floats) - concentrations[species] is the initial concentration of species in sample cell, or zero if absent (mM)
+        true_syringe_concentration (dict of floats) - concentrations[species] is the initial concentration of species in sample cell, or zero if absent (mM)
+        DeltaH_0, heat of injection (cal)
         thermodynamic_parameters (dict of floats) - thermodynamic_parameters[parameter] is the value of thermodynamic parameter (kcal/mol)
           e.g. for parameter 'DeltaG of receptor * species'
-        V_n (numpy array of floats) - V_n[n] is injection volume of injection n (L)
-
         """
-        # Todo get rid of units to make this much faster
-        # Todo Potentially, make this a static method
-        debug = False
-
         # Number of ligand species
         nspecies = len(ligands)
 
@@ -820,40 +760,33 @@ class CompetitiveBindingModel(BindingModel):
         Ka_n = numpy.exp(-beta * DeltaG_n[:])
 
         # Compute the quantity of each species in the sample cell after each injection.
-        # NOTE: These quantities are correct for a perfusion-type model.  This
-        # would be modified for a cumulative model.
-        # x_Ri[i] is the number of moles of receptor in sample cell after
-        # injection i
+        # NOTE: These quantities are correct for a perfusion-type model.  This would be modified for a cumulative model.
+        # x_Ri[i] is the number of moles of receptor in sample cell after injection i
         x_Ri = numpy.zeros([N], numpy.float64)
-        # x_Lin[i,n] is the number of moles of ligand n in sample cell after
-        # injection i
+        # x_Lin[i,n] is the number of moles of ligand n in sample cell after injection i
         x_Lin = numpy.zeros([N, nspecies], numpy.float64)
         dcum = 1.0  # cumulative dilution factor
         for index, volume in enumerate(volumes):
             d = 1.0 - (volume / V0)  # dilution factor (dimensionless)
             dcum *= d  # cumulative dilution factor (dimensionless)
-            x_Ri[index] = true_cell_concentration[receptor] * dcum + \
-                true_syringe_concentration[receptor] * (1.0 - dcum)
+            x_Ri[index] = true_cell_concentration[receptor] * 1.e-3 * dcum + true_syringe_concentration[receptor] * 1.e-3 * (1.0 - dcum)
             for (n, ligand) in enumerate(ligands):
-                x_Lin[index, n] = true_cell_concentration[ligand] * \
-                    dcum + true_syringe_concentration[ligand] * (1.0 - dcum)
+                x_Lin[index, n] = true_cell_concentration[ligand] * 1.e-3 * dcum + true_syringe_concentration[ligand] * 1.e-3 * (1.0 - dcum)
 
         # Solve for initial concentration.
-        x_R0 = true_cell_concentration[receptor]
+        x_R0 = true_cell_concentration[receptor] * 1.e-3
         x_L0n = numpy.zeros([nspecies], numpy.float64)
         C_RL0n = numpy.zeros([nspecies], numpy.float64)
         for (n, ligand) in enumerate(ligands):
-            x_L0n[n] = true_cell_concentration[ligand]
-        C_RL0n[:] = CompetitiveBindingModel.equilibrium_concentrations(
-            Ka_n, x_R0, x_L0n[:], V0)
+            x_L0n[n] = true_cell_concentration[ligand] * 1.e-3
+        C_RL0n[:] = CompetitiveBindingModel.equilibrium_concentrations(Ka_n, x_R0, x_L0n[:], V0)
 
         # Compute complex concentrations after each injection.
         # NOTE: The total cell volume would be modified for a cumulative model.
         # C_RLin[i,n] is the concentration of complex RLn[n] after injection i
         C_RLin = numpy.zeros([N, nspecies], numpy.float64)
         for index in range(N):
-            C_RLin[index, :] = CompetitiveBindingModel.equilibrium_concentrations(
-                Ka_n, x_Ri[index], x_Lin[index, :], V0)
+            C_RLin[index, :] = CompetitiveBindingModel.equilibrium_concentrations(Ka_n, x_Ri[index], x_Lin[index, :], V0)
 
         # Compile a list of thermodynamic parameters.
         # DeltaH_n[n] is the enthalpy of association of ligand species n
@@ -864,22 +797,101 @@ class CompetitiveBindingModel(BindingModel):
 
         # Compute expected injection heats.
         # NOTE: This is for an instantaneous injection / perfusion model.
-        # q_n_model[n] is the expected heat from injection n
         q_n = DeltaH_0 * numpy.ones([N], numpy.float64)
         d = 1.0 - (volumes[0] / V0)  # dilution factor (dimensionless)
         for n in range(nspecies):
-            # review doublecheck order of magnitude units
-            q_n[0] += (1000.0 * DeltaH_n[n]) * (V0) * \
-                (C_RLin[0, n] - d * C_RL0n[n])  # first injection
+            q_n[0] += (1000.0 * DeltaH_n[n]) * V0 * (C_RLin[0, n] - d * C_RL0n[n])  # first injection
         for index, volume in enumerate(volumes[1:], start=1):
             d = 1.0 - (volume / V0)  # dilution factor (dimensionless)
             for n in range(nspecies):
-                # review doublecheck units
                 # subsequent injections
-                q_n[index] += (1000.0 * DeltaH_n[n]) * (V0) * \
-                    (C_RLin[index, n] - d * C_RLin[index - 1, n])
+                q_n[index] += (1000.0 * DeltaH_n[n]) * V0 * (C_RLin[index, n] - d * C_RLin[index - 1, n])
 
         return q_n
+
+    def _create_rescaling_sampler(self, receptor):
+        """
+        Create a sampler that uses RescalingStep for correlated variables
+        """
+        mcmc = pymc.MCMC(self.stochastics, db='ram')
+        for stochastic in self.stochastics:
+            # print stochastic
+            try:
+                mcmc.use_step_method(pymc.Metropolis, stochastic)
+            except:
+                pass
+        for experiment in self.experiments:
+            for ligand in self.ligands:
+                if isinstance(experiment.true_syringe_concentration[ligand], pymc.distributions.Lognormal):
+                    mcmc.use_step_method(RescalingStep, {'Ls': experiment.true_syringe_concentration[ligand],
+                                                         'P0': experiment.true_cell_concentration[receptor],
+                                                         'DeltaH': self.thermodynamic_parameters[
+                                                             'DeltaH of %s * %s' % (receptor, ligand)],
+                                                         'DeltaG': self.thermodynamic_parameters[
+                                                             'DeltaG of %s * %s' % (receptor, ligand)]}, self.beta)
+        return mcmc
+
+    def _create_metropolis_sampler(self):
+        """Create a simple metropolis sampler for each stochastic"""
+        mcmc = pymc.MCMC(self.stochastics, db='ram')
+        for stochastic in self.stochastics:
+            # print stochastic
+            try:
+                mcmc.use_step_method(pymc.Metropolis, stochastic)
+            except Exception as x:
+                pass
+
+        return mcmc
+
+
+    def _lambda_heats_model(self, experiment, q_name):
+        return pymc.Lambda(q_name,
+                           lambda
+                               ligands=self.ligands,
+                               receptor=self.receptor,
+                               V0=self.V0,
+                               N=experiment.ninjections,
+                               volumes=experiment.injection_volumes,
+                               beta=self.beta,
+                               cell_concentration=experiment.true_cell_concentration,
+                               syringe_concentration=experiment.true_syringe_concentration,
+                               DeltaH_0=experiment.DeltaH_0,
+                               thermodynamic_parameters=self.thermodynamic_parameters:
+                           self.expected_injection_heats(
+                               ligands,
+                               receptor,
+                               V0,
+                               N,
+                               volumes,
+                               beta,
+                               cell_concentration,
+                               syringe_concentration,
+                               DeltaH_0,
+                               thermodynamic_parameters
+                           )
+        )
+
+    def _logsigma_guesses_from_multiple_experiments(self, standard_unit):
+        """
+        standard_unit: unit by which to correct the magnitude of sigma
+        """
+        # Determine min and max range for log_sigma (log of instrument heat measurement error)
+        # TODO: This should depend on a number of factors, like integration time, heat signal, etc.?
+        sigma_guess = 0.0
+        for experiment in self.experiments:
+            sigma_guess += experiment.observed_injection_heats[:-4].std()
+        sigma_guess /= float(len(self.experiments))
+        log_sigma_guess = log(sigma_guess / standard_unit)
+        log_sigma_min = log_sigma_guess - 10
+        log_sigma_max = log_sigma_guess + 5
+        return log_sigma_guess, log_sigma_max, log_sigma_min
+
+    def _zero_for_missing__concentrations(self, experiment):
+        for species in self.species:
+            if species not in experiment.true_cell_concentration:
+                experiment.true_cell_concentration[species] = 0.0
+            if species not in experiment.true_syringe_concentration:
+                experiment.true_syringe_concentration[species] = 0.0
 
 
 # Container of all models that this module provides for use

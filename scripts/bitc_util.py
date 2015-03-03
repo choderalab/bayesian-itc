@@ -40,6 +40,11 @@ from bitc.instruments import known_instruments, Instrument
 from bitc.models import RescalingStep, known_models
 import sys
 
+try:
+    import seaborn
+except ImportError:
+    pass
+
 
 def compute_normal_statistics(x_t):
 
@@ -201,7 +206,7 @@ if validated['--model'] == 'TwoComponent':
     for model in models:
         logging.info("Fitting model...")
         map = pymc.MAP(model)
-        map.fit(iterlim=nfit) # 20000
+        map.fit(iterlim=nfit)
         logging.info(map)
 
         logging.info("Sampling...")
@@ -259,4 +264,6 @@ elif validated['--model'] == 'Competitive':
 
     logging.info("Sampling...")
     model.mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
-    pymc.Matplot.plot(model.mcmc, validated['--name'])
+    pymc.Matplot.plot(model.mcmc, validated['--name'] + '.pdf')
+
+pymc.graph.dag(model.mcmc)
