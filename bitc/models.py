@@ -524,14 +524,6 @@ class CompetitiveBindingModel(BindingModel):
     Competitive binding model.
     """
 
-    @staticmethod
-    def _species_from_experiments(experiments):
-        species = set()  # all molecular species
-        for experiment in experiments:
-            species.update(experiment.cell_concentration.keys())
-            species.update(experiment.syringe_concentration.keys())
-        return species
-
     def __init__(self, experiments, receptor, concentration_uncertainty=0.10):
         """
         ARGUMENTS
@@ -929,6 +921,14 @@ class CompetitiveBindingModel(BindingModel):
         log_sigma_min = log_sigma_guess - 10
         log_sigma_max = log_sigma_guess + 5
         return log_sigma_guess, log_sigma_max, log_sigma_min
+
+    @staticmethod
+    def _species_from_experiments(experiments):
+        species = set()  # all molecular species
+        for experiment in experiments:
+            species.update(experiment.cell_concentration.keys())
+            species.update(experiment.syringe_concentration.keys())
+        return species
 
     def _zero_for_missing__concentrations(self, experiment):
         for species in self.species:
