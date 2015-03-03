@@ -328,8 +328,8 @@ class TwoComponentBindingModel(BindingModel):
         dP0 = 0.10 * P0_stated
 
         # Define priors for concentrations.
-        self.P0 = self._lognormal_concentration_prior('P0', P0_stated, dP0, ureg.millimolar)
-        self.Ls = self._lognormal_concentration_prior('Ls', Ls_stated, dLs, ureg.millimolar)
+        self.P0 = BindingModel._lognormal_concentration_prior('P0', P0_stated, dP0, ureg.millimolar)
+        self.Ls = BindingModel._lognormal_concentration_prior('Ls', Ls_stated, dLs, ureg.millimolar)
 
         # Extract heats from experiment
         q_n = Quantity(numpy.zeros(len(experiment.injections)), 'calorie')
@@ -344,24 +344,23 @@ class TwoComponentBindingModel(BindingModel):
         # review check out all the units to make sure that they're appropriate
 
 
-        self.DeltaH_0 = self._uniform_prior_with_guesses_and_units('DeltaH_0', *self._deltaH0_guesses(q_n), prior_unit=ureg.calorie, guess_unit=True)
-        self.DeltaG = self._uniform_prior_with_guesses_and_units('DeltaG', 0., 40., -40., ureg.kilocalorie/ureg.mole)
-        self.DeltaH = self._uniform_prior_with_guesses_and_units('DeltaH', 0., 100., -100., ureg.kilocalorie/ureg.mole)
+        self.DeltaH_0 = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_0', *self._deltaH0_guesses(q_n), prior_unit=ureg.calorie, guess_unit=True)
+        self.DeltaG = BindingModel._uniform_prior_with_guesses_and_units('DeltaG', 0., 40., -40., ureg.kilocalorie/ureg.mole)
+        self.DeltaH = BindingModel._uniform_prior_with_guesses_and_units('DeltaH', 0., 100., -100., ureg.kilocalorie/ureg.mole)
 
         # Define priors for thermodynamic quantities.
-        self.log_sigma = self._uniform_prior('log_sigma', log_sigma_guess, log_sigma_max, log_sigma_min)
+        self.log_sigma = BindingModel._uniform_prior('log_sigma', log_sigma_guess, log_sigma_max, log_sigma_min)
 
         # Define the model
         q_n_model = self._lambda_heats_model()
         tau = self._lambda_tau_model()
 
-        self.q_n_obs = self._normal_observation_with_units('q_n', q_n_model, q_n, tau, ureg.microcalorie / ureg.mole)
+        self.q_n_obs = BindingModel._normal_observation_with_units('q_n', q_n_model, q_n, tau, ureg.microcalorie / ureg.mole)
 
         # Create sampler.
         # self.mcmc = self._create_rescaling_sampler(Ls_stated, P0_stated, experiment)
         self.mcmc = self._create_metropolis_sampler()
         return
-
 
 
     @staticmethod
@@ -524,6 +523,15 @@ class CompetitiveBindingModel(BindingModel):
     """
     Competitive binding model.
     """
+
+    @staticmethod
+    def _species_from_experiments(experiments):
+        species = set()  # all molecular species
+        for experiment in experiments:
+            species.update(experiment.cell_concentration.keys())
+            species.update(experiment.syringe_concentration.keys())
+        return species
+
     def __init__(self, experiments, receptor, concentration_uncertainty=0.10):
         """
         ARGUMENTS
@@ -554,10 +562,7 @@ class CompetitiveBindingModel(BindingModel):
                      self.receptor)
 
         # Make a list of names of all molecular species.
-        self.species = set()  # all molecular species
-        for experiment in experiments:
-            self.species.update(experiment.cell_concentration.keys())
-            self.species.update(experiment.syringe_concentration.keys())
+        self.species = self._species_from_experiments(experiments)
         logging.info("species: %s" % self.species)
 
         # Make a list of all ligands.
@@ -577,11 +582,11 @@ class CompetitiveBindingModel(BindingModel):
 
             # delta G of binding
             dg_name = "DeltaG of %s * %s" % (self.receptor, ligand)
-            prior_deltag = self._uniform_prior_with_guesses_and_units(dg_name, 0., 40., -40., ureg.kilocalorie / ureg.mole)
+            prior_deltag = BindingModel._uniform_prior_with_guesses_and_units(dg_name, 0., 40., -40., ureg.kilocalorie / ureg.mole)
 
             # delta H of binding
             dh_name = "DeltaH of %s * %s" % (self.receptor, ligand)
-            prior_deltah = self._uniform_prior_with_guesses_and_units(dh_name, 0., 100., -100.,ureg.kilocalorie / ureg.mole)
+            prior_deltah = BindingModel._uniform_prior_with_guesses_and_units(dh_name, 0., 100., -100.,ureg.kilocalorie / ureg.mole)
 
             self.thermodynamic_parameters[dg_name] = prior_deltag
             self.thermodynamic_parameters[dh_name] = prior_deltah
@@ -593,7 +598,7 @@ class CompetitiveBindingModel(BindingModel):
         logging.debug(self.thermodynamic_parameters)
 
         log_sigma_guess, log_sigma_max, log_sigma_min = self._logsigma_guesses_from_multiple_experiments(ureg.calorie)
-        self.log_sigma = self._uniform_prior('log_sigma', log_sigma_guess, log_sigma_max, log_sigma_min)
+        self.log_sigma = BindingModel._uniform_prior('log_sigma', log_sigma_guess, log_sigma_max, log_sigma_min)
         self.stochastics.append(self.log_sigma)
 
         tau = pymc.Lambda('tau', lambda log_sigma=self.log_sigma: exp(-2.0 * log_sigma))
@@ -607,21 +612,21 @@ class CompetitiveBindingModel(BindingModel):
                          (index, experiment.ninjections))
 
             dh0_name = "DeltaH_0 for experiment %d" % index
-            experiment.DeltaH_0 = self._uniform_prior_with_guesses_and_units(dh0_name, *self._deltaH0_guesses(experiment.observed_injection_heats), prior_unit=ureg.calorie, guess_unit=True)
+            experiment.DeltaH_0 = BindingModel._uniform_prior_with_guesses_and_units(dh0_name, *self._deltaH0_guesses(experiment.observed_injection_heats), prior_unit=ureg.calorie, guess_unit=True)
             self.stochastics.append(experiment.DeltaH_0)
 
             # Define priors for the true concentration of each component
             experiment.true_cell_concentration = dict()
             for species, concentration in experiment.cell_concentration.iteritems():
                 name = "initial sample cell concentration of %s in experiment %d" % (species, index)
-                cell_concentration_prior = self._lognormal_concentration_prior(name, concentration, concentration_uncertainty * concentration, ureg.millimole / ureg.liter)
+                cell_concentration_prior = BindingModel._lognormal_concentration_prior(name, concentration, concentration_uncertainty * concentration, ureg.millimole / ureg.liter)
                 experiment.true_cell_concentration[species] = cell_concentration_prior
                 self.stochastics.append(cell_concentration_prior)
 
             experiment.true_syringe_concentration = dict()
             for species, concentration in experiment.syringe_concentration.iteritems():
                 name = "initial syringe concentration of %s in experiment %d" % (species, index)
-                syringe_concentration_prior = self._lognormal_concentration_prior(name, concentration, concentration_uncertainty * concentration, ureg.millimole / ureg.liter)
+                syringe_concentration_prior = BindingModel._lognormal_concentration_prior(name, concentration, concentration_uncertainty * concentration, ureg.millimole / ureg.liter)
                 experiment.true_cell_concentration[species] = syringe_concentration_prior
                 self.stochastics.append(syringe_concentration_prior)
 
