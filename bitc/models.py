@@ -156,7 +156,6 @@ class BindingModel(object):
 
     """
     Abstract base class for reaction models.
-
     """
 
     def __init__(self):
@@ -164,6 +163,20 @@ class BindingModel(object):
 
     @staticmethod
     def _add_unit_to_guesses(value, maximum, minimum, unit):
+        """
+        Add units to inital guesses for priors
+
+        :param value: mean value of the guess
+        :type value: float
+        :param maximum: maximum for the guess
+        :type maximum: float
+        :param minimum: minimum value of the guess
+        :type minimum: float
+        :param unit: unit to add to the supplied numbers
+        :type unit: Quantity
+        :return: value, maximum and minimum, with units added
+        :rtype: (Quantity,Quantity,Quantity)
+        """
         value *= unit
         maximum *= unit
         minimum *= unit
@@ -171,6 +184,9 @@ class BindingModel(object):
 
     @staticmethod
     def _deltaH0_guesses(q_n):
+        """
+        Provide guesses for deltaH_0 from the last injection in the list of injection heats
+        """
         # Assume the last injection has the best guess for H0
         DeltaH_0_guess = q_n[-1]
         heat_interval = (q_n.max() - q_n.min())
@@ -180,7 +196,9 @@ class BindingModel(object):
 
     @staticmethod
     def _get_syringe_concentration(experiment):
-        # python 2/3 compatibility
+        """Return the syringe concentration from an experiment
+           for python 2/3 compatibility
+        """
         try:
             Ls_stated = experiment.syringe_concentration.itervalues().next()
         except AttributeError:
@@ -189,7 +207,9 @@ class BindingModel(object):
 
     @staticmethod
     def _get_cell_concentration(experiment):
-        # python 2/3 compatibility
+        """Return the cell concentration from an experiment
+            for python 2/3 compatibility
+        """
         try:
             P0_stated = experiment.cell_concentration.itervalues().next()
         except AttributeError:
@@ -199,7 +219,9 @@ class BindingModel(object):
 
     @staticmethod
     def _lognormal_concentration_prior(name, stated_concentration, uncertainty, unit):
-        """Define a pymc prior for a concentration, using micromolar units"""
+        """Define a pymc prior for a concentration, using micromolar units
+        :rtype : pymc.Lognormal
+        """
         return pymc.Lognormal(name,
                               mu=log(stated_concentration / unit),
                               tau=1.0 / log(1.0 + (uncertainty / stated_concentration) ** 2),
@@ -208,21 +230,30 @@ class BindingModel(object):
 
     @staticmethod
     def _normal_observation_with_units(name, q_n_model, q_ns, tau, unit):
-        """Define a set of normally distributed observations, while stripping units"""
+        """Define a set of normally distributed observations, while stripping units
+        :rtype : pymc.Normal
+        """
         return pymc.Normal(name, mu=q_n_model, tau=tau, observed=True, value=q_ns / unit)
 
     @staticmethod
-    def _uniform_prior(name, guess, maximum, minimum):
-        """Define a uniform prior"""
+    def _uniform_prior(name, value, maximum, minimum):
+        """Define a uniform prior without units
+           Added for consistency with other Bindingmodel
+
+        :rtype : pymc.Uniform
+        """
         return pymc.Uniform(name,
                             lower=minimum,
                             upper=maximum,
-                            value=guess
+                            value=value
         )
 
     @staticmethod
     def _uniform_prior_with_units(name, value, maximum, minimum, unit):
-        """Define a uniform prior, while stripping units"""
+        """Define a uniform prior, while stripping units
+
+        :rtype : pymc.Uniform
+        """
         return pymc.Uniform(name,
                             lower=minimum / unit,
                             upper=maximum / unit,
@@ -231,8 +262,13 @@ class BindingModel(object):
 
     @staticmethod
     def _uniform_prior_with_guesses_and_units(name, value, maximum, minimum, prior_unit, guess_unit=None):
+        """
+        Take initial values, add units or convert units to the right type,
+        returns a pymc uniform prior
 
-        # guess provided already has units
+        :rtype : pymc.Uniform
+        """
+        # Guess has units
         if guess_unit is True:
             pass
         # guess provided has no units, but should be same as prior
@@ -402,7 +438,6 @@ class TwoComponentBindingModel(BindingModel):
     def tau(log_sigma):
         """
         Injection heat measurement precision.
-
         """
         return numpy.exp(-2.0 * log_sigma)
 
@@ -441,8 +476,11 @@ class TwoComponentBindingModel(BindingModel):
         return mcmc
 
 
-    def _lambda_heats_model(self):
-        return pymc.Lambda('q_n_model',
+    def _lambda_heats_model(self, q_name='q_n_model'):
+        """Model the heat using expected_injection_heats, providing all input by using a lambda function
+            q_name is the name for the model
+        """
+        return pymc.Lambda(q_name,
                            lambda
                                P0=self.P0,
                                Ls=self.Ls,
@@ -463,6 +501,7 @@ class TwoComponentBindingModel(BindingModel):
         )
 
     def _lambda_tau_model(self):
+        """Model for tau implemented using lambda function"""
         return pymc.Lambda('tau', lambda log_sigma=self.log_sigma: self.tau(log_sigma))
 
     @staticmethod
@@ -477,15 +516,6 @@ class TwoComponentBindingModel(BindingModel):
         log_sigma_min = log_sigma_guess - 10
         log_sigma_max = log_sigma_guess + 5
         return log_sigma_guess, log_sigma_max, log_sigma_min
-
-    @staticmethod
-    def _deltaH0_guesses(q_n):
-        # Assume the last injection has the best guess for H0
-        DeltaH_0_guess = q_n[-1]
-        heat_interval = (q_n.max() - q_n.min())
-        DeltaH_0_min = q_n.min() - heat_interval
-        DeltaH_0_max = q_n.max() + heat_interval
-        return DeltaH_0_guess, DeltaH_0_max, DeltaH_0_min
 
 
 
@@ -850,6 +880,10 @@ class CompetitiveBindingModel(BindingModel):
 
 
     def _lambda_heats_model(self, experiment, q_name):
+        """
+        Model the heat using expected_injection_heats, providing all input by using a lambda function
+        q_name is the name for the model
+        """
         return pymc.Lambda(q_name,
                            lambda
                                ligands=self.ligands,
