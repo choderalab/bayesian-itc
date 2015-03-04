@@ -352,8 +352,8 @@ class TwoComponentBindingModel(BindingModel):
         self.q_n_obs = BindingModel._normal_observation_with_units('q_n', q_n_model, q_n, tau, ureg.microcalorie / ureg.mole)
 
         # Create sampler.
-        # self.mcmc = self._create_rescaling_sampler(Ls_stated, P0_stated, experiment)
-        self.mcmc = self._create_metropolis_sampler()
+        self.mcmc = self._create_rescaling_sampler(Ls_stated, P0_stated, experiment)
+
         return
 
 
@@ -439,10 +439,7 @@ class TwoComponentBindingModel(BindingModel):
     def _create_rescaling_sampler(self, Ls_stated, P0_stated, experiment):
         """Create an MCMC sampler for the two component model.
            Uses rescalingstep only when concentrations exist for both P and L."""
-        mcmc = pymc.MCMC(self, db='ram')
-        mcmc.use_step_method(pymc.Metropolis, self.DeltaG)
-        mcmc.use_step_method(pymc.Metropolis, self.DeltaH)
-        mcmc.use_step_method(pymc.Metropolis, self.DeltaH_0)
+        mcmc = self._create_metropolis_sampler(Ls_stated, P0_stated, experiment)
         if P0_stated > Quantity('0.0 molar') and Ls_stated > Quantity('0.0 molar'):
             mcmc.use_step_method(RescalingStep,
                                  {'Ls': self.Ls,
@@ -451,21 +448,21 @@ class TwoComponentBindingModel(BindingModel):
                                   'DeltaG': self.DeltaG},
                                  self.beta
             )
-        elif experiment.cell_concentration > Quantity('0.0 molar'):
-            mcmc.use_step_method(pymc.Metropolis, self.P0)
-        elif experiment.syringe_concentration > Quantity('0.0 molar'):
-            mcmc.use_step_method(pymc.Metropolis, self.Ls)
+
         return mcmc
 
-    def _create_metropolis_sampler(self):
+    def _create_metropolis_sampler(self, Ls_stated, P0_stated, experiment):
         """Create an MCMC sampler for the two component model.
-           Uses rescalingstep only when concentrations exist for both P and L."""
+        """
         mcmc = pymc.MCMC(self, db='ram')
         mcmc.use_step_method(pymc.Metropolis, self.DeltaG)
         mcmc.use_step_method(pymc.Metropolis, self.DeltaH)
         mcmc.use_step_method(pymc.Metropolis, self.DeltaH_0)
-        mcmc.use_step_method(pymc.Metropolis, self.P0)
-        mcmc.use_step_method(pymc.Metropolis, self.Ls)
+        if P0_stated > Quantity('0.0 molar'):
+            mcmc.use_step_method(pymc.Metropolis, self.P0)
+        if Ls_stated > Quantity('0.0 molar'):
+            mcmc.use_step_method(pymc.Metropolis, self.Ls)
+
         return mcmc
 
 
@@ -628,7 +625,7 @@ class CompetitiveBindingModel(BindingModel):
 
         # Create sampler.
         logger.info("Creating sampler...")
-        mcmc = self._create_metropolis_sampler()
+        mcmc = self._create_rescaling_sampler(receptor)
 
         self.mcmc = mcmc
 
@@ -835,13 +832,8 @@ class CompetitiveBindingModel(BindingModel):
         """
         Create a sampler that uses RescalingStep for correlated variables
         """
-        mcmc = pymc.MCMC(self.stochastics, db='ram')
-        for stochastic in self.stochastics:
-            # print stochastic
-            try:
-                mcmc.use_step_method(pymc.Metropolis, stochastic)
-            except:
-                pass
+        mcmc = self._create_metropolis_sampler()
+
         for experiment in self.experiments:
             for ligand in self.ligands:
                 if isinstance(experiment.true_syringe_concentration[ligand], pymc.distributions.Lognormal):
@@ -860,7 +852,7 @@ class CompetitiveBindingModel(BindingModel):
             # print stochastic
             try:
                 mcmc.use_step_method(pymc.Metropolis, stochastic)
-            except Exception as x:
+            except Exception:
                 pass
 
         return mcmc
