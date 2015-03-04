@@ -349,10 +349,11 @@ class TwoComponentBindingModel(BindingModel):
         q_n_model = self._lambda_heats_model()
         tau = self._lambda_tau_model()
 
+        # Set observation
         self.q_n_obs = BindingModel._normal_observation_with_units('q_n', q_n_model, q_n, tau, ureg.microcalorie / ureg.mole)
 
         # Create sampler.
-        self.mcmc = self._create_rescaling_sampler(Ls_stated, P0_stated, experiment)
+        self.mcmc = self._create_metropolis_sampler(Ls_stated, P0_stated, experiment)
 
         return
 
@@ -625,7 +626,7 @@ class CompetitiveBindingModel(BindingModel):
 
         # Create sampler.
         logger.info("Creating sampler...")
-        mcmc = self._create_rescaling_sampler(receptor)
+        mcmc = self._create_metropolis_sampler()
 
         self.mcmc = mcmc
 
