@@ -333,7 +333,7 @@ class BaseExperiment(object):
         return Quantity(heats, unit)
 
 
-class ExperimentDotITC(BaseExperiment):
+class ExperimentMicroCal(BaseExperiment):
 
     """
     Data from an ITC experiment.
@@ -362,7 +362,7 @@ class ExperimentDotITC(BaseExperiment):
 
         """
         # Initialize.
-        super(ExperimentDotITC, self).__init__(data_filename, experiment_name, instrument)
+        super(ExperimentMicroCal, self).__init__(data_filename, experiment_name, instrument)
         # the source filename from which data is read
         # concentrations of various species in syringe
         self.syringe_contents = list()
@@ -584,7 +584,7 @@ class ExperimentDotITC(BaseExperiment):
         axes = figure.add_subplot(1, 1, 1, axisbg='whitesmoke')
 
         # Adds a 95% confidence interval to the plot
-        ExperimentDotITC._plot_confidence_interval(axes, full_x, sigma, y_pred)
+        ExperimentMicroCal._plot_confidence_interval(axes, full_x, sigma, y_pred)
         # Entire set of data
         axes.plot(full_x, full_y, 'o', markersize=2, lw=1, color='deepskyblue', alpha=.5, label='Raw data')
         # Points for fit

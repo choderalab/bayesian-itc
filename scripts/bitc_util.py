@@ -35,7 +35,7 @@ from bitc.units import ureg, Quantity
 import pymc
 from bitc.report import Report, analyze
 from bitc.parser import optparser
-from bitc.experiments import Injection, ExperimentDotITC, ExperimentYaml
+from bitc.experiments import Injection, ExperimentMicroCal, ExperimentYaml
 from bitc.instruments import known_instruments, Instrument
 from bitc.models import RescalingStep, known_models
 import sys
@@ -161,7 +161,7 @@ for filename, experiment_name, file_extension, instrument in zip(filenames, file
         experiments.append(ExperimentYaml(filename, experiment_name, instrument))
     elif file_extension in ['.itc']:
         logging.info("Experiment interpreted as raw .itc data: %s" % experiment_name)
-        experiments.append(ExperimentDotITC(filename, experiment_name, instrument))
+        experiments.append(ExperimentMicroCal(filename, experiment_name, instrument))
     else:
         raise ValueError('Unknown file type. Check your file extension')
 
