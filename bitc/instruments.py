@@ -1,9 +1,12 @@
 """Contains Isothermal titration calorimeter instrument classes."""
 
-from bitc.units import ureg
 import re
 import logging
+
+from bitc.units import ureg
+
 logger = logging.getLogger(__name__)
+
 
 class Instrument(object):
 
@@ -29,7 +32,8 @@ class Instrument(object):
         if not (V0 or itcfile):
             raise ValueError("No V0 or input file specified for Instrument!")
         elif V_correction and not (V0 or itcfile):
-            raise ValueError("Correction was specified, but volume is not set.")
+            raise ValueError(
+                "Correction was specified, but volume is not set.")
 
         self.V_correction = V_correction
         self.V0 = V0 - V_correction  # volume of calorimeter sample cell
@@ -46,7 +50,6 @@ class Instrument(object):
                 dotitc = open(filename, 'r')
             else:
                 dotitc = filename
-
 
             logger.info("Reading volumes from a .itc file.")
             lines = dotitc.readlines()
@@ -68,24 +71,27 @@ class Instrument(object):
 
 
 class VPITC(Instrument):
+
     """
     The MicroCal VP-ITC.
 
     Volumes from brochure used. http://www.malvern.com/Assets/MRK2058.pdf
     If possible, we recommend using the calibrated volume for the .itc file.
     """
+
     def __init__(self):
         super(VPITC, self).__init__(V0=1.400 * ureg.milliliter, V_correction=0.044 * ureg.milliliter, itcfile=None, description="MicroCal VP-iTC")
 
 
-
 class ITC200(Instrument):
+
     """
     The MicroCal (Auto-)iTC200
 
     Volumes from brochure used. http://www.malvern.com/Assets/MRK2058.pdf
     If possible, we recommend using the calibrated volume for the .itc file.
     """
+
     def __init__(self):
         super(ITC200, self).__init__(V0=200 * ureg.microliter, V_correction=0, itcfile=None, description="MicroCal Auto-iTC200")
 
@@ -95,4 +101,7 @@ AutoITC200 = ITC200
 known_instruments = dict()
 known_instruments.update(dict.fromkeys(['VPITC', 'VPiTC', 'VP-iTC', 'vpitc', 'vp-itc'], VPITC))
 known_instruments.update(dict.fromkeys(['ITC200', 'iTC200', 'ITC200', 'itc200'], ITC200))
-known_instruments.update(dict.fromkeys(['autoitc', 'auto-itc', 'auto-itc200', 'AUTOITC',  'AUTO-ITC', 'AUTO-ITC200', 'AUTOITC200', 'AutoiTC', 'Auto-iTC', 'Auto-ITC',  'Auto-iTC200', 'Auto-ITC200', ], AutoITC200))
+known_instruments.update(dict.fromkeys(['autoitc', 'auto-itc', 'auto-itc200', 'AUTOITC',  'AUTO-ITC', 'AUTO-ITC200',
+                                        'AUTOITC200', 'AutoiTC', 'Auto-iTC', 'Auto-ITC',  'Auto-iTC200', 'Auto-ITC200',
+                                        ],
+                                       AutoITC200))

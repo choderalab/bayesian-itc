@@ -1,7 +1,7 @@
 """Contains Report class for presenting summary of data in organized fashion."""
 
 # TODO work on a markdown version of the report
-from bitc.units import ureg,Quantity
+from bitc.units import ureg
 
 
 class Report(object):
