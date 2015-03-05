@@ -796,7 +796,7 @@ class CompetitiveBindingModel(BindingModel):
                 x_Lin[index, n] = true_cell_concentration[ligand] * 1.e-3 * dcum + true_syringe_concentration[ligand] * 1.e-3 * (1.0 - dcum)
 
         # Solve for initial concentration.
-            x_R0 = true_cell_concentration[receptor] * 1.e-3
+        x_R0 = true_cell_concentration[receptor] * 1.e-3
         x_L0n = numpy.zeros([nspecies], numpy.float64)
         C_RL0n = numpy.zeros([nspecies], numpy.float64)
         for (n, ligand) in enumerate(ligands):
