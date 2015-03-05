@@ -150,6 +150,8 @@ class RescalingStep(pymc.StepMethod):
 # class: createSampler()?
 
 
+
+
 class BindingModel(object):
     """
     Abstract base class for reaction models.
@@ -278,6 +280,107 @@ class BindingModel(object):
 
         return BindingModel._uniform_prior_with_units(name, value, maximum, minimum, prior_unit)
 
+class BufferBufferModel(BindingModel):
+    """A Model for a calibration titration, using only blanks (e.g. buffer or water) in the syringe and cell."""
+
+    def __init__(self, experiment):
+
+        # Determine number of observations.
+        self.N = experiment.number_of_injections
+
+        # Store injection volumes
+        self.DeltaVn = Quantity(numpy.zeros(self.N), ureg.liter)
+        for inj, injection in enumerate(experiment.injections):
+            self.DeltaVn[inj] = injection.volume
+
+        # Store calorimeter properties.
+        self.V0 = experiment.cell_volume.to('liter')
+
+        # Extract properties from experiment
+        self.experiment = experiment
+
+        # Store temperature.
+        self.temperature = experiment.target_temperature  # (kelvin)
+        # inverse temperature 1/(kcal/mol)
+        self.beta = 1.0 / (ureg.molar_gas_constant * self.temperature)
+
+        # Extract heats from experiment
+        q_n = Quantity(numpy.zeros(len(experiment.injections)), 'calorie')
+        for inj, injection in enumerate(experiment.injections):
+            q_n[inj] = injection.evolved_heat
+
+        # Guess for the noise parameter log(sigma)
+        self.log_sigma = BindingModel._uniform_prior('log_sigma', *self._logsigma_guesses(q_n, 4, ureg.calorie))
+        self.DeltaH_0 = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_0', *self._deltaH0_guesses(q_n), prior_unit=ureg.calorie, guess_unit=True)
+
+        # Define the model
+        q_n_model = self._lambda_heats_model()
+        tau = self._lambda_tau_model()
+
+        # Set observation
+        self.q_n_obs = BindingModel._normal_observation_with_units('q_n', q_n_model, q_n, tau, ureg.calorie)
+
+        # Create sampler.
+        self.mcmc = self._create_metropolis_sampler()
+
+    @staticmethod
+    @ureg.wraps(ret=ureg.calorie, args=[None, None], strict=True)
+    def expected_injection_heats(DeltaH_0, N):
+        """
+        Expected heats of injection for a calibration titration
+        ARGUMENTS
+        DeltaH_0 - heat of injection (ucal)
+
+        """
+        # Compute expected injection heats.
+        q_n = numpy.zeros([N])  # q_n_model[n] is the expected heat from injection n
+        # Instantaneous injection model (perfusion)
+        for n in range(N):
+            q_n[n] = DeltaH_0
+        return q_n
+
+    @staticmethod
+    def tau(log_sigma):
+        """
+        Injection heat measurement precision.
+        """
+        return numpy.exp(-2.0 * log_sigma)
+
+    def _create_metropolis_sampler(self):
+        mcmc = pymc.MCMC(self, db='ram')
+        mcmc.use_step_method(pymc.Metropolis, self.DeltaH_0)
+        return mcmc
+
+    def _lambda_heats_model(self, q_name='q_n_model'):
+        """Model the heat using expected_injection_heats, providing all input by using a lambda function
+            q_name is the name for the model
+        """
+        return pymc.Lambda(q_name,
+                           lambda
+                               DeltaH_0=self.DeltaH_0,
+                               N=self.N:
+                           self.expected_injection_heats(
+                               DeltaH_0,
+                               self.N
+                           )
+        )
+
+    def _lambda_tau_model(self):
+        """Model for tau implemented using lambda function"""
+        return pymc.Lambda('tau', lambda log_sigma=self.log_sigma: self.tau(log_sigma))
+
+    @staticmethod
+    def _logsigma_guesses(q_n, number_of_inj, standard_unit):
+        """
+        q_n: list/array of heats
+        number_of_inj: number of injections at end of protocol to use for estimating sigma
+        standard_unit: unit by which to correct the magnitude of sigma
+        """
+        # review: how can we do this better?
+        log_sigma_guess = log(q_n[-number_of_inj:].std() / standard_unit)
+        log_sigma_min = log_sigma_guess - 10
+        log_sigma_max = log_sigma_guess + 5
+        return log_sigma_guess, log_sigma_max, log_sigma_min
 
 class TwoComponentBindingModel(BindingModel):
     """
@@ -330,20 +433,16 @@ class TwoComponentBindingModel(BindingModel):
         for inj, injection in enumerate(experiment.injections):
             q_n[inj] = injection.evolved_heat
 
-        # Guess for the noise parameter log(sigma)
-        log_sigma_guess, log_sigma_max, log_sigma_min = self._logsigma_guesses(q_n, 4, ureg.calorie)
-
         # Determine range for priors for thermodynamic parameters.
         # TODO add literature value guesses
         # review check out all the units to make sure that they're appropriate
-
 
         self.DeltaH_0 = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_0', *self._deltaH0_guesses(q_n), prior_unit=ureg.calorie, guess_unit=True)
         self.DeltaG = BindingModel._uniform_prior_with_guesses_and_units('DeltaG', 0., 40., -40., ureg.kilocalorie/ureg.mole)
         self.DeltaH = BindingModel._uniform_prior_with_guesses_and_units('DeltaH', 0., 100., -100., ureg.kilocalorie/ureg.mole)
 
-        # Define priors for thermodynamic quantities.
-        self.log_sigma = BindingModel._uniform_prior('log_sigma', log_sigma_guess, log_sigma_max, log_sigma_min)
+        # Prior for the noise parameter log(sigma)
+        self.log_sigma = BindingModel._uniform_prior('log_sigma', *self._logsigma_guesses(q_n, 4, ureg.calorie))
 
         # Define the model
         q_n_model = self._lambda_heats_model()
@@ -921,7 +1020,13 @@ class CompetitiveBindingModel(BindingModel):
                 experiment.true_syringe_concentration[species] = 0.0
 
 
+
+
+
+
 # Container of all models that this module provides for use
 known_models = {'TwoComponent': TwoComponentBindingModel,
                 'Competitive': CompetitiveBindingModel,
+                'BufferBuffer': BufferBufferModel,
+                'WaterWater': BufferBufferModel,
                 }

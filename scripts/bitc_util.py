@@ -266,4 +266,43 @@ elif validated['--model'] == 'Competitive':
     model.mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
     pymc.Matplot.plot(model.mcmc, "MCMC.png")
 
+
+
+elif validated['--model'] in {'BufferBuffer', 'WaterWater'}:
+
+    models = list()
+    try:
+        for experiment in experiments:
+            models.append(Model(experiment))
+    except Exception as e:
+            logging.error(str(e))
+            logging.error(traceback.format_exc())
+            raise Exception("MCMC model could not me constructed!\n" + str(e))
+
+    for model in models:
+        logging.info("Fitting model...")
+        map = pymc.MAP(model)
+        map.fit(iterlim=nfit)
+        logging.info(map)
+
+        logging.info("Sampling...")
+        model.mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
+
+        pymc.Matplot.plot(model.mcmc.trace('DeltaH_0')[:], '%s-DeltaH_0' % model.experiment.name)
+        pymc.Matplot.plot(numpy.exp(model.mcmc.trace('log_sigma')[:]), '%s-sigma' % model.experiment.name)
+
+        # Compute confidence intervals in thermodynamic parameters.
+        outfile = open('%s.confidence-intervals.out' % model.experiment.name, 'a+')
+        outfile.write('%s\n' % model.experiment.name)
+        [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('DeltaH_0')[:] )
+        outfile.write('DH0:    %8.2f +- %8.2f cal         [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
+        [x, dx, xlow, xhigh] = compute_normal_statistics(numpy.exp(model.mcmc.trace('log_sigma')[:]) )
+        outfile.write('sigma:  %8.5f +- %8.5f ucal/s^(1/2) [%8.5f, %8.5f] \n' % (x, dx, xlow, xhigh))
+        outfile.write('\n')
+        outfile.close()
+
+else:
+    raise RuntimeError("No MCMC model constructed.")
+
+# Graph out the model
 pymc.graph.dag(model.mcmc)
