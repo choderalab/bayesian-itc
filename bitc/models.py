@@ -12,6 +12,8 @@ import pymc
 import scipy.integrate
 
 from bitc.units import ureg, Quantity
+from bitc.heats import cython_equilibrium_concentrations
+
 
 # Use module name for logger
 logger = logging.getLogger(__name__)
@@ -652,7 +654,7 @@ class CompetitiveBindingModel(BindingModel):
         >>> x_R = V * 510.e-3 # receptor
         >>> x_Ln = numpy.array([V * 8.6e-6, 200.e-6 * 55.e-6]) # ligands
         >>> Ka_n = numpy.array([1./(400.e-9), 1./(2.e-11)]) # association constants
-        >>> C_PLn = equilibrium_concentrations(Ka_n, x_R, x_Ln, V)
+        >>> C_PLn = cython_equilibrium_concentrations(Ka_n, x_R, x_Ln, V)
 
         NOTES
 
@@ -799,14 +801,14 @@ class CompetitiveBindingModel(BindingModel):
         C_RL0n = numpy.zeros([nspecies], numpy.float64)
         for (n, ligand) in enumerate(ligands):
             x_L0n[n] = true_cell_concentration[ligand] * 1.e-3
-        C_RL0n[:] = CompetitiveBindingModel.equilibrium_concentrations(Ka_n, x_R0, x_L0n[:], V0)
+        C_RL0n[:] = cython_equilibrium_concentrations(Ka_n, x_R0, x_L0n[:], V0)
 
         # Compute complex concentrations after each injection.
         # NOTE: The total cell volume would be modified for a cumulative model.
         # C_RLin[i,n] is the concentration of complex RLn[n] after injection i
         C_RLin = numpy.zeros([N, nspecies], numpy.float64)
         for index in range(N):
-            C_RLin[index, :] = CompetitiveBindingModel.equilibrium_concentrations(Ka_n, x_Ri[index], x_Lin[index, :], V0)
+            C_RLin[index, :] = cython_equilibrium_concentrations(Ka_n, x_Ri[index], x_Lin[index, :], V0)
 
         # Compile a list of thermodynamic parameters.
         # DeltaH_n[n] is the enthalpy of association of ligand species n
