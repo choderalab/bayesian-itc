@@ -301,6 +301,35 @@ elif validated['--model'] in {'BufferBuffer', 'WaterWater'}:
         outfile.write('\n')
         outfile.close()
 
+elif validated['--model'] in {'Baseline'}:
+
+    models = list()
+    try:
+        for experiment in experiments:
+            models.append(Model(experiment))
+    except Exception as e:
+            logging.error(str(e))
+            logging.error(traceback.format_exc())
+            raise Exception("MCMC model could not me constructed!\n" + str(e))
+
+    for model in models:
+        logging.info("Fitting model...")
+        map = pymc.MAP(model)
+        map.fit(iterlim=nfit)
+        logging.info(map)
+
+        logging.info("Sampling...")
+        model.mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
+        pymc.Matplot.plot(numpy.exp(model.mcmc.trace('log_sigma')[:]), '%s-sigma' % model.experiment.name)
+
+        # Compute confidence intervals in thermodynamic parameters.
+        outfile = open('%s.confidence-intervals.out' % model.experiment.name, 'a+')
+        outfile.write('%s\n' % model.experiment.name)
+        [x, dx, xlow, xhigh] = compute_normal_statistics(numpy.exp(model.mcmc.trace('log_sigma')[:]) )
+        outfile.write('sigma:  %8.5f +- %8.5f ucal/s^(1/2) [%8.5f, %8.5f] \n' % (x, dx, xlow, xhigh))
+        outfile.write('\n')
+        outfile.close()
+
 else:
     raise RuntimeError("No MCMC model constructed.")
 

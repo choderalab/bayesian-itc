@@ -280,6 +280,65 @@ class BindingModel(object):
 
         return BindingModel._uniform_prior_with_units(name, value, maximum, minimum, prior_unit)
 
+
+class BaselineModel(BindingModel):
+    """A Model for a calibration with no injections, just baseline."""
+
+    def __init__(self, experiment):
+
+        # Determine number of observations.
+        self.N = experiment.number_of_injections
+
+        # Store calorimeter properties.
+        self.V0 = experiment.cell_volume.to('liter')
+
+        # Extract properties from experiment
+        self.experiment = experiment
+
+        # Store temperature.
+        self.temperature = experiment.target_temperature  # (kelvin)
+        # inverse temperature 1/(kcal/mol)
+        self.beta = 1.0 / (ureg.molar_gas_constant * self.temperature)
+
+        # Guess for the noise parameter log(sigma)
+        self.log_sigma = BindingModel._uniform_prior('log_sigma', *self._logsigma_guesses(experiment))
+
+        # Define the model
+        tau = self._lambda_tau_model()
+
+        # Create sampler.
+        self.mcmc = self._create_metropolis_sampler()
+
+
+    @staticmethod
+    def tau(log_sigma):
+        """
+        Injection heat measurement precision.
+        """
+        return numpy.exp(-2.0 * log_sigma)
+
+    def _create_metropolis_sampler(self):
+        mcmc = pymc.MCMC(self, db='ram')
+        return mcmc
+
+
+    def _lambda_tau_model(self):
+        """Model for tau implemented using lambda function"""
+        return pymc.Lambda('tau', lambda log_sigma=self.log_sigma: self.tau(log_sigma))
+
+    @staticmethod
+    def _logsigma_guesses(experiment):
+        """
+        Estimate sigma from the gausian process baseline
+        """
+        log_sigma_guess = log(experiment.sigma.sum() / experiment.sigma.size)
+        log_sigma_min = log(experiment.sigma.min())
+        log_sigma_max = log(experiment.sigma.max())
+        return log_sigma_guess, log_sigma_max, log_sigma_min
+
+
+
+
 class BufferBufferModel(BindingModel):
     """A Model for a calibration titration, using only blanks (e.g. buffer or water) in the syringe and cell."""
 
@@ -1020,13 +1079,10 @@ class CompetitiveBindingModel(BindingModel):
                 experiment.true_syringe_concentration[species] = 0.0
 
 
-
-
-
-
 # Container of all models that this module provides for use
 known_models = {'TwoComponent': TwoComponentBindingModel,
                 'Competitive': CompetitiveBindingModel,
                 'BufferBuffer': BufferBufferModel,
                 'WaterWater': BufferBufferModel,
+                'Baseline': BaselineModel,
                 }

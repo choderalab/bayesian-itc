@@ -698,14 +698,13 @@ class ExperimentMicroCal(BaseExperiment):
         # Fit only based on the reduced set of the data
         gp.fit(x, y)
         y_pred, mean_squared_error = gp.predict(full_x, eval_MSE=True)
-        sigma = numpy.sqrt(mean_squared_error)
-
+        self.sigma = numpy.sqrt(mean_squared_error)
         self.baseline_power = Quantity(y_pred, 'microcalories per second')
         self.baseline_fit_data = {'x': full_x, 'y': y_pred, 'indices': fit_indices}
         self.baseline_subtracted = self.differential_power - self.baseline_power
 
         if plot:
-            self._plot_gaussian_baseline(full_x, full_y, sigma, x, y, y_pred)
+            self._plot_gaussian_baseline(full_x, full_y, self.sigma, x, y, y_pred)
             self._plot_baseline_subtracted(full_x, self.baseline_subtracted)
 
     def integrate_heat(self):
