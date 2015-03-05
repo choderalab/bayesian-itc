@@ -6,7 +6,8 @@ import os
 from os.path import relpath, join
 import subprocess
 
-from setuptools import setup
+from setuptools import setup, Extension
+from Cython.Distutils import build_ext
 
 DOCLINES = __doc__.split("\n")
 
@@ -121,6 +122,8 @@ setup(
     packages=['bitc'],
     package_data={'bitc': find_package_data('examples', 'bitc')},  # NOTE: examples installs to bitc.egg/examples/, NOT bitc.egg/bitc/examples/.  You need to do utils.get_data_filename("../examples/*/setup/").
     zip_safe=False,
+    ext_modules=[Extension('heats',['bitc/heats.pyx'],)],
+    cmdclass={'build_ext': build_ext},
     install_requires=[
         'numpy',
         'pandas',
