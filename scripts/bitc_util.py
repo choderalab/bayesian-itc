@@ -330,6 +330,148 @@ elif validated['--model'] in {'Baseline'}:
         outfile.write('\n')
         outfile.close()
 
+elif validated['--model'] == 'Dilution':
+
+    models = list()
+    try:
+        for experiment in experiments:
+            models.append(Model(experiment))
+    except Exception as e:
+            logging.error(str(e))
+            logging.error(traceback.format_exc())
+            raise Exception("MCMC model could not me constructed!\n" + str(e))
+
+    # First fit the model.
+    # TODO This should be incorporated in the model. Perhaps as a model.getSampler() method?
+
+    for model in models:
+        logging.info("Fitting model...")
+        map = pymc.MAP(model)
+        map.fit(iterlim=nfit)
+        logging.info(map)
+
+        logging.info("Sampling...")
+        model.mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
+
+
+        # Plot individual terms.
+        pymc.Matplot.plot(model.mcmc.trace('Xs')[:], '%s-Xs' % model.experiment.name)
+        pymc.Matplot.plot(model.mcmc.trace('H_s')[:], '%s-H_s' % model.experiment.name)
+        pymc.Matplot.plot(model.mcmc.trace('L_phi')[:], '%s-:L_phi' % model.experiment.name)
+        pymc.Matplot.plot(numpy.exp(model.mcmc.trace('log_sigma')[:]), '%s-sigma' % model.experiment.name)
+
+        # #  TODO: Plot fits to enthalpogram.
+        # #experiment.plot(model=model, filename='%s-enthalpogram.png' %  experiment_name) # todo fix this
+
+        # Compute confidence intervals in thermodynamic parameters.
+        outfile = open('%s.confidence-intervals.out' % model.experiment.name, 'a+')
+        outfile.write('%s\n' % model.experiment.name)
+        # [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('L_phi')[:])
+        # outfile.write('L_phi:     %8.2f +- %8.2f cal/mol     [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
+        [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('H_s')[:])
+        outfile.write('H_s:    %8.2f +- %8.2f cal         [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
+        [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('Xs')[:])
+        outfile.write('Xs:     %8.2f +- %8.2f mM           [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
+        [x, dx, xlow, xhigh] = compute_normal_statistics(numpy.exp(model.mcmc.trace('log_sigma')[:]))
+        outfile.write('sigma:  %8.5f +- %8.5f ucal/s^(1/2) [%8.5f, %8.5f] \n' % (x, dx, xlow, xhigh))
+        outfile.write('\n')
+        outfile.close()
+
+elif validated['--model'] == 'TitrantBuffer':
+
+    models = list()
+    try:
+        for experiment in experiments:
+            models.append(Model(experiment))
+    except Exception as e:
+            logging.error(str(e))
+            logging.error(traceback.format_exc())
+            raise Exception("MCMC model could not me constructed!\n" + str(e))
+
+    # First fit the model.
+    # TODO This should be incorporated in the model. Perhaps as a model.getSampler() method?
+
+    for model in models:
+        logging.info("Fitting model...")
+        map = pymc.MAP(model)
+        map.fit(iterlim=nfit)
+        logging.info(map)
+
+        logging.info("Sampling...")
+        model.mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
+
+
+        # Plot individual terms.
+        pymc.Matplot.plot(model.mcmc.trace('Xs')[:], '%s-Xs' % model.experiment.name)
+        pymc.Matplot.plot(model.mcmc.trace('H_0')[:], '%s-H_0' % model.experiment.name)
+        pymc.Matplot.plot(model.mcmc.trace('DeltaH')[:], '%s-:DeltaH' % model.experiment.name)
+        pymc.Matplot.plot(numpy.exp(model.mcmc.trace('log_sigma')[:]), '%s-sigma' % model.experiment.name)
+
+        # #  TODO: Plot fits to enthalpogram.
+        # #experiment.plot(model=model, filename='%s-enthalpogram.png' %  experiment_name) # todo fix this
+
+        # Compute confidence intervals in thermodynamic parameters.
+        outfile = open('%s.confidence-intervals.out' % model.experiment.name, 'a+')
+        outfile.write('%s\n' % model.experiment.name)
+        [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('DeltaH')[:])
+        outfile.write('DeltaH:     %8.2f +- %8.2f cal/mol     [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
+        [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('H_0')[:])
+        outfile.write('H_s:    %8.2f +- %8.2f cal         [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
+        [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('Xs')[:])
+        outfile.write('Xs:     %8.2f +- %8.2f mM           [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
+        [x, dx, xlow, xhigh] = compute_normal_statistics(numpy.exp(model.mcmc.trace('log_sigma')[:]))
+        outfile.write('sigma:  %8.5f +- %8.5f ucal/s^(1/2) [%8.5f, %8.5f] \n' % (x, dx, xlow, xhigh))
+        outfile.write('\n')
+        outfile.close()
+
+elif validated['--model'] == 'BufferTitrand':
+
+    models = list()
+    try:
+        for experiment in experiments:
+            models.append(Model(experiment))
+    except Exception as e:
+            logging.error(str(e))
+            logging.error(traceback.format_exc())
+            raise Exception("MCMC model could not me constructed!\n" + str(e))
+
+    # First fit the model.
+    # TODO This should be incorporated in the model. Perhaps as a model.getSampler() method?
+
+    for model in models:
+        logging.info("Fitting model...")
+        map = pymc.MAP(model)
+        map.fit(iterlim=nfit)
+        logging.info(map)
+
+        logging.info("Sampling...")
+        model.mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
+
+
+        # Plot individual terms.
+        pymc.Matplot.plot(model.mcmc.trace('Mc')[:], '%s-Mc' % model.experiment.name)
+        pymc.Matplot.plot(model.mcmc.trace('H_0')[:], '%s-H_0' % model.experiment.name)
+        pymc.Matplot.plot(model.mcmc.trace('DeltaH')[:], '%s-:DeltaH' % model.experiment.name)
+        pymc.Matplot.plot(numpy.exp(model.mcmc.trace('log_sigma')[:]), '%s-sigma' % model.experiment.name)
+
+        # #  TODO: Plot fits to enthalpogram.
+        # #experiment.plot(model=model, filename='%s-enthalpogram.png' %  experiment_name) # todo fix this
+
+        # Compute confidence intervals in thermodynamic parameters.
+        outfile = open('%s.confidence-intervals.out' % model.experiment.name, 'a+')
+        outfile.write('%s\n' % model.experiment.name)
+        [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('DeltaH')[:])
+        outfile.write('DeltaH:     %8.2f +- %8.2f cal/mol     [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
+        [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('H_0')[:])
+        outfile.write('H_s:    %8.2f +- %8.2f cal         [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
+        [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('Mc')[:])
+        outfile.write('Xs:     %8.2f +- %8.2f mM           [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
+        [x, dx, xlow, xhigh] = compute_normal_statistics(numpy.exp(model.mcmc.trace('log_sigma')[:]))
+        outfile.write('sigma:  %8.5f +- %8.5f ucal/s^(1/2) [%8.5f, %8.5f] \n' % (x, dx, xlow, xhigh))
+        outfile.write('\n')
+        outfile.close()
+
+
 else:
     raise RuntimeError("No MCMC model constructed.")
 
