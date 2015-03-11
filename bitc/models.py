@@ -282,7 +282,8 @@ class BindingModel(object):
 
 
 class BaselineModel(BindingModel):
-    """A Model for a calibration with no injections, just baseline."""
+    """A Model for a calibration with no injections, just baseline.
+       This is just a dummy and the implementation is probably wrong."""
 
     def __init__(self, experiment):
 
@@ -362,26 +363,26 @@ class BufferBufferModel(BindingModel):
         self.beta = 1.0 / (ureg.molar_gas_constant * self.temperature)
 
         # Extract heats from experiment
-        q_n = Quantity(numpy.zeros(len(experiment.injections)), 'calorie')
+        q_n = Quantity(numpy.zeros(len(experiment.injections)), 'microcalorie')
         for inj, injection in enumerate(experiment.injections):
             q_n[inj] = injection.evolved_heat
 
         # Guess for the noise parameter log(sigma)
-        self.log_sigma = BindingModel._uniform_prior('log_sigma', *self._logsigma_guesses(q_n, 4, ureg.calorie))
-        self.DeltaH_0 = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_0', *self._deltaH0_guesses(q_n), prior_unit=ureg.calorie, guess_unit=True)
+        self.log_sigma = BindingModel._uniform_prior('log_sigma', *self._logsigma_guesses(q_n, 4, ureg.microcalorie))
+        self.DeltaH_0 = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_0', *self._deltaH0_guesses(q_n), prior_unit=ureg.microcalorie, guess_unit=True)
 
         # Define the model
         q_n_model = self._lambda_heats_model()
         tau = self._lambda_tau_model()
 
         # Set observation
-        self.q_n_obs = BindingModel._normal_observation_with_units('q_n', q_n_model, q_n, tau, ureg.calorie)
+        self.q_n_obs = BindingModel._normal_observation_with_units('q_n', q_n_model, q_n, tau, ureg.microcalorie)
 
         # Create sampler.
         self.mcmc = self._create_metropolis_sampler()
 
     @staticmethod
-    @ureg.wraps(ret=ureg.calorie, args=[None, None], strict=True)
+    @ureg.wraps(ret=ureg.microcalorie, args=[None, None], strict=True)
     def expected_injection_heats(DeltaH_0, N):
         """
         Expected heats of injection for a calibration titration
@@ -391,8 +392,9 @@ class BufferBufferModel(BindingModel):
         """
         # Compute expected injection heats.
         q_n = numpy.zeros([N])  # q_n_model[n] is the expected heat from injection n
-        # Instantaneous injection model (perfusion)
+
         for n in range(N):
+            # q_n and DeltaH_0 both have the same unit (ucal)
             q_n[n] = DeltaH_0
         return q_n
 
@@ -480,7 +482,7 @@ class TellinghuisenDilutionModel(BindingModel):
         # Define priors for concentration
         self.Xs = BindingModel._lognormal_concentration_prior('Xs', Xs_stated, dXs, ureg.millimolar)
         # Extract heats from experiment
-        q_n = Quantity(numpy.zeros(len(experiment.injections)), 'calorie')
+        q_n = Quantity(numpy.zeros(len(experiment.injections)), 'microcalorie')
         for inj, injection in enumerate(experiment.injections):
             q_n[inj] = injection.evolved_heat
 
@@ -490,14 +492,14 @@ class TellinghuisenDilutionModel(BindingModel):
 
         # Enthalpy of the syringe solution per injection
         # TODO this is a different number for the throwaway injection
-        self.H_s = BindingModel._uniform_prior_with_guesses_and_units('H_s', * self._deltaH0_guesses(q_n), prior_unit=ureg.calorie, guess_unit=True)
+        self.H_s = BindingModel._uniform_prior_with_guesses_and_units('H_s', * self._deltaH0_guesses(q_n), prior_unit=ureg.microcalorie, guess_unit=True)
 
         # Molar enthalpy as a function of the concentrations
         L_phi_max = numpy.ones(self.N) * 1.e4
         self.L_phi = BindingModel._uniform_prior_with_guesses_and_units('L_phi', numpy.zeros(self.N), L_phi_max, -L_phi_max, ureg.calorie/ureg.mole)
 
         # Prior for the noise parameter log(sigma)
-        self.log_sigma = BindingModel._uniform_prior('log_sigma', *self._logsigma_guesses(q_n, 4, ureg.calorie))
+        self.log_sigma = BindingModel._uniform_prior('log_sigma', *self._logsigma_guesses(q_n, 4, ureg.microcalorie))
 
         # Define the model
         q_n_model = self._lambda_heats_model()
@@ -513,7 +515,7 @@ class TellinghuisenDilutionModel(BindingModel):
 
 
     @staticmethod
-    @ureg.wraps(ret=ureg.calorie, args=[ureg.liter, ureg.liter, None, None, None, None], strict=True)
+    @ureg.wraps(ret=ureg.microcalorie, args=[ureg.liter, ureg.liter, None, None, None, None], strict=True)
     def expected_injection_heats(V0, DeltaVn, Xs, L_phi, H_s, N):
         """
         Expected heats of injection for two-component binding model.
@@ -523,12 +525,12 @@ class TellinghuisenDilutionModel(BindingModel):
         DeltaVn - injection volumes (liter)
         Xs - Syringe concentration (millimolar)
         L_phi - molar enthalpy at concentration [X] (cal/mol)
-        H_s - enthalpy in the syringe per injection (cal) assumed same for every injection (wrong for throwaway!)
+        H_s - enthalpy in the syringe per injection (ucal) assumed same for every injection (wrong for throwaway!)
         N - number of injections
 
         Returns
         -------
-        expected injection heats
+        expected injection heats (ucal)
 
 
         """
@@ -544,7 +546,7 @@ class TellinghuisenDilutionModel(BindingModel):
             # dilution factor for this injection (dimensionless)
             vcum += DeltaVn[n]
             vfactor = vcum / V0  # relative volume factor
-            # total quantity of ligand in sample cell after n injections (mol)
+            # total concentration of ligand in sample cell after n injections (converted from mM to M)
             Xn[n] = 1.e-3 * Xs * (1 - numpy.exp(-vfactor))
 
         # Equation 12 of same paper as above
@@ -555,11 +557,13 @@ class TellinghuisenDilutionModel(BindingModel):
         r = DeltaVn[0] / (2* V0)
         # Instantaneous injection model (perfusion)
         # first injection
-        q_n[0] = V0 * (L_phi[0] * Xn[0] * (1 + r)) - H_s
+        # converted from cal/mol to ucal
+        q_n[0] = V0 * 1.e6 * (L_phi[0] * Xn[0] * (1 + r)) - H_s
         # next injections
         for n in range(1, N):
             r = DeltaVn[n] / (2 * V0)
-            q_n[n] = V0 * (L_phi[n] * Xn[n] * (1 + r) - L_phi[n-1] * Xn[n-1] * (1 - r)) - H_s
+            # converted from cal/mol to ucal
+            q_n[n] = V0 * 1.e6 * (L_phi[n] * Xn[n] * (1 + r) - L_phi[n-1] * Xn[n-1] * (1 - r)) - H_s
 
         return q_n
 
@@ -659,7 +663,7 @@ class TitrantBufferModel(BindingModel):
         # Define priors for concentration
         self.Xs = BindingModel._lognormal_concentration_prior('Xs', Xs_stated, dXs, ureg.millimolar)
         # Extract heats from experiment
-        q_n = Quantity(numpy.zeros(len(experiment.injections)), 'calorie')
+        q_n = Quantity(numpy.zeros(len(experiment.injections)), 'microcalorie')
         for inj, injection in enumerate(experiment.injections):
             q_n[inj] = injection.evolved_heat
 
@@ -669,13 +673,13 @@ class TitrantBufferModel(BindingModel):
 
         # Enthalpy of the syringe solution per injection
         # TODO this is a different number for the throwaway injection
-        self.H_0 = BindingModel._uniform_prior_with_guesses_and_units('H_0', * self._deltaH0_guesses(q_n), prior_unit=ureg.calorie, guess_unit=True)
+        self.H_0 = BindingModel._uniform_prior_with_guesses_and_units('H_0', * self._deltaH0_guesses(q_n), prior_unit=ureg.microcalorie, guess_unit=True)
 
         # Total enthalp of dilution
         self.DeltaH = BindingModel._uniform_prior_with_guesses_and_units('DeltaH', 0., 1000., -1000., ureg.calorie/ureg.mole)
 
         # Prior for the noise parameter log(sigma)
-        self.log_sigma = BindingModel._uniform_prior('log_sigma', *self._logsigma_guesses(q_n, 4, ureg.calorie))
+        self.log_sigma = BindingModel._uniform_prior('log_sigma', *self._logsigma_guesses(q_n, 4, ureg.microcalorie))
 
         # Define the model
         q_n_model = self._lambda_heats_model()
@@ -691,7 +695,7 @@ class TitrantBufferModel(BindingModel):
 
 
     @staticmethod
-    @ureg.wraps(ret=ureg.calorie, args=[ureg.liter, ureg.liter, None, None, None, None], strict=True)
+    @ureg.wraps(ret=ureg.microcalorie, args=[ureg.liter, ureg.liter, None, None, None, None], strict=True)
     def expected_injection_heats(V0, DeltaVn, Xs, DeltaH, H_0, N):
         """
         Expected heats of injection for two-component binding model.
@@ -700,13 +704,13 @@ class TitrantBufferModel(BindingModel):
         V0 - cell volume (liter)
         DeltaVn - injection volumes (liter)
         Xs - Syringe concentration (millimolar)
-        DeltaH - total enthalpy of dilution
-        H_0 - mechanical heat of injection
+        DeltaH - total enthalpy of dilution (cal/mol)
+        H_0 - mechanical heat of injection (ucal)
         N - number of injections
 
         Returns
         -------
-        expected injection heats
+        expected injection heats (ucal)
 
 
         """
@@ -722,7 +726,7 @@ class TitrantBufferModel(BindingModel):
             # dilution factor for this injection (dimensionless)
             vcum += DeltaVn[n]
             vfactor = vcum / V0  # relative volume factor
-            # total quantity of ligand in sample cell after n injections (mol)
+            # total concentration of ligand in sample cell after n injections (converted from mM to M)
             Xn[n] = 1.e-3 * Xs * (1 - numpy.exp(-vfactor))
 
         # Compute expected injection heats.
@@ -730,11 +734,13 @@ class TitrantBufferModel(BindingModel):
         q_n = numpy.zeros([N])
         # Instantaneous injection model (perfusion)
         # first injection
-        q_n[0] = (DeltaH * V0 * Xn[0]) + H_0
+        # From units of cal/mole to ucal
+        q_n[0] = 1.e6 * (DeltaH * V0 * Xn[0]) + H_0
         for n in range(1, N):
             d = 1.0 - (DeltaVn[n] / V0)  # dilution factor (dimensionless)
             # subsequent injections
-            q_n[n] = (DeltaH * V0 * (Xn[n] - Xn[n - 1]))  + H_0
+            # From units of cal/mole to ucal
+            q_n[n] = 1.e6 * (DeltaH * V0 * (Xn[n] - Xn[n - 1]))  + H_0
 
         return q_n
 
@@ -835,7 +841,7 @@ class BufferTitrandModel(BindingModel):
         # Define priors for concentration
         self.Mc = BindingModel._lognormal_concentration_prior('Mc', Mc_stated, dMc, ureg.millimolar)
         # Extract heats from experiment
-        q_n = Quantity(numpy.zeros(len(experiment.injections)), 'calorie')
+        q_n = Quantity(numpy.zeros(len(experiment.injections)), 'microcalorie')
         for inj, injection in enumerate(experiment.injections):
             q_n[inj] = injection.evolved_heat
 
@@ -845,13 +851,13 @@ class BufferTitrandModel(BindingModel):
 
         # Enthalpy of the syringe solution per injection
         # TODO this is a different number for the throwaway injection
-        self.H_0 = BindingModel._uniform_prior_with_guesses_and_units('H_0', * self._deltaH0_guesses(q_n), prior_unit=ureg.calorie, guess_unit=True)
+        self.H_0 = BindingModel._uniform_prior_with_guesses_and_units('H_0', * self._deltaH0_guesses(q_n), prior_unit=ureg.microcalorie, guess_unit=True)
 
         # Total enthalp of dilution
         self.DeltaH = BindingModel._uniform_prior_with_guesses_and_units('DeltaH', 0., 1000., -1000., ureg.calorie/ureg.mole)
 
         # Prior for the noise parameter log(sigma)
-        self.log_sigma = BindingModel._uniform_prior('log_sigma', *self._logsigma_guesses(q_n, 4, ureg.calorie))
+        self.log_sigma = BindingModel._uniform_prior('log_sigma', *self._logsigma_guesses(q_n, 4, ureg.microcalorie))
 
         # Define the model
         q_n_model = self._lambda_heats_model()
@@ -867,7 +873,7 @@ class BufferTitrandModel(BindingModel):
 
 
     @staticmethod
-    @ureg.wraps(ret=ureg.calorie, args=[ureg.liter, ureg.liter, None, None, None, None], strict=True)
+    @ureg.wraps(ret=ureg.microcalorie, args=[ureg.liter, ureg.liter, None, None, None, None], strict=True)
     def expected_injection_heats(V0, DeltaVn, Mc, DeltaH, H_0, N):
         """
         Expected heats of injection for two-component binding model.
@@ -877,12 +883,12 @@ class BufferTitrandModel(BindingModel):
         DeltaVn - injection volumes (liter)
         Mc - cell_concentration (millimolar)
         DeltaH - total enthalpy of dilution (cal /mol)
-        H_0 - mechanical heat of injection (cal)
+        H_0 - mechanical heat of injection (ucal)
         N - number of injections
 
         Returns
         -------
-        expected injection heats (cal)
+        expected injection heats (ucal)
 
 
         """
@@ -895,7 +901,7 @@ class BufferTitrandModel(BindingModel):
             # dilution factor for this injection (dimensionless)
             d = 1.0 - (DeltaVn[n] / V0)
             dcum *= d  # cumulative dilution factor
-            # total quantity of protein in sample cell after n injections (mol)
+            # total quantity of protein in sample cell after n injections (converted from mM to M)
             Mn[n] = Mc * 1.e-3 * dcum
 
         # Compute expected injection heats.
@@ -903,12 +909,14 @@ class BufferTitrandModel(BindingModel):
         q_n = numpy.zeros([N])
         # Instantaneous injection model (perfusion)
         # first injection
+        # converted from cal/mol to ucal
         d = 1.0 - (DeltaVn[0] / V0)  # dilution factor (dimensionless)
-        q_n[0] = V0 * (DeltaH * (Mn[0] - Mc)) + H_0
+        q_n[0] = V0 * 1.e6 * (DeltaH * (Mn[0] - Mc)) + H_0
         for n in range(1, N):
             d = 1.0 - (DeltaVn[n] / V0)  # dilution factor (dimensionless)
             # subsequent injections
-            q_n[n] = V0 * (DeltaH * (Mn[n] - Mn[n - 1])) + H_0
+            # converted from cal/mol to ucal
+            q_n[n] = V0 * 1.e6 * (DeltaH * (Mn[n] - Mn[n - 1])) + H_0
 
         return q_n
 
@@ -1016,7 +1024,7 @@ class TwoComponentBindingModel(BindingModel):
         self.Ls = BindingModel._lognormal_concentration_prior('Ls', Ls_stated, dLs, ureg.millimolar)
 
         # Extract heats from experiment
-        q_n = Quantity(numpy.zeros(len(experiment.injections)), 'calorie')
+        q_n = Quantity(numpy.zeros(len(experiment.injections)), 'microcalorie')
         for inj, injection in enumerate(experiment.injections):
             q_n[inj] = injection.evolved_heat
 
@@ -1024,12 +1032,12 @@ class TwoComponentBindingModel(BindingModel):
         # TODO add literature value guesses
         # review check out all the units to make sure that they're appropriate
 
-        self.DeltaH_0 = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_0', *self._deltaH0_guesses(q_n), prior_unit=ureg.calorie, guess_unit=True)
+        self.DeltaH_0 = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_0', *self._deltaH0_guesses(q_n), prior_unit=ureg.microcalorie, guess_unit=True)
         self.DeltaG = BindingModel._uniform_prior_with_guesses_and_units('DeltaG', 0., 40., -40., ureg.kilocalorie/ureg.mole)
         self.DeltaH = BindingModel._uniform_prior_with_guesses_and_units('DeltaH', 0., 100., -100., ureg.kilocalorie/ureg.mole)
 
         # Prior for the noise parameter log(sigma)
-        self.log_sigma = BindingModel._uniform_prior('log_sigma', *self._logsigma_guesses(q_n, 4, ureg.calorie))
+        self.log_sigma = BindingModel._uniform_prior('log_sigma', *self._logsigma_guesses(q_n, 4, ureg.microcalorie))
 
         # Define the model
         q_n_model = self._lambda_heats_model()
@@ -1045,7 +1053,7 @@ class TwoComponentBindingModel(BindingModel):
 
 
     @staticmethod
-    @ureg.wraps(ret=ureg.calorie, args=[ureg.liter, ureg.liter, None, None, None, None, None,  ureg.mole / ureg.kilocalories, None], strict=True)
+    @ureg.wraps(ret=ureg.microcalorie, args=[ureg.liter, ureg.liter, None, None, None, None, None,  ureg.mole / ureg.kilocalories, None], strict=True)
     def expected_injection_heats(V0, DeltaVn, P0, Ls, DeltaG, DeltaH, DeltaH_0, beta, N):
         """
         Expected heats of injection for two-component binding model.
@@ -1057,13 +1065,13 @@ class TwoComponentBindingModel(BindingModel):
         Ls - Syringe concentration (millimolar)
         DeltaG - free energy of binding (kcal/mol)
         DeltaH - enthalpy of binding (kcal/mol)
-        DeltaH_0 - heat of injection (cal)
-        beta - inverse temperature * gas constant (mole / kcal)
+        DeltaH_0 - heat of injection (ucal)
+        beta - inverse temperature * gas constant (mol/kcal)
         N - number of injections
 
         Returns
         -------
-        expected injection heats -
+        expected injection heats - ucal
 
 
         """
@@ -1090,9 +1098,9 @@ class TwoComponentBindingModel(BindingModel):
             # dilution factor for this injection (dimensionless)
             d = 1.0 - (DeltaVn[n] / V0)
             dcum *= d  # cumulative dilution factor
-            # total quantity of protein in sample cell after n injections (mol)
+            # total quantity of protein in sample cell after n injections (converted from mM to mole)
             P = V0 * P0 * 1.e-3 * dcum
-            # total quantity of ligand in sample cell after n injections (mol)
+            # total quantity of ligand in sample cell after n injections (converted from mM to mole)
             L = V0 * Ls * 1.e-3 * (1. - dcum)
             # complex concentration (M)
             PLn[n] = (0.5 / V0 * ((P + L + Kd * V0) - ((P + L + Kd * V0) ** 2 - 4 * P * L) ** 0.5))
@@ -1106,11 +1114,13 @@ class TwoComponentBindingModel(BindingModel):
         q_n = numpy.zeros([N])
         # Instantaneous injection model (perfusion)
         # first injection
-        q_n[0] = (DeltaH * V0 * PLn[0])*1000 + DeltaH_0
+        # converted from kcal/mol to ucal
+        q_n[0] = 1.e9 * (DeltaH * V0 * PLn[0]) + DeltaH_0
         for n in range(1, N):
             d = 1.0 - (DeltaVn[n] / V0)  # dilution factor (dimensionless)
             # subsequent injections
-            q_n[n] = (DeltaH * V0 * (PLn[n] - d * PLn[n - 1])) * 1000 + DeltaH_0
+            # converted from kcal/mol to ucal
+            q_n[n] = 1.e9 * (DeltaH * V0 * (PLn[n] - d * PLn[n - 1])) + DeltaH_0
 
         return q_n
 
@@ -1264,7 +1274,7 @@ class CompetitiveBindingModel(BindingModel):
         logging.debug("thermodynamic parameters:")
         logging.debug(self.thermodynamic_parameters)
 
-        log_sigma_guess, log_sigma_max, log_sigma_min = self._logsigma_guesses_from_multiple_experiments(ureg.calorie)
+        log_sigma_guess, log_sigma_max, log_sigma_min = self._logsigma_guesses_from_multiple_experiments(ureg.microcalorie)
         self.log_sigma = BindingModel._uniform_prior('log_sigma', log_sigma_guess, log_sigma_max, log_sigma_min)
         self.stochastics.append(self.log_sigma)
 
@@ -1279,7 +1289,7 @@ class CompetitiveBindingModel(BindingModel):
                          (index, experiment.ninjections))
 
             dh0_name = "DeltaH_0 for experiment %d" % index
-            experiment.DeltaH_0 = BindingModel._uniform_prior_with_guesses_and_units(dh0_name, *self._deltaH0_guesses(experiment.observed_injection_heats), prior_unit=ureg.calorie, guess_unit=True)
+            experiment.DeltaH_0 = BindingModel._uniform_prior_with_guesses_and_units(dh0_name, *self._deltaH0_guesses(experiment.observed_injection_heats), prior_unit=ureg.microcalorie, guess_unit=True)
             self.stochastics.append(experiment.DeltaH_0)
 
             # Define priors for the true concentration of each component
@@ -1435,7 +1445,7 @@ class CompetitiveBindingModel(BindingModel):
         return C_RLn
 
     @staticmethod
-    @ureg.wraps(ret=ureg.calorie, args=[None, None, ureg.liter, None, ureg.liter, ureg.mole / ureg.kilocalorie, None, None, None, None])
+    @ureg.wraps(ret=ureg.microcalorie, args=[None, None, ureg.liter, None, ureg.liter, ureg.mole / ureg.kilocalorie, None, None, None, None])
     def expected_injection_heats(ligands, receptor, V0, N, volumes, beta, true_cell_concentration, true_syringe_concentration, DeltaH_0, thermodynamic_parameters):
         """
         Expected heats of injection for two-component binding model.
@@ -1447,9 +1457,13 @@ class CompetitiveBindingModel(BindingModel):
         beta = 1 over temperature * R, in mole / kcal
         true_cell_concentration - (dict of floats) - concentrations[species] is the initial concentration of species in sample cell, or zero if absent (mM)
         true_syringe_concentration (dict of floats) - concentrations[species] is the initial concentration of species in sample cell, or zero if absent (mM)
-        DeltaH_0, heat of injection (cal)
+        DeltaH_0, heat of injection (ucal)
         thermodynamic_parameters (dict of floats) - thermodynamic_parameters[parameter] is the value of thermodynamic parameter (kcal/mol)
           e.g. for parameter 'DeltaG of receptor * species'
+
+        Returns
+        -------
+        expected_injection_heats (ucal)
         """
         # Number of ligand species
         nspecies = len(ligands)
@@ -1475,15 +1489,19 @@ class CompetitiveBindingModel(BindingModel):
         for index, volume in enumerate(volumes):
             d = 1.0 - (volume / V0)  # dilution factor (dimensionless)
             dcum *= d  # cumulative dilution factor (dimensionless)
+            # converted from mM to M
             x_Ri[index] = true_cell_concentration[receptor] * 1.e-3 * dcum + true_syringe_concentration[receptor] * 1.e-3 * (1.0 - dcum)
             for (n, ligand) in enumerate(ligands):
+                # converted from mM to M
                 x_Lin[index, n] = true_cell_concentration[ligand] * 1.e-3 * dcum + true_syringe_concentration[ligand] * 1.e-3 * (1.0 - dcum)
 
         # Solve for initial concentration.
+        # converted from mM to M
         x_R0 = true_cell_concentration[receptor] * 1.e-3
         x_L0n = numpy.zeros([nspecies], numpy.float64)
         C_RL0n = numpy.zeros([nspecies], numpy.float64)
         for (n, ligand) in enumerate(ligands):
+            # converted from mM to M
             x_L0n[n] = true_cell_concentration[ligand] * 1.e-3
         C_RL0n[:] = CompetitiveBindingModel.equilibrium_concentrations(Ka_n, x_R0, x_L0n[:], V0)
 
@@ -1506,12 +1524,14 @@ class CompetitiveBindingModel(BindingModel):
         q_n = DeltaH_0 * numpy.ones([N], numpy.float64)
         d = 1.0 - (volumes[0] / V0)  # dilution factor (dimensionless)
         for n in range(nspecies):
-            q_n[0] += (1000.0 * DeltaH_n[n]) * V0 * (C_RLin[0, n] - d * C_RL0n[n])  # first injection
+            # converted from kcal/mol to ucal
+            q_n[0] += (1.e9 * DeltaH_n[n]) * V0 * (C_RLin[0, n] - d * C_RL0n[n])  # first injection
         for index, volume in enumerate(volumes[1:], start=1):
             d = 1.0 - (volume / V0)  # dilution factor (dimensionless)
             for n in range(nspecies):
                 # subsequent injections
-                q_n[index] += (1000.0 * DeltaH_n[n]) * V0 * (C_RLin[index, n] - d * C_RLin[index - 1, n])
+                # converted from kcal/mol to ucal
+                q_n[index] += (1.e9 * DeltaH_n[n]) * V0 * (C_RLin[index, n] - d * C_RLin[index - 1, n])
 
         return q_n
 
