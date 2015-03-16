@@ -6,6 +6,7 @@ PyMC models to describe ITC binding experiments
 import copy
 import logging
 from math import exp, log
+import collections
 
 import numpy
 import pymc
@@ -150,8 +151,6 @@ class RescalingStep(pymc.StepMethod):
 # class: createSampler()?
 
 
-
-
 class BindingModel(object):
     """
     Abstract base class for reaction models.
@@ -281,6 +280,199 @@ class BindingModel(object):
         return BindingModel._uniform_prior_with_units(name, value, maximum, minimum, prior_unit)
 
 
+class MultiExperimentModel(BindingModel):
+    """Base class for model that can handle multiple experiment objects"""
+
+    def __init__(self, experiments):
+        """
+        Arguments
+        ---------
+        experiments - dict, contains Experiment objects as values. The keys are different types of experiments.
+
+        Supported keys:
+        "bufferbuffer" - for buffer into buffer titrations
+        "buffertitrand" - for buffer into titrand (cell) titrations
+        "titrantbuffer" - for titrant (syringe) into buffer titrations
+        "titranttitrand" - for titrant into titrand titrations
+
+        Multiple experiments of the same type can be put in a list with the same key. For now, this is built for
+        two-component models ([MX]/[M][X]).
+
+        """
+
+        self.experiments = experiments
+        self.stochastics = set()
+        self.observables = set()
+
+        # TODO check python3 compatibility
+        for experiment_type, experiment_objects in experiments:
+
+            # Ensure that input is iterable
+            if not isinstance(experiment_objects, collections.Iterable):
+                experiment_objects =  tuple([experiment_objects])
+
+            # Call the appropriate initialization function that returns priors (stochastics) and observables for
+            # each individual experiment type.
+            for experiment in experiment_objects:
+                if experiment_type == "bufferbuffer":
+                    stochastics, observables = self._buffer_into_buffer(experiment)
+                elif experiment_type == "buffertitrand":
+                    stochastics, observables = self._buffer_into_titrand(experiment)
+                elif experiment_type == "titrantbuffer":
+                    stochastics, observables = self._titrant_into_buffer(experiment)
+                elif experiment_type == "titranttitrand":
+                    stochastics, observables = self._titrant_into_titrant(experiment)
+                else:
+                    raise ValueError("Unknown experiment type: %s" % experiment_type)
+
+                self.stochastics.add(stochastics)
+                self.observables.add(observables)
+
+        # Get the temperature from one of the experiments
+        self.temperature = next(iter(experiments)).target_temperature
+        self.beta = 1.0 / (ureg.molar_gas_constant * self.temperature)
+
+        # Get the instrument from one of the experiments
+        self.instrument = next(iter(experiments)).instrument
+        self.cell_volume = self.instrument.cell_volume
+
+        # Consistency check between experiments
+        for experiment in self.experiments:
+            # FIXME float comparison...
+            if self.temperature != experiments.target_temperature:
+                raise ValueError('All experiments need to be performed at the same temperature!')
+            if self.instrument != experiment.instrument:
+                raise ValueError('For appropriate determination of sigma,'
+                                 'all experiments need to be performed in the same instrument.')
+
+        # Noise parameter
+        # TODO get sigma guesses from baseline model
+        self.stochastics.add(BindingModel._uniform_prior('log_sigma', *self._log_sigma_guesses()))
+
+        # Model definition
+        tau = pymc.Lambda('tau', lambda log_sigma=self.log_sigma: exp(-2.0 * log_sigma))
+
+        # TODO work this out further
+        heats_model = self.expected_injection_heats(self.stochastics, self.temperature, self.cell_volume)
+
+
+
+    @staticmethod
+    @ureg.wraps(ret=ureg.microcalorie, args=[None])
+    def expected_injection_heats(stochastics, temperature, cell_volume, *parameters):
+        """
+        Calculate the expected heats for this model. This will be complicated...
+
+        TODO
+        * find a way to handle cases where individual parts of the model are missing.
+        * deal with multiple of the same type of experiment
+        * return one set of heats for the total experiment
+
+        NOTES
+        if x not in stochastics, use values of 1 in multiplication, 0 in additions?
+
+
+        Parameters
+        ----------
+        TBD, stochastics
+
+        Returns
+        -------
+        numpy.ndarray - Expected injection heats
+        """
+        raise NotImplementedError
+
+    def log_sigma(self):
+        """Noise parameter"""
+        raise NotImplementedError
+
+
+
+    @property
+    def mcmc(self):
+        """Returns an mcmc sampler for the model"""
+        return self._create_metropolis_sampler()
+
+    @staticmethod
+    def _buffer_into_buffer(experiment):
+        """
+        Add a buffer into buffer experiment to the model
+
+        Parameters
+        ----------
+        experiment - an Experiment object describing a buffer buffer experiment
+
+        Returns
+        -------
+        tuple - (stochastics, observables) all the stochastics and observables that define the experiment
+
+        """
+
+        raise NotImplementedError
+
+    @staticmethod
+    def _buffer_into_titrand(experiment):
+        """
+        Add a buffer into titrand experiment to the model.
+
+        Parameters
+        ----------
+        experiment - an Experiment object describing a buffer-titrand experiment
+
+        Returns
+        -------
+        tuple - (stochastics, observables) all the stochastics and observables that define the experiment
+
+
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    def _titrant_into_buffer(experiment):
+        """
+        Add a titrant into buffer experiment to the model.
+
+        Parameters
+        ----------
+        experiment - an Experiment object describing a titrant-buffer experiment
+
+        Returns
+        -------
+        tuple - (stochastics, observables) all the stochastics and observables that define the experiment
+
+
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    def _titrant_into_titrant(experiment):
+        """
+        Add a titrant into titrand experiment to the model.
+
+        Parameters
+        ----------
+        experiment - an Experiment object describing a titrant-buffer experiment
+
+        Returns
+        -------
+        tuple - (stochastics, observables) all the stochastics and observables that define the experiment
+
+
+        """
+        raise NotImplementedError
+
+    def _create_metropolis_sampler(self):
+        mcmc = pymc.MCMC(self, db='ram')
+        for stochastic in self.stochastics:
+            mcmc.use_step_method(pymc.Metropolis, stochastic)
+
+        return mcmc
+
+    def _log_sigma_guesses(self):
+        """Initial guesses for log sigma"""
+        raise NotImplementedError
+
+
 class BaselineModel(BindingModel):
     """A Model for a calibration with no injections, just baseline.
        This is just a dummy and the implementation is probably wrong."""
@@ -308,6 +500,7 @@ class BaselineModel(BindingModel):
         tau = self._lambda_tau_model()
 
         # Create sampler.
+        # TODO use @property ?
         self.mcmc = self._create_metropolis_sampler()
 
 
@@ -379,6 +572,7 @@ class BufferBufferModel(BindingModel):
         self.q_n_obs = BindingModel._normal_observation_with_units('q_n', q_n_model, q_n, tau, ureg.microcalorie)
 
         # Create sampler.
+        # TODO @property?
         self.mcmc = self._create_metropolis_sampler()
 
     @staticmethod
@@ -508,7 +702,8 @@ class TellinghuisenDilutionModel(BindingModel):
         # Set observation
         self.q_n_obs = BindingModel._normal_observation_with_units('q_n', q_n_model, q_n, tau, ureg.microcalorie / ureg.mole)
 
-        # Create sampler.
+        # Create sampler. TODO @property?
+
         self.mcmc = self._create_metropolis_sampler(Xs_stated)
 
         return
@@ -688,7 +883,8 @@ class TitrantBufferModel(BindingModel):
         # Set observation
         self.q_n_obs = BindingModel._normal_observation_with_units('q_n', q_n_model, q_n, tau, ureg.microcalorie / ureg.mole)
 
-        # Create sampler.
+        # Create sampler. TODO @property?
+
         self.mcmc = self._create_metropolis_sampler(Xs_stated)
 
         return
@@ -866,7 +1062,8 @@ class BufferTitrandModel(BindingModel):
         # Set observation
         self.q_n_obs = BindingModel._normal_observation_with_units('q_n', q_n_model, q_n, tau, ureg.microcalorie / ureg.mole)
 
-        # Create sampler.
+        # Create sampler. TODO @property?
+
         self.mcmc = self._create_metropolis_sampler(Mc_stated)
 
         return
@@ -1046,7 +1243,8 @@ class TwoComponentBindingModel(BindingModel):
         # Set observation
         self.q_n_obs = BindingModel._normal_observation_with_units('q_n', q_n_model, q_n, tau, ureg.microcalorie / ureg.mole)
 
-        # Create sampler.
+        # Create sampler. TODO @property?
+
         self.mcmc = self._create_metropolis_sampler(Ls_stated, P0_stated, experiment)
 
         return
@@ -1320,7 +1518,8 @@ class CompetitiveBindingModel(BindingModel):
             experiment.observation = self._normal_observation_with_units(q_n_obs_name, experiment.true_injection_heats, experiment.observed_injection_heats, tau, ureg.microcalorie)
             self.stochastics.append(experiment.observation)
 
-        # Create sampler.
+        # Create sampler. TODO @property?
+
         logger.info("Creating sampler...")
         mcmc = self._create_metropolis_sampler()
 

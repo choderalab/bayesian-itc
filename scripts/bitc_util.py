@@ -473,7 +473,7 @@ elif validated['--model'] == 'BufferTitrand':
 
 
 else:
-    raise RuntimeError("No MCMC model constructed.")
+    raise RuntimeError("No MCMC model constructed. Model type not recognized.")
 
 # Graph out the model
 pymc.graph.dag(model.mcmc)
