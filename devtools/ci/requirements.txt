@@ -6,3 +6,4 @@ pint
 docopt
 schema
 scikit-learn
+seaborn
