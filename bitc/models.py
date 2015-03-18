@@ -299,6 +299,23 @@ class MultiExperimentModel(BindingModel):
         self.stochastics = set()
         self.observables = set()
 
+        # Get the temperature from one of the experiments
+        self.temperature = next(iter(experiments.values())).target_temperature
+        self.beta = 1.0 / (ureg.molar_gas_constant * self.temperature)
+
+        # Get the instrument from one of the experiments
+        self.instrument = next(iter(experiments.values())).instrument
+        self.cell_volume = self.instrument.cell_volume
+
+        # Consistency check between experiments
+        for experiment_type, experiment in self.experiments:
+            # FIXME float comparison...
+            if self.temperature != experiment.target_temperature:
+                raise ValueError('All experiments need to be performed at the same temperature!')
+            if self.instrument != experiment.instrument:
+                raise ValueError('For determination of sigma, experiments need to be performed in the same instrument.')
+
+
         # Noise parameter
         # TODO get sigma guesses from baseline model
         self.stochastics.add(BindingModel._uniform_prior('log_sigma', *self._log_sigma_guesses()))
@@ -330,39 +347,11 @@ class MultiExperimentModel(BindingModel):
                 self.stochastics.update(stochastics)
                 self.observables.update(observables)
 
-        # Get the temperature from one of the experiments
-        self.temperature = next(iter(experiments)).target_temperature
-        self.beta = 1.0 / (ureg.molar_gas_constant * self.temperature)
-
-        # Get the instrument from one of the experiments
-        self.instrument = next(iter(experiments)).instrument
-        self.cell_volume = self.instrument.cell_volume
-
-        # Consistency check between experiments
-        for experiment in self.experiments:
-            # FIXME float comparison...
-            if self.temperature != experiments.target_temperature:
-                raise ValueError('All experiments need to be performed at the same temperature!')
-            if self.instrument != experiment.instrument:
-                raise ValueError('For appropriate determination of sigma,'
-                                 'all experiments need to be performed in the same instrument.')
-
-        # Noise parameter
-        # TODO get sigma guesses from baseline model
-        self.stochastics.add(BindingModel._uniform_prior('log_sigma', *self._log_sigma_guesses()))
-
-        # Model definition
-        tau = pymc.Lambda('tau', lambda log_sigma=self.log_sigma: exp(-2.0 * log_sigma))
-
-        # TODO work this out further
-        heats_model = dilution_twocomponent_injection_heats(self.stochastics, self.temperature, self.cell_volume)
 
 
     def log_sigma(self):
         """Noise parameter"""
         raise NotImplementedError
-
-
 
     @property
     def mcmc(self):
@@ -520,11 +509,11 @@ class MultiExperimentModel(BindingModel):
         # Concentration of the titrand species
         Xs = BindingModel._lognormal_concentration_prior('Xs', Xs_stated, dXs, ureg.millimolar)
         # Enthalpy of dilution for titrand
-        DeltaH_titrant = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_titrant', 0., 1000., -1000.,ureg.calorie / ureg.mole)
+        DeltaH_titrant = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_titrant', 0., 10., -10.,ureg.kilocalorie / ureg.mole)
         # Concentration of the titrand species
         Mc = BindingModel._lognormal_concentration_prior('Mc', Mc_stated, dMc, ureg.millimolar)
         # Enthalpy of dilution for titrand
-        DeltaH_titrand = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_titrand', 0., 1000., -1000., ureg.calorie / ureg.mole)
+        DeltaH_titrand = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_titrand', 0., 10., -10., ureg.kilocalorie / ureg.mole)
         # Free energy of binding
         DeltaG_bind = BindingModel._uniform_prior_with_guesses_and_units('DeltaG', 0., 40., -40., ureg.kilocalorie / ureg.mole)
         # Enthalpy of binding
@@ -551,16 +540,26 @@ class MultiExperimentModel(BindingModel):
         raise NotImplementedError
 
 
-@ureg.wraps(ret=ureg.microcalorie, args=[ureg.liter, ureg.liter, None, None, None,None,None,None,None, ureg.mole/ureg.kilocalorie,None])
-def dilution_twocomponent_injection_heats(V0, DeltaVn, Xs, Mc, DeltaH_titrant,DeltaH_titrand,DeltaH_bind, DeltaG_bind, H_mech, beta, N):
+@ureg.wraps(ret=ureg.microcalorie, args=[ureg.liter, ureg.liter, None, None, None, None, None, None, None, ureg.mole / ureg.kilocalorie, None])
+def dilution_twocomponent_injection_heats(V0, DeltaVn, Xs, Mc, DeltaH_titrant, DeltaH_titrand, DeltaH_bind, DeltaG_bind, H_mech, beta, N):
     """
     Parameters
     ----------
-    TODO
+    V0 - cell volume (liter)
+    DeltaVn - injection volume (liter)
+    Xs - Syringe concentration (mM)
+    Mc - cell concentration (mM)
+    DeltaH_titrant - heat of diluting titrant (kcal/mol)
+    DeltaH_titrand - heat of diluting titrand (kcal/mol)
+    DeltaH_bind - heat of binding (kcal/mol)
+    DeltaG_bind - free energy of binding (kcal/mol)
+    H_mech - mechanical heat of injection (ucal)
+    beta - 1/kBT (mole/kcal)
+    N - number of injections
 
     Returns
     -------
-    numpy.ndarray - Expected injection heats
+    numpy.ndarray - expected injection heats (ucal)
     """
 
     Kd = exp(beta * DeltaG_bind)   # dissociation constant (M)
@@ -581,12 +580,15 @@ def dilution_twocomponent_injection_heats(V0, DeltaVn, Xs, Mc, DeltaH_titrant,De
         # dilution factor for this injection (dimensionless)
         d = 1.0 - (DeltaVn[n] / V0)
         dcum *= d  # cumulative dilution factor
-        # total quantity of protein in sample cell after n injections (converted from mM to mole)
+        # total quantity of protein in sample cell after n injections
+        # (converted from mM to mole)
         M = V0 * Mc * 1.e-3 * dcum
-        # total quantity of ligand in sample cell after n injections (converted from mM to mole)
+        # total quantity of ligand in sample cell after n injections (converted
+        # from mM to mole)
         X = V0 * Xs * 1.e-3 * (1. - dcum)
         # complex concentration (M)
-        MXcn[n] = (0.5 / V0 * ((M + X + Kd * V0) - ((M + X + Kd * V0) ** 2 - 4 * M * X) ** 0.5))
+        MXcn[n] = (
+            0.5 / V0 * ((M + X + Kd * V0) - ((M + X + Kd * V0) ** 2 - 4 * M * X) ** 0.5))
         # free protein concentration in sample cell after n injections (M)
         Mcn[n] = M / V0 - MXcn[n]
         # free ligand concentration in sample cell after n injections (M)
@@ -601,17 +603,18 @@ def dilution_twocomponent_injection_heats(V0, DeltaVn, Xs, Mc, DeltaH_titrant,De
     DHd = DeltaH_titrand * (Mcn[0] - Mc)
     DHt = DeltaH_titrant * (Xcn[0])
     # converter from kcal/mol to cal/liter
-    DH = 1.e3 * DeltaH_bind * (MXcn[0])
+    DHb = DeltaH_bind * (MXcn[0])
     d = 1.0 - (DeltaVn[0] / V0)  # dilution factor (dimensionless)
-    q_n[0] = V0 * 1.e6 * (DeltaH_titrand * (Mcn[0] - Mc)) + H_mech
+    q_n[0] = V0 * 1.e9 * (DHd + DHt + DHb) + H_mech
     for n in range(1, N):
         d = 1.0 - (DeltaVn[n] / V0)  # dilution factor (dimensionless)
         # subsequent injections
         DHd = DeltaH_titrand * (Mcn[n] - Mcn[n - 1])
         DHt = DeltaH_titrant * (Xcn[n] - Xcn[n - 1])
-        DH = 1.e3 * DeltaH_bind * (MXcn[n] - d * MXcn[n - 1])
+        DHb = DeltaH_bind * (MXcn[n] - d * MXcn[n - 1])
         # converted from cal/liter to ucal
-        q_n[n] = V0 * 1.e6 * (DHd + DHt + DH) + H_mech
+        q_n[n] = V0 * 1.e9 * (DHd + DHt + DHb) + H_mech
+
 
 
 class BaselineModel(BindingModel):
@@ -1107,14 +1110,14 @@ def titrant_dilution_injection_heats(V0, DeltaVn, Xs, DeltaH, H_0, N):
 
 
     """
-    # Ln[n] is the ligand concentration in sample cell after n injections
+    # Ln[n] is the ligand concentration in sample cell after n+1 injections
     Xn = numpy.zeros([N])
 
     # Equation 8 of Tellinghuisen Calibration in isothermal titration calorimetry:
     # heat and cell volume from heat of dilution of NaCl(aq).
     # http://dx.doi.org/10.1016/j.ab.2006.10.015
     vcum = 0.0  # cumulative injected volume (liter)
-    for n in range(1, N):
+    for n in range(N):
         # Instantaneous injection model (perfusion)
         # dilution factor for this injection (dimensionless)
         vcum += DeltaVn[n]
