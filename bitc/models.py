@@ -278,31 +278,6 @@ class BindingModel(object):
 class MultiExperimentModel(BindingModel):
     """Base class for model that can handle multiple experiment objects"""
 
-    @staticmethod
-    def _determine_reference_experiment(experiments):
-        """Figure out the best initial guess for sigma from experiment types"""
-        # TODO get sigma guesses from baseline model
-        if "bufferbuffer" in experiments:
-            experiment_objects = experiments["bufferbuffer"]
-            frac_inj = 1.0
-        elif "buffertitrand" in experiments:
-            experiment_objects = experiments["buffertitrand"]
-            frac_inj = 0.4
-        elif "titrantbuffer" in experiments:
-            experiment_objects = experiments["titrantbuffer"]
-            frac_inj = 0.4
-        else:
-            experiment_objects = experiments["titranttitrand"]
-            frac_inj = 0.4
-        if not isinstance(experiment_objects, collections.Iterable):
-            experiment_objects = tuple([experiment_objects])
-
-        #just pick the first experiment in the set if multiple exist.
-        sigma_reference = experiment_objects[0]
-        # use fraction of injection rounded down to integer as reference for sigma
-        num_inj = int(sigma_reference.number_of_injections * frac_inj)
-        return num_inj, sigma_reference
-
     def __init__(self, experiments):
         """
         Arguments
@@ -375,8 +350,6 @@ class MultiExperimentModel(BindingModel):
             setattr(self, name, prior)
 
         self.mcmc = self._create_metropolis_sampler()
-
-
 
     @staticmethod
     def _get_experimental_conditions(experiment):
@@ -472,6 +445,30 @@ class MultiExperimentModel(BindingModel):
 
         return {observed_heat}
 
+    @staticmethod
+    def _determine_reference_experiment(experiments):
+        """Figure out the best initial guess for sigma from experiment types"""
+        # TODO get sigma guesses from baseline model
+        if "bufferbuffer" in experiments:
+            experiment_objects = experiments["bufferbuffer"]
+            frac_inj = 1.0
+        elif "buffertitrand" in experiments:
+            experiment_objects = experiments["buffertitrand"]
+            frac_inj = 0.4
+        elif "titrantbuffer" in experiments:
+            experiment_objects = experiments["titrantbuffer"]
+            frac_inj = 0.4
+        else:
+            experiment_objects = experiments["titranttitrand"]
+            frac_inj = 0.4
+        if not isinstance(experiment_objects, collections.Iterable):
+            experiment_objects = tuple([experiment_objects])
+
+        # just pick the first experiment in the set if multiple exist.
+        sigma_reference = experiment_objects[0]
+        # use fraction of injection rounded down to integer as reference for sigma
+        num_inj = int(sigma_reference.number_of_injections * frac_inj)
+        return num_inj, sigma_reference
 
     def _titrant_into_buffer(self, experiment, tau):
         """
@@ -1066,7 +1063,7 @@ class TitrantBufferModel(BindingModel):
         self.H_0 = BindingModel._uniform_prior_with_guesses_and_units('H_0', * self._deltaH0_guesses(q_n), prior_unit=ureg.microcalorie, guess_unit=True)
 
         # Total enthalp of dilution
-        self.DeltaH = BindingModel._uniform_prior_with_guesses_and_units('DeltaH', 0., 1000., -1000., ureg.calorie/ureg.mole)
+        self.DeltaH = BindingModel._uniform_prior_with_guesses_and_units('DeltaH', 0., 10., -10., ureg.kilocalorie/ureg.mole)
 
         # Prior for the noise parameter log(sigma)
         self.log_sigma = BindingModel._uniform_prior('log_sigma', *self._logsigma_guesses(q_n, 4, ureg.microcalorie))
@@ -1150,7 +1147,7 @@ def titrant_dilution_injection_heats(V0, DeltaVn, Xs, DeltaH, H_0, N):
     V0 - cell volume (liter)
     DeltaVn - injection volumes (liter)
     Xs - Syringe concentration (millimolar)
-    DeltaH - total enthalpy of dilution (cal/mol)
+    DeltaH - total enthalpy of dilution (kcal/mol)
     H_0 - mechanical heat of injection (ucal)
     N - number of injections
 
@@ -1181,12 +1178,12 @@ def titrant_dilution_injection_heats(V0, DeltaVn, Xs, DeltaH, H_0, N):
     # Instantaneous injection model (perfusion)
     # first injection
     # From units of cal/mole to ucal
-    q_n[0] = 1.e6 * (DeltaH * V0 * Xn[0]) + H_0
+    q_n[0] = 1.e9 * (DeltaH * V0 * Xn[0]) + H_0
     for n in range(1, N):
         d = 1.0 - (DeltaVn[n] / V0)  # dilution factor (dimensionless)
         # subsequent injections
         # From units of cal/mole to ucal
-        q_n[n] = 1.e6 * (DeltaH * V0 * (Xn[n] - Xn[n - 1]))  + H_0
+        q_n[n] = 1.e9 * (DeltaH * V0 * (Xn[n] - Xn[n - 1]))  + H_0
 
     return q_n
 
@@ -1243,7 +1240,7 @@ class BufferTitrandModel(BindingModel):
         self.H_0 = BindingModel._uniform_prior_with_guesses_and_units('H_0', * self._deltaH0_guesses(q_n), prior_unit=ureg.microcalorie, guess_unit=True)
 
         # Total enthalp of dilution
-        self.DeltaH = BindingModel._uniform_prior_with_guesses_and_units('DeltaH', 0., 1000., -1000., ureg.calorie/ureg.mole)
+        self.DeltaH = BindingModel._uniform_prior_with_guesses_and_units('DeltaH', 0., 10., -10., ureg.kilocalorie/ureg.mole)
 
         # Prior for the noise parameter log(sigma)
         self.log_sigma = BindingModel._uniform_prior('log_sigma', *self._logsigma_guesses(q_n, 4, ureg.microcalorie))
@@ -1327,7 +1324,7 @@ def titrand_dilution_injection_heats(V0, DeltaVn, Mc, DeltaH, H_0, N):
     V0 - cell volume (liter)
     DeltaVn - injection volumes (liter)
     Mc - cell_concentration (millimolar)
-    DeltaH - total enthalpy of dilution (cal /mol)
+    DeltaH - total enthalpy of dilution (kcal /mol)
     H_0 - mechanical heat of injection (ucal)
     N - number of injections
 
@@ -1356,12 +1353,12 @@ def titrand_dilution_injection_heats(V0, DeltaVn, Mc, DeltaH, H_0, N):
     # first injection
     # converted from cal/mol to ucal
     d = 1.0 - (DeltaVn[0] / V0)  # dilution factor (dimensionless)
-    q_n[0] = V0 * 1.e6 * (DeltaH * (Mn[0] - Mc)) + H_0
+    q_n[0] = V0 * 1.e9 * (DeltaH * (Mn[0] - Mc)) + H_0
     for n in range(1, N):
         d = 1.0 - (DeltaVn[n] / V0)  # dilution factor (dimensionless)
         # subsequent injections
         # converted from cal/mol to ucal
-        q_n[n] = V0 * 1.e6 * (DeltaH * (Mn[n] - Mn[n - 1])) + H_0
+        q_n[n] = V0 * 1.e9 * (DeltaH * (Mn[n] - Mn[n - 1])) + H_0
 
     return q_n
 

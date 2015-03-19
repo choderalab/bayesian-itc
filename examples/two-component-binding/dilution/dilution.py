@@ -25,7 +25,7 @@ mcmc = model.mcmc
 
 map = pymc.MAP(model)
 map.fit(iterlim=10000, verbose=1)
-model.mcmc.isample(iter=1000000, burn=10000, thin=25, progress_bar=True)
+model.mcmc.sample(iter=100000, burn=10000, thin=25, progress_bar=True)
 pymc.Matplot.plot(model.mcmc, "dilution.png")
 
 # Graph out the model
