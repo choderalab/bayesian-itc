@@ -321,7 +321,7 @@ class MultiExperimentModel(BindingModel):
         """
 
         self.experiments = experiments
-        self.stochastics = set()
+        self.priors = dict()
         self.observables = set()
 
         # Get the temperature from one of the experiments
@@ -358,23 +358,25 @@ class MultiExperimentModel(BindingModel):
             # each individual experiment type.
             for experiment in experiment_objects:
                 if experiment_type == "bufferbuffer":
-                    stochastics, observables = self._buffer_into_buffer(experiment,tau)
+                    observables = self._buffer_into_buffer(experiment, tau)
                 elif experiment_type == "buffertitrand":
-                    stochastics, observables = self._buffer_into_titrand(experiment,tau)
+                    observables = self._buffer_into_titrand(experiment, tau)
                 elif experiment_type == "titrantbuffer":
-                    stochastics, observables = self._titrant_into_buffer(experiment,tau)
+                    observables = self._titrant_into_buffer(experiment, tau)
                 elif experiment_type == "titranttitrand":
-                    stochastics, observables = self._titrant_into_titrand(experiment,tau)
+                    observables = self._titrant_into_titrand(experiment, tau)
                 else:
                     raise ValueError("Unknown experiment type: %s" % experiment_type)
 
-                self.stochastics.update(stochastics)
                 self.observables.update(observables)
 
-    @property
-    def mcmc(self):
-        """Returns an mcmc sampler for the model"""
-        return self._create_metropolis_sampler()
+        # Add the priors as class attributes
+        for name, prior in self.priors.items():
+            setattr(self, name, prior)
+
+        self.mcmc = self._create_metropolis_sampler()
+
+
 
     @staticmethod
     def _get_experimental_conditions(experiment):
@@ -408,10 +410,9 @@ class MultiExperimentModel(BindingModel):
 
         return injection_heats, injection_volumes, n, name, temperature, beta, cell_volume
 
-    @staticmethod
-    def _buffer_into_buffer(experiment, tau):
+    def _buffer_into_buffer(self, experiment, tau):
         """
-        Define a  buffer into buffer experiment
+        Define a buffer into buffer experiment, adding priors where necessary
 
         Parameters
         ----------
@@ -420,20 +421,21 @@ class MultiExperimentModel(BindingModel):
 
         Returns
         -------
-        tuple - (stochastics, observables) all the stochastics and observables that define the experiment
+        tuple - (observables) all the observables that define the experiment
         """
-
         injection_heats, injection_volumes, n, name, temperature, beta, cell_volume = MultiExperimentModel._get_experimental_conditions(experiment)
+
+        if "H_mech" not in self.priors:
         # Mechanical heat of the injection
-        H_mech = BindingModel._uniform_prior_with_guesses_and_units('H_mech', *BindingModel._deltaH0_guesses(injection_heats), prior_unit=ureg.microcalorie, guess_unit=True)
+            self.priors["H_mech"] = BindingModel._uniform_prior_with_guesses_and_units('H_mech', *BindingModel._deltaH0_guesses(injection_heats), prior_unit=ureg.microcalorie, guess_unit=True)
+
         # The model simply depends on the mechanical heats, and the number of injections
-        model = pymc.Lambda(name + '_model', lambda H_mech=H_mech, n=n: mechanical_injection_heats(H_mech,n))
+        model = pymc.Lambda(name + '_model', lambda H_mech=self.priors["H_mech"], n=n: mechanical_injection_heats(H_mech,n))
         observed_heat = BindingModel._normal_observation_with_units(name, model, injection_heats, tau, ureg.microcalorie)
 
-        return {H_mech},{observed_heat}
+        return {observed_heat}
 
-    @staticmethod
-    def _buffer_into_titrand(experiment, tau):
+    def _buffer_into_titrand(self, experiment, tau):
         """
         Add a buffer into titrand experiment to the model.
 
@@ -447,26 +449,31 @@ class MultiExperimentModel(BindingModel):
         tuple - (stochastics, observables) all the stochastics and observables that define the experiment
         """
         injection_heats, injection_volumes, n, name, temperature, beta, cell_volume = MultiExperimentModel._get_experimental_conditions(experiment)  # Mechanical heat of the injection
-        Mc_stated = BindingModel._get_cell_concentration(experiment)
-        dMc = 0.10 * Mc_stated
 
         # Mechanical heat of injection
-        H_mech = BindingModel._uniform_prior_with_guesses_and_units('H_mech',*BindingModel._deltaH0_guesses(injection_heats),prior_unit=ureg.microcalorie, guess_unit=True)
+        if "H_mech" not in self.priors:
+            self.priors["H_mech"] = BindingModel._uniform_prior_with_guesses_and_units('H_mech',*BindingModel._deltaH0_guesses(injection_heats),prior_unit=ureg.microcalorie, guess_unit=True)
+
         # Concentration of the titrand species
-        Mc = BindingModel._lognormal_concentration_prior('Mc', Mc_stated, dMc, ureg.millimolar)
+        if "Mc" not in self.priors:
+            Mc_stated = BindingModel._get_cell_concentration(experiment)
+            dMc = 0.10 * Mc_stated
+            self.priors["Mc"] = BindingModel._lognormal_concentration_prior('Mc', Mc_stated, dMc, ureg.millimolar)
+
         # Enthalpy of dilution for titrand
-        DeltaH_titrand = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_titrand', 0., 1000., -1000., ureg.calorie / ureg.mole)
-        model = pymc.Lambda(name + '_model', lambda  V0=cell_volume, DeltaVn=injection_volumes, Mc=Mc, DeltaH=DeltaH_titrand, H_0=H_mech, N=n:
+        if "DeltaH_titrand" not in self.priors:
+            self.priors["DeltaH_titrand"] = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_titrand', 0., 1000., -1000., ureg.calorie / ureg.mole)
+
+        model = pymc.Lambda(name + '_model', lambda  V0=cell_volume, DeltaVn=injection_volumes, Mc=self.priors["Mc"], DeltaH=self.priors["DeltaH_titrand"], H_0=self.priors["H_mech"], N=n:
                                                titrand_dilution_injection_heats(V0, DeltaVn, Mc, DeltaH, H_0, N)
                             )
 
         observed_heat = BindingModel._normal_observation_with_units(name, model, injection_heats, tau, ureg.microcalorie)
 
-        return {H_mech, Mc, DeltaH_titrand}, {observed_heat}
+        return {observed_heat}
 
 
-    @staticmethod
-    def _titrant_into_buffer(experiment, tau):
+    def _titrant_into_buffer(self, experiment, tau):
         """
         Add a titrant into buffer experiment to the model.
 
@@ -481,28 +488,31 @@ class MultiExperimentModel(BindingModel):
 
 
         """
-        injection_heats, injection_volumes, n, name, temperature, beta, cell_volume = MultiExperimentModel._get_experimental_conditions(
-            experiment)  # Mechanical heat of the injection
-        Xs_stated = BindingModel._get_syringe_concentration(experiment).to('millimolar')
-        dXs = 0.10 * Xs_stated
+        injection_heats, injection_volumes, n, name, temperature, beta, cell_volume = MultiExperimentModel._get_experimental_conditions(experiment)
+
 
         # Mechanical heat of injection
-        H_mech = BindingModel._uniform_prior_with_guesses_and_units('H_mech',*BindingModel._deltaH0_guesses(injection_heats), prior_unit=ureg.microcalorie, guess_unit=True)
+        if "H_mech" not in self.priors:
+            self.priors["H_mech"] = BindingModel._uniform_prior_with_guesses_and_units('H_mech', *BindingModel._deltaH0_guesses(injection_heats), prior_unit=ureg.microcalorie,guess_unit=True)
+
         # Concentration of the titrand species
-        Xs = BindingModel._lognormal_concentration_prior('Xs', Xs_stated, dXs, ureg.millimolar)
-        # Enthalpy of dilution for titrand
-        DeltaH_titrant = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_titrant', 0., 1000., -1000., ureg.calorie / ureg.mole)
-        model = pymc.Lambda(name + '_model',
-                            lambda V0=cell_volume, DeltaVn=injection_volumes, Xs=Xs, DeltaH=DeltaH_titrant, H_0=H_mech,N=n:
+        if "Xs" not in self.priors:
+            Xs_stated = BindingModel._get_syringe_concentration(experiment).to('millimolar')
+            dXs = 0.10 * Xs_stated
+            self.priors["Xs"] = BindingModel._lognormal_concentration_prior('Xs', Xs_stated, dXs, ureg.millimolar)
+
+        # Enthalpy of dilution for titrant
+        if "DeltaH_titrant" not in self.priors:
+            self.priors["DeltaH_titrant"] = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_titrant', 0., 1000., -1000., ureg.calorie / ureg.mole)
+
+        model = pymc.Lambda(name + '_model', lambda V0=cell_volume, DeltaVn=injection_volumes, Xs=self.priors["Xs"], DeltaH=self.priors["DeltaH_titrant"], H_0=self.priors["H_mech"],N=n:
                             titrant_dilution_injection_heats(V0, DeltaVn, Xs, DeltaH, H_0, N)
                             )
-
         observed_heat = BindingModel._normal_observation_with_units(name, model, injection_heats, tau, ureg.microcalorie)
 
-        return {H_mech, Xs, DeltaH_titrant}, {observed_heat}
+        return {observed_heat}
 
-    @staticmethod
-    def _titrant_into_titrand(experiment, tau):
+    def _titrant_into_titrand(self, experiment, tau):
         """
         Add a titrant into titrand experiment to the model.
 
@@ -517,39 +527,59 @@ class MultiExperimentModel(BindingModel):
 
         """
         injection_heats, injection_volumes, n, name, temperature, beta, cell_volume = MultiExperimentModel._get_experimental_conditions(experiment)
-        Xs_stated = BindingModel._get_syringe_concentration(experiment).to('millimolar')
-        dXs = 0.10 * Xs_stated
-        Mc_stated = BindingModel._get_cell_concentration(experiment).to('millimolar')
-        dMc = 0.10 * Mc_stated
+
 
         # Mechanical heat of injection
-        H_mech = BindingModel._uniform_prior_with_guesses_and_units('H_mech', *BindingModel._deltaH0_guesses(injection_heats), prior_unit=ureg.microcalorie, guess_unit=True)
-        # Concentration of the titrand species
-        Xs = BindingModel._lognormal_concentration_prior('Xs', Xs_stated, dXs, ureg.millimolar)
-        # Enthalpy of dilution for titrand
-        DeltaH_titrant = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_titrant', 0., 10., -10.,ureg.kilocalorie / ureg.mole)
-        # Concentration of the titrand species
-        Mc = BindingModel._lognormal_concentration_prior('Mc', Mc_stated, dMc, ureg.millimolar)
-        # Enthalpy of dilution for titrand
-        DeltaH_titrand = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_titrand', 0., 10., -10., ureg.kilocalorie / ureg.mole)
-        # Free energy of binding
-        DeltaG_bind = BindingModel._uniform_prior_with_guesses_and_units('DeltaG', 0., 40., -40., ureg.kilocalorie / ureg.mole)
-        # Enthalpy of binding
-        DeltaH_bind = BindingModel._uniform_prior_with_guesses_and_units('DeltaH', 0., 100., -100., ureg.kilocalorie / ureg.mole)
-        # Kd
-        Kd = pymc.Lambda('Kd', lambda dG=DeltaG_bind, beta=beta: exp(beta/(ureg.mole/ureg.kcal)*dG))
+        if "H_mech" not in self.priors:
+            self.priors["H_mech"] = BindingModel._uniform_prior_with_guesses_and_units('H_mech', *BindingModel._deltaH0_guesses(injection_heats), prior_unit=ureg.microcalorie, guess_unit=True)
 
-        model = pymc.Lambda(name + '_model', lambda V0=cell_volume, DeltaVn=injection_volumes, Xs=Xs, Mc=Mc, DeltaH_titrant=DeltaH_titrant, DeltaH_titrand=DeltaH_titrand, DeltaH_bind=DeltaH_bind, DeltaG_bind=DeltaG_bind, H_mech=H_mech, beta=beta, N=n:
-                           dilution_twocomponent_injection_heats(V0, DeltaVn, Xs, Mc, DeltaH_titrant,DeltaH_titrand,DeltaH_bind, DeltaG_bind, H_mech, beta, N)
+        # Concentration of the titrand species
+        if "Xs" not in self.priors:
+            Xs_stated = BindingModel._get_syringe_concentration(experiment).to('millimolar')
+            dXs = 0.10 * Xs_stated
+            self.priors["Xs"] = BindingModel._lognormal_concentration_prior('Xs', Xs_stated, dXs, ureg.millimolar)
+
+        # Enthalpy of dilution for titrant
+        if "DeltaH_titrant" not in self.priors:
+            self.priors["DeltaH_titrant"] = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_titrant', 0., 1000., -1000., ureg.calorie / ureg.mole)
+
+        # Concentration of the titrand species
+        if "Mc" not in self.priors:
+            Mc_stated = BindingModel._get_cell_concentration(experiment)
+            dMc = 0.10 * Mc_stated
+            self.priors["Mc"] = BindingModel._lognormal_concentration_prior('Mc', Mc_stated, dMc, ureg.millimolar)
+
+        # Enthalpy of dilution for titrand
+        if "DeltaH_titrand" not in self.priors:
+            self.priors["DeltaH_titrand"] = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_titrand', 0., 1000., -1000., ureg.calorie / ureg.mole)
+
+        # Free energy of binding
+        if "DeltaG_bind" not in self.priors:
+            self.priors["DeltaG_bind"] = BindingModel._uniform_prior_with_guesses_and_units('DeltaG', 0., 40., -40., ureg.kilocalorie / ureg.mole)
+
+        # Enthalpy of binding
+        if "DeltaH_bind" not in self.priors:
+            self.priors["DeltaH_bind"] = BindingModel._uniform_prior_with_guesses_and_units('DeltaH', 0., 100., -100., ureg.kilocalorie / ureg.mole)
+
+
+        model = pymc.Lambda(name + '_model', lambda V0=cell_volume, DeltaVn=injection_volumes, Xs=self.priors["Xs"],
+                                                    Mc=self.priors["Mc"], DeltaH_titrant=self.priors["DeltaH_titrant"],
+                                                    DeltaH_titrand=self.priors["DeltaH_titrand"],
+                                                    DeltaH_bind=self.priors["DeltaH_bind"],
+                                                    DeltaG_bind=self.priors["DeltaG_bind"],
+                                                    H_mech=self.priors["H_mech"], beta=beta, N=n:
+        dilution_twocomponent_injection_heats(V0, DeltaVn, Xs, Mc, DeltaH_titrant, DeltaH_titrand, DeltaH_bind,
+                                              DeltaG_bind, H_mech, beta, N)
                             )
+
         observed_heat = BindingModel._normal_observation_with_units(name, model, injection_heats, tau, ureg.microcalorie)
 
-        return {H_mech, Xs, Mc, DeltaH_titrant, DeltaH_titrand, DeltaG_bind, DeltaH_bind, Kd}, {observed_heat}
+        return {observed_heat}
 
     def _create_metropolis_sampler(self):
         mcmc = pymc.MCMC(self, db='ram')
-        for stochastic in self.stochastics:
-            mcmc.use_step_method(pymc.Metropolis, stochastic)
+        for parameter in self.priors.values():
+            mcmc.use_step_method(pymc.Metropolis, parameter)
 
         return mcmc
 
@@ -668,7 +698,6 @@ class BaselineModel(BindingModel):
         tau = self._lambda_tau_model()
 
         # Create sampler.
-        # TODO use @property ?
         self.mcmc = self._create_metropolis_sampler()
 
 
@@ -740,7 +769,6 @@ class BufferBufferModel(BindingModel):
         self.q_n_obs = BindingModel._normal_observation_with_units('q_n', q_n_model, q_n, tau, ureg.microcalorie)
 
         # Create sampler.
-        # TODO @property?
         self.mcmc = self._create_metropolis_sampler()
 
     @staticmethod
@@ -870,8 +898,7 @@ class TellinghuisenDilutionModel(BindingModel):
         # Set observation
         self.q_n_obs = BindingModel._normal_observation_with_units('q_n', q_n_model, q_n, tau, ureg.microcalorie / ureg.mole)
 
-        # Create sampler. TODO @property?
-
+        # Create sampler.
         self.mcmc = self._create_metropolis_sampler(Xs_stated)
 
         return
@@ -1051,8 +1078,7 @@ class TitrantBufferModel(BindingModel):
         # Set observation
         self.q_n_obs = BindingModel._normal_observation_with_units('q_n', q_n_model, q_n, tau, ureg.microcalorie / ureg.mole)
 
-        # Create sampler. TODO @property?
-
+        # Create sampler.
         self.mcmc = self._create_metropolis_sampler(Xs_stated)
 
         return
@@ -1229,8 +1255,7 @@ class BufferTitrandModel(BindingModel):
         # Set observation
         self.q_n_obs = BindingModel._normal_observation_with_units('q_n', q_n_model, q_n, tau, ureg.microcalorie / ureg.mole)
 
-        # Create sampler. TODO @property?
-
+        # Create sampler.
         self.mcmc = self._create_metropolis_sampler(Mc_stated)
 
         return

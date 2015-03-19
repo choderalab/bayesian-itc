@@ -21,9 +21,13 @@ experiments = dict(bufferbuffer=ExperimentMicroCal('%sbufferbuffer.itc'%datadir,
                    titranttitrand=ExperimentMicroCal('%shostguest6.itc'%datadir, 'titrant_into_titrand', autoitc))
 
 model = MultiExperimentModel(experiments)
+mcmc = model.mcmc
 
-print(model.observables)
-print(model.stochastics)
+map = pymc.MAP(model)
+map.fit(iterlim=10000, verbose=1)
+model.mcmc.isample(iter=1000000, burn=10000, thin=25, progress_bar=True)
+pymc.Matplot.plot(model.mcmc, "dilution.png")
 
-
+# Graph out the model
+pymc.graph.dag(model.mcmc)
 
