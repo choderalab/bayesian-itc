@@ -278,6 +278,31 @@ class BindingModel(object):
 class MultiExperimentModel(BindingModel):
     """Base class for model that can handle multiple experiment objects"""
 
+    @staticmethod
+    def _determine_reference_experiment(experiments):
+        """Figure out the best initial guess for sigma from experiment types"""
+        # TODO get sigma guesses from baseline model
+        if "bufferbuffer" in experiments:
+            experiment_objects = experiments["bufferbuffer"]
+            frac_inj = 1.0
+        elif "buffertitrand" in experiments:
+            experiment_objects = experiments["buffertitrand"]
+            frac_inj = 0.4
+        elif "titrantbuffer" in experiments:
+            experiment_objects = experiments["titrantbuffer"]
+            frac_inj = 0.4
+        else:
+            experiment_objects = experiments["titranttitrand"]
+            frac_inj = 0.4
+        if not isinstance(experiment_objects, collections.Iterable):
+            experiment_objects = tuple([experiment_objects])
+
+        #just pick the first experiment in the set if multiple exist.
+        sigma_reference = experiment_objects[0]
+        # use fraction of injection rounded down to integer as reference for sigma
+        num_inj = int(sigma_reference.number_of_injections * frac_inj)
+        return num_inj, sigma_reference
+
     def __init__(self, experiments):
         """
         Arguments
@@ -305,30 +330,29 @@ class MultiExperimentModel(BindingModel):
 
         # Get the instrument from one of the experiments
         self.instrument = next(iter(experiments.values())).instrument
-        self.cell_volume = self.instrument.cell_volume
+        self.cell_volume = self.instrument.V0
 
         # Consistency check between experiments
-        for experiment_type, experiment in self.experiments:
+        for experiment_type, experiment in self.experiments.items():
             # FIXME float comparison...
             if self.temperature != experiment.target_temperature:
                 raise ValueError('All experiments need to be performed at the same temperature!')
             if self.instrument != experiment.instrument:
                 raise ValueError('For determination of sigma, experiments need to be performed in the same instrument.')
 
-
         # Noise parameter
-        # TODO get sigma guesses from baseline model
-        self.stochastics.add(BindingModel._uniform_prior('log_sigma', *self._log_sigma_guesses()))
+        num_inj, sigma_reference = self._determine_reference_experiment(experiments)
+        self.log_sigma = BindingModel._uniform_prior('log_sigma', *self._log_sigma_guesses(sigma_reference,num_inj,ureg.microcalorie))
 
         # Model definition
         tau = pymc.Lambda('tau', lambda log_sigma=self.log_sigma: exp(-2.0 * log_sigma))
 
         # TODO double-check python3 compatibility
-        for experiment_type, experiment_objects in experiments:
+        for experiment_type, experiment_objects in experiments.items():
 
             # Ensure that input is iterable
             if not isinstance(experiment_objects, collections.Iterable):
-                experiment_objects =  tuple([experiment_objects])
+                experiment_objects = tuple([experiment_objects])
 
             # Call the appropriate initialization function that returns priors (stochastics) and observables for
             # each individual experiment type.
@@ -346,12 +370,6 @@ class MultiExperimentModel(BindingModel):
 
                 self.stochastics.update(stochastics)
                 self.observables.update(observables)
-
-
-
-    def log_sigma(self):
-        """Noise parameter"""
-        raise NotImplementedError
 
     @property
     def mcmc(self):
@@ -519,14 +537,14 @@ class MultiExperimentModel(BindingModel):
         # Enthalpy of binding
         DeltaH_bind = BindingModel._uniform_prior_with_guesses_and_units('DeltaH', 0., 100., -100., ureg.kilocalorie / ureg.mole)
         # Kd
-        Kd = pymc.Lambda('Kd', lambda dG=DeltaG_bind, beta=beta: exp(beta*dG))
+        Kd = pymc.Lambda('Kd', lambda dG=DeltaG_bind, beta=beta: exp(beta/(ureg.mole/ureg.kcal)*dG))
 
         model = pymc.Lambda(name + '_model', lambda V0=cell_volume, DeltaVn=injection_volumes, Xs=Xs, Mc=Mc, DeltaH_titrant=DeltaH_titrant, DeltaH_titrand=DeltaH_titrand, DeltaH_bind=DeltaH_bind, DeltaG_bind=DeltaG_bind, H_mech=H_mech, beta=beta, N=n:
-                            titrant_dilution_injection_heats(V0, DeltaVn, Xs, Mc, DeltaH_titrant,DeltaH_titrand,DeltaH_bind, DeltaG_bind, H_mech, beta, N)
+                           dilution_twocomponent_injection_heats(V0, DeltaVn, Xs, Mc, DeltaH_titrant,DeltaH_titrand,DeltaH_bind, DeltaG_bind, H_mech, beta, N)
                             )
         observed_heat = BindingModel._normal_observation_with_units(name, model, injection_heats, tau, ureg.microcalorie)
 
-        return {H_mech, Xs, Mc, DeltaH_titrant, DeltaH_titrand, DeltaG_bind, DeltaH_bind}, {observed_heat}
+        return {H_mech, Xs, Mc, DeltaH_titrant, DeltaH_titrand, DeltaG_bind, DeltaH_bind, Kd}, {observed_heat}
 
     def _create_metropolis_sampler(self):
         mcmc = pymc.MCMC(self, db='ram')
@@ -535,9 +553,14 @@ class MultiExperimentModel(BindingModel):
 
         return mcmc
 
-    def _log_sigma_guesses(self):
+    @staticmethod
+    def _log_sigma_guesses(experiment, num_injections, standard_unit):
         """Initial guesses for log sigma"""
-        raise NotImplementedError
+        heats=MultiExperimentModel._get_experimental_conditions(experiment)[0]
+        log_sigma_guess = log(heats[-num_injections:].std() / standard_unit)
+        log_sigma_min = log_sigma_guess - 10
+        log_sigma_max = log_sigma_guess + 5
+        return log_sigma_guess, log_sigma_max, log_sigma_min
 
 
 @ureg.wraps(ret=ureg.microcalorie, args=[ureg.liter, ureg.liter, None, None, None, None, None, None, None, ureg.mole / ureg.kilocalorie, None])
@@ -615,6 +638,7 @@ def dilution_twocomponent_injection_heats(V0, DeltaVn, Xs, Mc, DeltaH_titrant, D
         # converted from cal/liter to ucal
         q_n[n] = V0 * 1.e9 * (DHd + DHt + DHb) + H_mech
 
+    return q_n
 
 
 class BaselineModel(BindingModel):
@@ -1978,4 +2002,5 @@ known_models = {'TwoComponent': TwoComponentBindingModel,
                 'Dilution': TellinghuisenDilutionModel,
                 'TitrantBuffer': TitrantBufferModel,
                 'BufferTitrand': BufferTitrandModel,
+                'MultiExperiment': MultiExperimentModel,
                 }
