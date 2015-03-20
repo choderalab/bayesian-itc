@@ -278,11 +278,12 @@ class BindingModel(object):
 class MultiExperimentModel(BindingModel):
     """Base class for model that can handle multiple experiment objects"""
 
-    def __init__(self, experiments):
+    def __init__(self, experiments, independent_mech=True):
         """
         Arguments
         ---------
         experiments - dict, contains Experiment objects as values. The keys are different types of experiments.
+        independent_mech - bool, determines whether the mechanical heat should be separated between experiments.
 
         Supported keys:
         "bufferbuffer" - for buffer into buffer titrations
@@ -294,7 +295,6 @@ class MultiExperimentModel(BindingModel):
         two-component models ([MX]/[M][X]).
 
         """
-
         self.experiments = experiments
         self.priors = dict()
         self.observables = set()
@@ -317,7 +317,7 @@ class MultiExperimentModel(BindingModel):
 
         # Noise parameter
         num_inj, sigma_reference = self._determine_reference_experiment(experiments)
-        self.log_sigma = BindingModel._uniform_prior('log_sigma', *self._log_sigma_guesses(sigma_reference,num_inj,ureg.microcalorie))
+        self.log_sigma = BindingModel._uniform_prior('log_sigma', *self._log_sigma_guesses(sigma_reference, num_inj, ureg.microcalorie))
 
         # Model definition
         tau = pymc.Lambda('tau', lambda log_sigma=self.log_sigma: exp(-2.0 * log_sigma))
@@ -383,7 +383,7 @@ class MultiExperimentModel(BindingModel):
 
         return injection_heats, injection_volumes, n, name, temperature, beta, cell_volume
 
-    def _buffer_into_buffer(self, experiment, tau):
+    def _buffer_into_buffer(self, experiment, tau, mech=True):
         """
         Define a buffer into buffer experiment, adding priors where necessary
 
@@ -391,6 +391,7 @@ class MultiExperimentModel(BindingModel):
         ----------
         experiment - an Experiment object describing a buffer buffer experiment
         tau - pymc lamba injection heat measurement precision model
+        mech - bool, define H_mech independently for each experiment
 
         Returns
         -------
@@ -398,17 +399,22 @@ class MultiExperimentModel(BindingModel):
         """
         injection_heats, injection_volumes, n, name, temperature, beta, cell_volume = MultiExperimentModel._get_experimental_conditions(experiment)
 
-        if "H_mech" not in self.priors:
         # Mechanical heat of the injection
-            self.priors["H_mech"] = BindingModel._uniform_prior_with_guesses_and_units('H_mech', *BindingModel._deltaH0_guesses(injection_heats), prior_unit=ureg.microcalorie, guess_unit=True)
+        if mech:
+            mech_prior = "H_mech_%s" % name
+        else:
+            mech_prior = "H_mech"
+
+        if mech_prior not in self.priors:
+            self.priors[mech_prior] = BindingModel._uniform_prior_with_guesses_and_units(mech_prior, *BindingModel._deltaH0_guesses(injection_heats), prior_unit=ureg.microcalorie, guess_unit=True)
 
         # The model simply depends on the mechanical heats, and the number of injections
-        model = pymc.Lambda(name + '_model', lambda H_mech=self.priors["H_mech"], n=n: mechanical_injection_heats(H_mech,n))
+        model = pymc.Lambda(name + '_model', lambda H_mech=self.priors[mech_prior], n=n: mechanical_injection_heats(H_mech,n))
         observed_heat = BindingModel._normal_observation_with_units(name, model, injection_heats, tau, ureg.microcalorie)
 
         return {observed_heat}
 
-    def _buffer_into_titrand(self, experiment, tau):
+    def _buffer_into_titrand(self, experiment, tau, mech=True):
         """
         Add a buffer into titrand experiment to the model.
 
@@ -416,6 +422,7 @@ class MultiExperimentModel(BindingModel):
         ----------
         experiment - an Experiment object describing a buffer-titrand experiment
         tau - pymc lamba injection heat measurement precision model
+        mech - bool, define H_mech independently for each experiment
 
         Returns
         -------
@@ -423,9 +430,14 @@ class MultiExperimentModel(BindingModel):
         """
         injection_heats, injection_volumes, n, name, temperature, beta, cell_volume = MultiExperimentModel._get_experimental_conditions(experiment)  # Mechanical heat of the injection
 
-        # Mechanical heat of injection
-        if "H_mech" not in self.priors:
-            self.priors["H_mech"] = BindingModel._uniform_prior_with_guesses_and_units('H_mech',*BindingModel._deltaH0_guesses(injection_heats),prior_unit=ureg.microcalorie, guess_unit=True)
+        # Mechanical heat of the injection
+        if mech:
+            mech_prior = "H_mech_%s" % name
+        else:
+            mech_prior = "H_mech"
+
+        if mech_prior not in self.priors:
+            self.priors[mech_prior] = BindingModel._uniform_prior_with_guesses_and_units(mech_prior, *BindingModel._deltaH0_guesses(injection_heats), prior_unit=ureg.microcalorie, guess_unit=True)
 
         # Concentration of the titrand species
         if "Mc" not in self.priors:
@@ -437,7 +449,7 @@ class MultiExperimentModel(BindingModel):
         if "DeltaH_titrand" not in self.priors:
             self.priors["DeltaH_titrand"] = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_titrand', 0., 1000., -1000., ureg.calorie / ureg.mole)
 
-        model = pymc.Lambda(name + '_model', lambda  V0=cell_volume, DeltaVn=injection_volumes, Mc=self.priors["Mc"], DeltaH=self.priors["DeltaH_titrand"], H_0=self.priors["H_mech"], N=n:
+        model = pymc.Lambda(name + '_model', lambda  V0=cell_volume, DeltaVn=injection_volumes, Mc=self.priors["Mc"], DeltaH=self.priors["DeltaH_titrand"], H_0=self.priors[mech_prior], N=n:
                                                titrand_dilution_injection_heats(V0, DeltaVn, Mc, DeltaH, H_0, N)
                             )
 
@@ -470,7 +482,7 @@ class MultiExperimentModel(BindingModel):
         num_inj = int(sigma_reference.number_of_injections * frac_inj)
         return num_inj, sigma_reference
 
-    def _titrant_into_buffer(self, experiment, tau):
+    def _titrant_into_buffer(self, experiment, tau, mech=True):
         """
         Add a titrant into buffer experiment to the model.
 
@@ -478,6 +490,7 @@ class MultiExperimentModel(BindingModel):
         ----------
         experiment - an Experiment object describing a titrant-buffer experiment
         tau - pymc Lambda injection heat measurement precision model
+        mech - bool, define H_mech independently for each experiment
 
         Returns
         -------
@@ -487,10 +500,14 @@ class MultiExperimentModel(BindingModel):
         """
         injection_heats, injection_volumes, n, name, temperature, beta, cell_volume = MultiExperimentModel._get_experimental_conditions(experiment)
 
+        # Mechanical heat of the injection
+        if mech:
+            mech_prior = "H_mech_%s" % name
+        else:
+            mech_prior = "H_mech"
 
-        # Mechanical heat of injection
-        if "H_mech" not in self.priors:
-            self.priors["H_mech"] = BindingModel._uniform_prior_with_guesses_and_units('H_mech', *BindingModel._deltaH0_guesses(injection_heats), prior_unit=ureg.microcalorie,guess_unit=True)
+        if mech_prior not in self.priors:
+            self.priors[mech_prior] = BindingModel._uniform_prior_with_guesses_and_units(mech_prior, *BindingModel._deltaH0_guesses(injection_heats), prior_unit=ureg.microcalorie, guess_unit=True)
 
         # Concentration of the titrand species
         if "Xs" not in self.priors:
@@ -502,14 +519,14 @@ class MultiExperimentModel(BindingModel):
         if "DeltaH_titrant" not in self.priors:
             self.priors["DeltaH_titrant"] = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_titrant', 0., 1000., -1000., ureg.calorie / ureg.mole)
 
-        model = pymc.Lambda(name + '_model', lambda V0=cell_volume, DeltaVn=injection_volumes, Xs=self.priors["Xs"], DeltaH=self.priors["DeltaH_titrant"], H_0=self.priors["H_mech"],N=n:
+        model = pymc.Lambda(name + '_model', lambda V0=cell_volume, DeltaVn=injection_volumes, Xs=self.priors["Xs"], DeltaH=self.priors["DeltaH_titrant"], H_0=self.priors[mech_prior],N=n:
                             titrant_dilution_injection_heats(V0, DeltaVn, Xs, DeltaH, H_0, N)
                             )
         observed_heat = BindingModel._normal_observation_with_units(name, model, injection_heats, tau, ureg.microcalorie)
 
         return {observed_heat}
 
-    def _titrant_into_titrand(self, experiment, tau):
+    def _titrant_into_titrand(self, experiment, tau, mech=True):
         """
         Add a titrant into titrand experiment to the model.
 
@@ -517,6 +534,7 @@ class MultiExperimentModel(BindingModel):
         ----------
         experiment - an Experiment object describing a titrant-buffer experiment
         tau - pymc Lambda injection heat measurement precision model
+        mech - bool, define H_mech independently for each experiment
 
         Returns
         -------
@@ -525,10 +543,14 @@ class MultiExperimentModel(BindingModel):
         """
         injection_heats, injection_volumes, n, name, temperature, beta, cell_volume = MultiExperimentModel._get_experimental_conditions(experiment)
 
+        # Mechanical heat of the injection
+        if mech:
+            mech_prior = "H_mech_%s" % name
+        else:
+            mech_prior = "H_mech"
 
-        # Mechanical heat of injection
-        if "H_mech" not in self.priors:
-            self.priors["H_mech"] = BindingModel._uniform_prior_with_guesses_and_units('H_mech', *BindingModel._deltaH0_guesses(injection_heats), prior_unit=ureg.microcalorie, guess_unit=True)
+        if mech_prior not in self.priors:
+            self.priors[mech_prior] = BindingModel._uniform_prior_with_guesses_and_units(mech_prior, *BindingModel._deltaH0_guesses(injection_heats), prior_unit=ureg.microcalorie, guess_unit=True)
 
         # Concentration of the titrand species
         if "Xs" not in self.priors:
@@ -552,11 +574,11 @@ class MultiExperimentModel(BindingModel):
 
         # Free energy of binding
         if "DeltaG_bind" not in self.priors:
-            self.priors["DeltaG_bind"] = BindingModel._uniform_prior_with_guesses_and_units('DeltaG', 0., 40., -40., ureg.kilocalorie / ureg.mole)
+            self.priors["DeltaG_bind"] = BindingModel._uniform_prior_with_guesses_and_units('DeltaG_bind', 0., 40., -40., ureg.kilocalorie / ureg.mole)
 
         # Enthalpy of binding
         if "DeltaH_bind" not in self.priors:
-            self.priors["DeltaH_bind"] = BindingModel._uniform_prior_with_guesses_and_units('DeltaH', 0., 100., -100., ureg.kilocalorie / ureg.mole)
+            self.priors["DeltaH_bind"] = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_bind', 0., 100., -100., ureg.kilocalorie / ureg.mole)
 
 
         model = pymc.Lambda(name + '_model', lambda V0=cell_volume, DeltaVn=injection_volumes, Xs=self.priors["Xs"],
@@ -564,7 +586,7 @@ class MultiExperimentModel(BindingModel):
                                                     DeltaH_titrand=self.priors["DeltaH_titrand"],
                                                     DeltaH_bind=self.priors["DeltaH_bind"],
                                                     DeltaG_bind=self.priors["DeltaG_bind"],
-                                                    H_mech=self.priors["H_mech"], beta=beta, N=n:
+                                                    H_mech=self.priors[mech_prior], beta=beta, N=n:
         dilution_twocomponent_injection_heats(V0, DeltaVn, Xs, Mc, DeltaH_titrant, DeltaH_titrand, DeltaH_bind,
                                               DeltaG_bind, H_mech, beta, N)
                             )
