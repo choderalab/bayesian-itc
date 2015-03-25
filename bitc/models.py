@@ -699,18 +699,16 @@ def dilution_twocomponent_injection_heats(V0, DeltaVn, Xs, Mc, DeltaH_titrant, D
     # Instantaneous injection model (perfusion)
     # first injection
     # from kcal/mole to kcal/liter
-    d = 1.0 - (DeltaVn[0] / V0)  # dilution factor (dimensionless)
-    DHd = DeltaH_titrand * (Mcn[0] - d*Mc)
+    DHd = DeltaH_titrand * (Mcn[0] - Mc)
     DHt = DeltaH_titrant * (Xcn[0])
     DHb = DeltaH_bind * (MXcn[0])
     # converter from kcal/liter to ucal
     q_n[0] = V0 * 1.e9 * (DHd + DHt + DHb) + H_mech
     for n in range(1, N):
-        d = 1.0 - (DeltaVn[n] / V0)  # dilution factor (dimensionless)
         # subsequent injections
-        DHd = DeltaH_titrand * (Mcn[n] - d * Mcn[n - 1])
-        DHt = DeltaH_titrant * (Xcn[n] - d * Xcn[n - 1])
-        DHb = DeltaH_bind * (MXcn[n] - d * MXcn[n - 1])
+        DHd = DeltaH_titrand * (Mcn[n] - Mcn[n - 1])
+        DHt = DeltaH_titrant * (Xcn[n] - Xcn[n - 1])
+        DHb = DeltaH_bind * (MXcn[n] - MXcn[n - 1])
         # converted from kcal/liter to ucal
         q_n[n] = V0 * 1.e9 * (DHd + DHt + DHb) + H_mech
 
@@ -1229,10 +1227,9 @@ def titrant_dilution_injection_heats(V0, DeltaVn, Xs, DeltaH, H_0, N):
     # From units of cal/mole to ucal
     q_n[0] = 1.e9 * (DeltaH * V0 * Xn[0]) + H_0
     for n in range(1, N):
-        d = 1.0 - (DeltaVn[n] / V0)  # dilution factor (dimensionless)
         # subsequent injections
         # From units of cal/mole to ucal
-        q_n[n] = 1.e9 * (DeltaH * V0 * (Xn[n] - d * Xn[n - 1]))  + H_0
+        q_n[n] = 1.e9 * (DeltaH * V0 * (Xn[n] - Xn[n - 1]))  + H_0
 
     return q_n
 
@@ -1401,13 +1398,11 @@ def titrand_dilution_injection_heats(V0, DeltaVn, Mc, DeltaH, H_0, N):
     # Instantaneous injection model (perfusion)
     # first injection
     # converted from cal/mol to ucal
-    d = 1.0 - (DeltaVn[0] / V0)  # dilution factor (dimensionless)
-    q_n[0] = V0 * 1.e9 * (DeltaH * (Mn[0] - d * Mc)) + H_0
+    q_n[0] = V0 * 1.e9 * (DeltaH * (Mn[0] - Mc)) + H_0
     for n in range(1, N):
-        d = 1.0 - (DeltaVn[n] / V0)  # dilution factor (dimensionless)
         # subsequent injections
         # converted from cal/mol to ucal
-        q_n[n] = V0 * 1.e9 * (DeltaH * (Mn[n] - d * Mn[n - 1])) + H_0
+        q_n[n] = V0 * 1.e9 * (DeltaH * (Mn[n] - Mn[n - 1])) + H_0
 
     return q_n
 
@@ -1633,10 +1628,9 @@ def twocomponent_injection_heats(V0, DeltaVn, P0, Ls, DeltaG, DeltaH, DeltaH_0, 
     # converted from kcal/mol to ucal
     q_n[0] = 1.e9 * (DeltaH * V0 * PLn[0]) + DeltaH_0
     for n in range(1, N):
-        d = 1.0 - (DeltaVn[n] / V0)  # dilution factor (dimensionless)
         # subsequent injections
         # converted from kcal/mol to ucal
-        q_n[n] = 1.e9 * (DeltaH * V0 * (PLn[n] - d * PLn[n - 1])) + DeltaH_0
+        q_n[n] = 1.e9 * (DeltaH * V0 * (PLn[n] - PLn[n - 1])) + DeltaH_0
 
     return q_n
 
