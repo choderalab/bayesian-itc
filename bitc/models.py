@@ -934,6 +934,27 @@ class RacemicMixtureBindingModel(CompetitiveBindingModel):
 #      B = C0_Ln[1] - PB
 
 
+class RacemicMixtureBindingModel(CompetitiveBindingModel):
+    """
+    Racemic Mixture Binding Model
+
+    """
+    def equilibrium_concentrations(self, Ka_n, C0_R, C0_Ln, V, c0=None):
+      a = 1./Ka_n[0] + 1./Ka_n[1] + C0_Ln[0] + C0_Ln[1] - C0_R
+      b = 1./Ka_n[1]*(C0_Ln[0]-C0_R) + 1./Ka_n[0]*(C0_Ln[1]-C0_R) + 1./Ka_n[0]*1./Ka_n[1]
+      c = (-1./Ka_n[0])*1./Ka_n[1]*C0_R
+      d = numpy.sqrt(a*a-3*b)
+      theta = numpy.arccos(((-2.*a**3)+9.*a*b-27.*c)/(2.*(d**3)))
+      PA = C0_Ln[0]*(2.*d*numpy.cos(theta/3.)-a)/(3.*1./Ka_n[0]+(2.*d*numpy.cos(theta/3.)-a))
+      PB = C0_Ln[1]*(2.*d*numpy.cos(theta/3.)-a)/(3.*1./Ka_n[1]+(2.*d*numpy.cos(theta/3.)-a))
+      return numpy.array([PA, PB])
+
+#      P = (-a/3)+2./3.*(a**2.-3.*b)**.5*numpy.cos(theta/3.)
+#
+#      A = C0_Ln[0] - PA
+#      B = C0_Ln[1] - PB
+
+
 # Container of all models that this module provides for use
 known_models = {'TwoComponent': TwoComponentBindingModel,
                 'Competitive': CompetitiveBindingModel,
@@ -945,7 +966,104 @@ known_models = {'TwoComponent': TwoComponentBindingModel,
                 experiment.true_cell_concentration[species] = 0.0
             if species not in experiment.true_syringe_concentration:
                 experiment.true_syringe_concentration[species] = 0.0
+#=============================================================================================
+# MAIN AND TESTS
+#=============================================================================================
 
+# TODO get rid of the main and implement it as a test of the library
+
+if __name__ == "__main__":
+    # Run doctests.
+    import doctest
+    doctest.testmod()
+
+    #=============================================================================================
+    # ABRF-MIRG'02 dataset 10
+    #=============================================================================================
+
+    V0 = 1.4301e-3 # volume of calorimeter sample cell (L)
+    V0 = V0 - 0.044e-3 # Tellinghuisen volume correction for VP-ITC (L)
+    DeltaV = 8.e-6 # injection volume (L)
+    P0_stated = 32.e-6 # protein stated concentration (M)
+    Ls_stated = 384.e-6 # ligand syringe stated concentration (M)
+    temperature = 298.15 # temperature (K)
+    q_n = numpy.array([
+       -13.343, -13.417, -13.279, -13.199, -13.118, -12.781, -12.600, -12.124, -11.633, -10.921, -10.009, -8.810,
+       -7.661, -6.272, -5.163, -4.228, -3.519, -3.055, -2.599, -2.512, -2.197, -2.096, -2.087, -1.959, -1.776, -1.879,
+       -1.894, -1.813, -1.740, -1.810]) # integrated heats of injection (kcal/mol injectant)
+    q_n = q_n * DeltaV * Ls_stated * 1000.0 # convert injection heats to cal/injection
+    beta = 1.0 / (ureg.molar_gas_constant * temperature) # inverse temperature 1/(kcal/mol)
+
+    #=============================================================================================
+    # Erensto Freire data for HIV protease inhibitors KNI-10033 and KNI-10075
+    #=============================================================================================
+
+    experiments = list()
+
+    #
+    # acetyl pepstatin
+    #
+
+    V0 = 1.4301e-3 # volume of calorimeter sample cell listed in manual (L)
+    V0 = V0 - 0.044e-3; # Tellinghuisen volume correction for VP-ITC (L)
+    sample_cell_concentrations = {'HIV protease' : 20.e-6}
+    syringe_concentrations = {'acetyl pepstatin' : 300.e-6}
+    Ls_stated = 300.e-6 # acetyl pepstatin concentration (M)
+    DeltaV = 10.e-6 # injection volume (L)
+    #injection_heats = numpy.array([1.6, 6.696, 6.695, 6.698, 6.617, 6.464, 6.336, 6.184, 5.652, 4.336, 2.970, 1.709, 0.947, 0.643, 0.441, 0.264, 0.269, 0.214, 0.138, 0.113, 0.062, 0.088, 0.016, 0.063, 0.012]) * 1000.0 * Ls_stated * DeltaV # first had to be estimated because it was omitted
+    injection_heats = numpy.array([6.696, 6.695, 6.698, 6.617, 6.464, 6.336, 6.184, 5.652, 4.336, 2.970, 1.709, 0.947, 0.643, 0.441, 0.264, 0.269, 0.214, 0.138, 0.113, 0.062, 0.088, 0.016, 0.063, 0.012]) * 1000.0 * Ls_stated * DeltaV # first injection omitted
+    N = len(injection_heats) # number of injections
+    injection_volumes = 10.e-6 * numpy.ones([N], numpy.float64) # injection volumes (L)
+    temperature = 298.15 # temperature (K)
+    experiment = Experiment(sample_cell_concentrations, syringe_concentrations, injection_volumes, injection_heats, temperature)
+    experiment.name = "acetyl pepstatin binding to HIV protease"
+    experiment.reference = "Nature Protocols 1:186, 2006; Fig. 1, left panel"
+    experiments.append(experiment)
+
+    #
+    # KNI-10033
+    #
+
+    sample_cell_concentrations = {'HIV protease' : 8.6e-6, 'acetyl pepstatin' : 510.e-6} # initial sample cell concentrations (M)
+    syringe_concentrations = {'KNI-10033' : 46.e-6}
+    Ls_stated = 46.e-6 # KNI-10033 syringe concentration (M)
+    DeltaV = 10.e-6 # injection volume (L)
+    #injection_heats = numpy.array([-12.106, -19.889, -19.896, -19.889, -19.797, -20.182, -19.889, -19.880, -19.849, -19.985, -19.716, -19.790, -19.654, -19.745, -19.622, -19.457, -19.378, -18.908, -17.964, -16.490, -12.273, -7.370, -4.649, -3.626, -3.203, -2.987, -2.841, -2.906, -2.796, -2.927]) * DeltaV * Ls_stated * 1000.0
+    injection_heats = numpy.array([-19.889, -19.896, -19.889, -19.797, -20.182, -19.889, -19.880, -19.849, -19.985, -19.716, -19.790, -19.654, -19.745, -19.622, -19.457, -19.378, -18.908, -17.964, -16.490, -12.273, -7.370, -4.649, -3.626, -3.203, -2.987, -2.841, -2.906, -2.796, -2.927]) * DeltaV * Ls_stated * 1000.0
+    N = len(injection_heats) # number of injections
+    injection_volumes = 10.e-6 * numpy.ones([N], numpy.float64) # injection volumes (L)
+    experiment = Experiment(sample_cell_concentrations, syringe_concentrations, injection_volumes, injection_heats, temperature)
+    experiment.name = "KNI-10033 displacement of acetyl pepstatin binding to HIV protease"
+    experiments.append(experiment)
+
+    #
+    # KNI-10075
+    #
+
+    sample_cell_concentrations = {'HIV protease' : 8.8e-6, 'acetyl pepstatin' : 510.e-6} # initial sample cell concentrations (M)
+    syringe_concentrations = {'KNI-10075' : 55.e-6}
+    Ls_stated = 55.e-6 # KNI-10033 syringe concentration (M)
+    DeltaV = 10.e-6 # injection volume (L)
+    injection_heats = numpy.array([-21.012, -22.716, -22.863, -22.632, -22.480, -22.236, -22.314, -22.569, -22.231, -22.529, -22.529, -21.773, -21.866, -21.412, -20.810, -18.664, -14.339, -11.028, -5.219, -3.612, -3.611, -3.389, -3.354, -3.122, -3.049, -3.083, -3.253, -3.089, -3.146, -3.252]) * DeltaV * Ls_stated * 1000.0
+    N = len(injection_heats) # number of injections
+    injection_volumes = 10.e-6 * numpy.ones([N], numpy.float64) # injection volumes (L)
+    experiment = Experiment(sample_cell_concentrations, syringe_concentrations, injection_volumes, injection_heats, temperature)
+    experiment.name = "KNI-10075 displacement of acetyl pepstatin binding to HIV protease"
+    experiments.append(experiment)
+
+    #=============================================================================================
+    # MCMC inference
+    #=============================================================================================
+
+    #model = TwoComponentBindingModel(Ls_stated, P0_stated, q_n, DeltaV, temperature, V0)
+    model = CompetitiveBindingModel(experiments, 'HIV protease', V0, verbose=True)
+
+    niters = 10000 # number of iterations
+    nburn = 1000 # number of burn-in iterations
+    nthin = 1 # thinning period
+
+    model.mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
+    pymc.Matplot.plot(model.mcmc)
 
 # Container of all models that this module provides for use
 known_models = {'TwoComponent': TwoComponentBindingModel,
