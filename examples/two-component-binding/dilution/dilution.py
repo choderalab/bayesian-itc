@@ -33,7 +33,7 @@ mcmc = model.mcmc
 
 map = pymc.MAP(model)
 map.fit(iterlim=100000, verbose=1)
-model.mcmc.sample(iter=10000, burn=1000, thin=2, progress_bar=True)
+model.mcmc.sample(iter=200000, burn=10000, thin=25, progress_bar=True)
 
 
 # Plot individual terms.
@@ -95,7 +95,7 @@ def plot_trace_accor_dist(trace, name, color='k', filename='', **figargs):
     plt.setp(ax3, yticks=[])
 
     if filename == '':
-        plt.savefig(name + '_trace_plot.pdf')
+        plt.savefig(name + '_trace_plot.png')
     else:
         plt.savefig(filename)
 
@@ -104,16 +104,19 @@ def plot_trace_accor_dist(trace, name, color='k', filename='', **figargs):
 
 #TODO candle plots, idea by Sonya Hanson
 
-def plot_posterior_predictive_enthalpogram(prediction, observable, name):
-    colors = sns.color_palette("hls", prediction.shape[1])
+def plot_posterior_predictive_enthalpogram(prediction, observable, name, filename='', **figargs):
+    fig = plt.figure(**figargs)
+    colors = sns.light_palette("pumpkin orange", prediction.shape[1], input="xkcd")
     ax1 = plt.axes()
     ax1.set_title(name)
-    sns.violinplot(prediction, color=colors)
-    # for index, injection in enumerate(prediction.transpose()):
-    #     sns.distplot(injection, hist=True, color=colors[index], ax=ax1)
-    ax1.plot(range(1, len(observable)+1), observable, marker='h', c='lightgray', markersize=8, color='w')
-    plt.show()
-    plt.close()
+    sns.violinplot(prediction, inner='points', color=colors)
+
+    ax1.plot(range(1, len(observable)+1), observable, label='observation',  marker='h', c='black', markersize=8, color='w')
+
+    if filename == '':
+        plt.savefig(name + '_posterior_predictive.png')
+    else:
+        plt.savefig(filename)
 
 
 for index, (name, trace) in enumerate(data.items()):
@@ -121,7 +124,7 @@ for index, (name, trace) in enumerate(data.items()):
     plot_trace_accor_dist(trace, name, color=color, figsize=(12,8), tight_layout=True)
 
 for index, (name, prediction) in enumerate(predictions.items()):
-    observable = observables[name[:-11]]
+    observable = observables[name[:-11]]  # remove _predictive from name
     plot_posterior_predictive_enthalpogram(prediction, observable, name)
 
 
