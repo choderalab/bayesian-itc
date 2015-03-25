@@ -296,8 +296,12 @@ class MultiExperimentModel(BindingModel):
 
         """
         self.experiments = experiments
+        # experiment priors
         self.priors = dict()
-        self.observables = set()
+        # observables linked to model
+        self.observables = dict()
+        # predictive distribution samples
+        self.predictives = dict()
 
         # Get the temperature from one of the experiments
         self.temperature = next(iter(experiments.values())).target_temperature
@@ -333,21 +337,30 @@ class MultiExperimentModel(BindingModel):
             # each individual experiment type.
             for experiment in experiment_objects:
                 if experiment_type == "bufferbuffer":
-                    observables = self._buffer_into_buffer(experiment, tau)
+                    observables, predictive = self._buffer_into_buffer(experiment, tau)
                 elif experiment_type == "buffertitrand":
-                    observables = self._buffer_into_titrand(experiment, tau)
+                    observables, predictive = self._buffer_into_titrand(experiment, tau)
                 elif experiment_type == "titrantbuffer":
-                    observables = self._titrant_into_buffer(experiment, tau)
+                    observables, predictive = self._titrant_into_buffer(experiment, tau)
                 elif experiment_type == "titranttitrand":
-                    observables = self._titrant_into_titrand(experiment, tau)
+                    observables, predictive = self._titrant_into_titrand(experiment, tau)
                 else:
                     raise ValueError("Unknown experiment type: %s" % experiment_type)
 
                 self.observables.update(observables)
+                self.predictives.update(predictive)
 
         # Add the priors as class attributes
         for name, prior in self.priors.items():
             setattr(self, name, prior)
+
+        # Add predicive as class attributes
+        for name, predictive in self.predictives.items():
+            setattr(self, name, predictive)
+
+        # Add observables as class attributes
+        for name, observable in self.observables.items():
+            setattr(self, name, observable)
 
         self.mcmc = self._create_metropolis_sampler()
 
@@ -411,8 +424,11 @@ class MultiExperimentModel(BindingModel):
         # The model simply depends on the mechanical heats, and the number of injections
         model = pymc.Lambda(name + '_model', lambda H_mech=self.priors[mech_prior], n=n: mechanical_injection_heats(H_mech,n))
         observed_heat = BindingModel._normal_observation_with_units(name, model, injection_heats, tau, ureg.microcalorie)
+        # Predictive posterior distribution
+        predictive = pymc.Normal(name + "_predictive", mu=model, tau=tau)
 
-        return {observed_heat}
+
+        return {name: observed_heat}, {name + "_predictive": predictive}
 
     def _buffer_into_titrand(self, experiment, tau, mech=True):
         """
@@ -455,7 +471,11 @@ class MultiExperimentModel(BindingModel):
 
         observed_heat = BindingModel._normal_observation_with_units(name, model, injection_heats, tau, ureg.microcalorie)
 
-        return {observed_heat}
+        # Predictive posterior distribution
+        predictive = pymc.Normal(name + "_predictive", mu=model, tau=tau)
+
+        return {name: observed_heat}, {name + "_predictive": predictive}
+
 
     @staticmethod
     def _determine_reference_experiment(experiments):
@@ -524,7 +544,11 @@ class MultiExperimentModel(BindingModel):
                             )
         observed_heat = BindingModel._normal_observation_with_units(name, model, injection_heats, tau, ureg.microcalorie)
 
-        return {observed_heat}
+        # Predictive posterior distribution
+        predictive = pymc.Normal(name + "_predictive", mu=model, tau=tau)
+
+        return {name: observed_heat}, {name + "_predictive": predictive}
+
 
     def _titrant_into_titrand(self, experiment, tau, mech=True):
         """
@@ -593,7 +617,11 @@ class MultiExperimentModel(BindingModel):
 
         observed_heat = BindingModel._normal_observation_with_units(name, model, injection_heats, tau, ureg.microcalorie)
 
-        return {observed_heat}
+        # Predictive posterior distribution
+        predictive = pymc.Normal(name + "_predictive", mu=model, tau=tau)
+
+        return {name: observed_heat}, {name + "_predictive": predictive}
+
 
     def _create_metropolis_sampler(self):
         mcmc = pymc.MCMC(self, db='ram')
@@ -659,8 +687,7 @@ def dilution_twocomponent_injection_heats(V0, DeltaVn, Xs, Mc, DeltaH_titrant, D
         # from mM to mole)
         X = V0 * Xs * 1.e-3 * (1. - dcum)
         # complex concentration (M)
-        MXcn[n] = (
-            0.5 / V0 * ((M + X + Kd * V0) - ((M + X + Kd * V0) ** 2 - 4 * M * X) ** 0.5))
+        MXcn[n] = (0.5 / V0 * ((M + X + Kd * V0) - ((M + X + Kd * V0) ** 2 - 4 * M * X) ** 0.5))
         # free protein concentration in sample cell after n injections (M)
         Mcn[n] = M / V0 - MXcn[n]
         # free ligand concentration in sample cell after n injections (M)
@@ -671,20 +698,20 @@ def dilution_twocomponent_injection_heats(V0, DeltaVn, Xs, Mc, DeltaH_titrant, D
     q_n = numpy.zeros([N])
     # Instantaneous injection model (perfusion)
     # first injection
-    # converted from cal/mol to cal/liter
-    DHd = DeltaH_titrand * (Mcn[0] - Mc)
-    DHt = DeltaH_titrant * (Xcn[0])
-    # converter from kcal/mol to cal/liter
-    DHb = DeltaH_bind * (MXcn[0])
+    # from kcal/mole to kcal/liter
     d = 1.0 - (DeltaVn[0] / V0)  # dilution factor (dimensionless)
+    DHd = DeltaH_titrand * (Mcn[0] - d*Mc)
+    DHt = DeltaH_titrant * (Xcn[0])
+    DHb = DeltaH_bind * (MXcn[0])
+    # converter from kcal/liter to ucal
     q_n[0] = V0 * 1.e9 * (DHd + DHt + DHb) + H_mech
     for n in range(1, N):
         d = 1.0 - (DeltaVn[n] / V0)  # dilution factor (dimensionless)
         # subsequent injections
-        DHd = DeltaH_titrand * (Mcn[n] - Mcn[n - 1])
-        DHt = DeltaH_titrant * (Xcn[n] - Xcn[n - 1])
+        DHd = DeltaH_titrand * (Mcn[n] - d * Mcn[n - 1])
+        DHt = DeltaH_titrant * (Xcn[n] - d * Xcn[n - 1])
         DHb = DeltaH_bind * (MXcn[n] - d * MXcn[n - 1])
-        # converted from cal/liter to ucal
+        # converted from kcal/liter to ucal
         q_n[n] = V0 * 1.e9 * (DHd + DHt + DHb) + H_mech
 
     return q_n
@@ -1205,7 +1232,7 @@ def titrant_dilution_injection_heats(V0, DeltaVn, Xs, DeltaH, H_0, N):
         d = 1.0 - (DeltaVn[n] / V0)  # dilution factor (dimensionless)
         # subsequent injections
         # From units of cal/mole to ucal
-        q_n[n] = 1.e9 * (DeltaH * V0 * (Xn[n] - Xn[n - 1]))  + H_0
+        q_n[n] = 1.e9 * (DeltaH * V0 * (Xn[n] - d * Xn[n - 1]))  + H_0
 
     return q_n
 
@@ -1375,12 +1402,12 @@ def titrand_dilution_injection_heats(V0, DeltaVn, Mc, DeltaH, H_0, N):
     # first injection
     # converted from cal/mol to ucal
     d = 1.0 - (DeltaVn[0] / V0)  # dilution factor (dimensionless)
-    q_n[0] = V0 * 1.e9 * (DeltaH * (Mn[0] - Mc)) + H_0
+    q_n[0] = V0 * 1.e9 * (DeltaH * (Mn[0] - d * Mc)) + H_0
     for n in range(1, N):
         d = 1.0 - (DeltaVn[n] / V0)  # dilution factor (dimensionless)
         # subsequent injections
         # converted from cal/mol to ucal
-        q_n[n] = V0 * 1.e9 * (DeltaH * (Mn[n] - Mn[n - 1])) + H_0
+        q_n[n] = V0 * 1.e9 * (DeltaH * (Mn[n] - d * Mn[n - 1])) + H_0
 
     return q_n
 
