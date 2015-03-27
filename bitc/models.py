@@ -302,6 +302,8 @@ class MultiExperimentModel(BindingModel):
         self.observables = dict()
         # predictive distribution samples
         self.predictives = dict()
+        # deterministic variable.
+        self.deterministics = dict()
 
         # Get the temperature from one of the experiments
         self.temperature = next(iter(experiments.values())).target_temperature
@@ -337,18 +339,19 @@ class MultiExperimentModel(BindingModel):
             # each individual experiment type.
             for experiment in experiment_objects:
                 if experiment_type == "bufferbuffer":
-                    observables, predictive = self._buffer_into_buffer(experiment, tau)
+                    observables, predictive, deterministic = self._buffer_into_buffer(experiment, tau)
                 elif experiment_type == "buffertitrand":
-                    observables, predictive = self._buffer_into_titrand(experiment, tau)
+                    observables, predictive, deterministic = self._buffer_into_titrand(experiment, tau)
                 elif experiment_type == "titrantbuffer":
-                    observables, predictive = self._titrant_into_buffer(experiment, tau)
+                    observables, predictive, deterministic = self._titrant_into_buffer(experiment, tau)
                 elif experiment_type == "titranttitrand":
-                    observables, predictive = self._titrant_into_titrand(experiment, tau)
+                    observables, predictive, deterministic = self._titrant_into_titrand(experiment, tau)
                 else:
                     raise ValueError("Unknown experiment type: %s" % experiment_type)
 
                 self.observables.update(observables)
                 self.predictives.update(predictive)
+                self.deterministics.update(deterministic)
 
         # Add the priors as class attributes
         for name, prior in self.priors.items():
@@ -361,6 +364,10 @@ class MultiExperimentModel(BindingModel):
         # Add observables as class attributes
         for name, observable in self.observables.items():
             setattr(self, name, observable)
+
+        # Add observables as class attributes
+        for name, deterministic in self.deterministics.items():
+            setattr(self, name, deterministic)
 
         self.mcmc = self._create_metropolis_sampler()
 
@@ -422,13 +429,13 @@ class MultiExperimentModel(BindingModel):
             self.priors[mech_prior] = BindingModel._uniform_prior_with_guesses_and_units(mech_prior, *BindingModel._deltaH0_guesses(injection_heats), prior_unit=ureg.microcalorie, guess_unit=True)
 
         # The model simply depends on the mechanical heats, and the number of injections
-        model = pymc.Lambda(name + '_model', lambda H_mech=self.priors[mech_prior], n=n: mechanical_injection_heats(H_mech,n))
-        observed_heat = BindingModel._normal_observation_with_units(name, model, injection_heats, tau, ureg.microcalorie)
+        deterministic = pymc.Lambda(name + '_model', lambda H_mech=self.priors[mech_prior], n=n: mechanical_injection_heats(H_mech,n))
+        observed_heat = BindingModel._normal_observation_with_units(name, deterministic, injection_heats, tau, ureg.microcalorie)
         # Predictive posterior distribution
-        predictive = pymc.Normal(name + "_predictive", mu=model, tau=tau)
+        predictive = pymc.Normal(name + "_predictive", mu=deterministic, tau=tau)
 
 
-        return {name: observed_heat}, {name + "_predictive": predictive}
+        return {name: observed_heat}, {name + "_predictive": predictive}, {name + '_model': deterministic}
 
     def _buffer_into_titrand(self, experiment, tau, mech=True):
         """
@@ -465,17 +472,16 @@ class MultiExperimentModel(BindingModel):
         if "DeltaH_titrand" not in self.priors:
             self.priors["DeltaH_titrand"] = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_titrand', 0., 1000., -1000., ureg.calorie / ureg.mole)
 
-        model = pymc.Lambda(name + '_model', lambda  V0=cell_volume, DeltaVn=injection_volumes, Mc=self.priors["Mc"], DeltaH=self.priors["DeltaH_titrand"], H_0=self.priors[mech_prior], N=n:
+        deterministic = pymc.Lambda(name + '_model', lambda  V0=cell_volume, DeltaVn=injection_volumes, Mc=self.priors["Mc"], DeltaH=self.priors["DeltaH_titrand"], H_0=self.priors[mech_prior], N=n:
                                                titrand_dilution_injection_heats(V0, DeltaVn, Mc, DeltaH, H_0, N)
                             )
 
-        observed_heat = BindingModel._normal_observation_with_units(name, model, injection_heats, tau, ureg.microcalorie)
+        observed_heat = BindingModel._normal_observation_with_units(name, deterministic, injection_heats, tau, ureg.microcalorie)
 
         # Predictive posterior distribution
-        predictive = pymc.Normal(name + "_predictive", mu=model, tau=tau)
+        predictive = pymc.Normal(name + "_predictive", mu=deterministic, tau=tau)
 
-        return {name: observed_heat}, {name + "_predictive": predictive}
-
+        return {name: observed_heat}, {name + "_predictive": predictive}, {name + '_model': deterministic}
 
     @staticmethod
     def _determine_reference_experiment(experiments):
@@ -539,15 +545,15 @@ class MultiExperimentModel(BindingModel):
         if "DeltaH_titrant" not in self.priors:
             self.priors["DeltaH_titrant"] = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_titrant', 0., 1000., -1000., ureg.calorie / ureg.mole)
 
-        model = pymc.Lambda(name + '_model', lambda V0=cell_volume, DeltaVn=injection_volumes, Xs=self.priors["Xs"], DeltaH=self.priors["DeltaH_titrant"], H_0=self.priors[mech_prior],N=n:
+        deterministic = pymc.Lambda(name + '_model', lambda V0=cell_volume, DeltaVn=injection_volumes, Xs=self.priors["Xs"], DeltaH=self.priors["DeltaH_titrant"], H_0=self.priors[mech_prior],N=n:
                             titrant_dilution_injection_heats(V0, DeltaVn, Xs, DeltaH, H_0, N)
                             )
-        observed_heat = BindingModel._normal_observation_with_units(name, model, injection_heats, tau, ureg.microcalorie)
+        observed_heat = BindingModel._normal_observation_with_units(name, deterministic, injection_heats, tau, ureg.microcalorie)
 
         # Predictive posterior distribution
-        predictive = pymc.Normal(name + "_predictive", mu=model, tau=tau)
+        predictive = pymc.Normal(name + "_predictive", mu=deterministic, tau=tau)
 
-        return {name: observed_heat}, {name + "_predictive": predictive}
+        return {name: observed_heat}, {name + "_predictive": predictive}, {name + '_model': deterministic}
 
 
     def _titrant_into_titrand(self, experiment, tau, mech=True):
@@ -605,7 +611,7 @@ class MultiExperimentModel(BindingModel):
             self.priors["DeltaH_bind"] = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_bind', 0., 100., -100., ureg.kilocalorie / ureg.mole)
 
 
-        model = pymc.Lambda(name + '_model', lambda V0=cell_volume, DeltaVn=injection_volumes, Xs=self.priors["Xs"],
+        deterministic = pymc.Lambda(name + '_model', lambda V0=cell_volume, DeltaVn=injection_volumes, Xs=self.priors["Xs"],
                                                     Mc=self.priors["Mc"], DeltaH_titrant=self.priors["DeltaH_titrant"],
                                                     DeltaH_titrand=self.priors["DeltaH_titrand"],
                                                     DeltaH_bind=self.priors["DeltaH_bind"],
@@ -615,12 +621,12 @@ class MultiExperimentModel(BindingModel):
                                               DeltaG_bind, H_mech, beta, N)
                             )
 
-        observed_heat = BindingModel._normal_observation_with_units(name, model, injection_heats, tau, ureg.microcalorie)
+        observed_heat = BindingModel._normal_observation_with_units(name, deterministic, injection_heats, tau, ureg.microcalorie)
 
         # Predictive posterior distribution
-        predictive = pymc.Normal(name + "_predictive", mu=model, tau=tau)
+        predictive = pymc.Normal(name + "_predictive", mu=deterministic, tau=tau)
 
-        return {name: observed_heat}, {name + "_predictive": predictive}
+        return {name: observed_heat}, {name + "_predictive": predictive}, {name + '_model': deterministic}
 
 
     def _create_metropolis_sampler(self):
