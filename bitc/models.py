@@ -649,9 +649,6 @@ class MultiExperimentModel(BindingModel):
         return log_sigma_guess, log_sigma_max, log_sigma_min
 
 
-
-
-
 class BaselineModel(BindingModel):
     """A Model for a calibration with no injections, just baseline.
        This is just a dummy and the implementation is probably wrong."""
@@ -925,9 +922,6 @@ class TellinghuisenDilutionModel(BindingModel):
         return log_sigma_guess, log_sigma_max, log_sigma_min
 
 
-
-
-
 class TitrantBufferModel(BindingModel):
     """
     A binding model with titrant (syringe) but no titrand (cell) concentration.
@@ -1182,9 +1176,6 @@ class BufferTitrandModel(BindingModel):
         return log_sigma_guess, log_sigma_max, log_sigma_min
 
 
-
-
-
 class TwoComponentBindingModel(BindingModel):
     """
     A binding model with two components (e.g. Protein and Ligand)
@@ -1340,9 +1331,6 @@ class TwoComponentBindingModel(BindingModel):
         log_sigma_min = log_sigma_guess - 10
         log_sigma_max = log_sigma_guess + 5
         return log_sigma_guess, log_sigma_max, log_sigma_min
-
-
-
 
 
 class CompetitiveBindingModel(BindingModel):
