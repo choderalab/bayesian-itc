@@ -544,12 +544,12 @@ class MultiExperimentModel(BindingModel):
             dXs = 0.10 * Xs_stated
             self.priors["Xs"] = BindingModel._lognormal_concentration_prior('Xs', Xs_stated, dXs, ureg.millimolar)
 
-        # Enthalpy of dilution for titrant
-        if "DeltaH_titrant" not in self.priors:
-            self.priors["DeltaH_titrant"] = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_titrant', 0., 1000., -1000., ureg.calorie / ureg.mole)
+        # exchange parameter for titrant
+        if "chi_titrant" not in self.priors:
+            self.priors["chi_titrant"] = BindingModel._uniform_prior('chi_titrant', 0., 20., -20.)
 
-        deterministic = pymc.Lambda(name + '_model', lambda V0=cell_volume, DeltaVn=injection_volumes, Xs=self.priors["Xs"], DeltaH=self.priors["DeltaH_titrant"], H_0=self.priors[mech_prior],N=n:
-                            titrant_dilution_injection_heats(V0, DeltaVn, Xs, DeltaH, H_0, N)
+        deterministic = pymc.Lambda(name + '_model', lambda V0=cell_volume, DeltaVn=injection_volumes, Xs=self.priors["Xs"], chi=self.priors["chi_titrant"], H_0=self.priors[mech_prior],N=n, beta=beta:
+                            titrant_dilution_injection_heats(V0, DeltaVn, Xs, chi, H_0, N, beta)
                             )
         observed_heat = BindingModel._normal_observation_with_units(name, deterministic, injection_heats, tau, ureg.microcalorie)
 

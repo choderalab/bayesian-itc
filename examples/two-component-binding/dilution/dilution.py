@@ -3,6 +3,7 @@ from bitc.report import analyze
 from bitc.experiments import ExperimentMicroCal
 from bitc.instruments import Instrument
 from bitc.models import MultiExperimentModel
+from bitc.units import ureg, Quantity
 import numpy
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -14,11 +15,11 @@ datadir = 'examples/two-component-binding/dilution/'
 autoitc = Instrument(itcfile='%sbufferbuffer.itc' % datadir)
 
 # This will take a little while
-experiments = dict(bufferbuffer=ExperimentMicroCal('%sbufferbuffer.itc' % datadir, 'buffer_into_buffer', autoitc),
-                   buffertitrand=ExperimentMicroCal('%sbufferguest6.itc' % datadir, 'buffer_into_titrand', autoitc),
-                   titrantbuffer=ExperimentMicroCal('%shostbuffer.itc' % datadir, 'titrant_into_buffer', autoitc),
-                   titranttitrand=ExperimentMicroCal('%shostguest6.itc' % datadir, 'titrant_into_titrand', autoitc))
-# experiments = dict(titranttitrand=ExperimentMicroCal('%shostguest6.itc' % datadir, 'titrant_into_titrand', autoitc))
+# experiments = dict(bufferbuffer=ExperimentMicroCal('%sbufferbuffer.itc' % datadir, 'buffer_into_buffer', autoitc),
+#                    buffertitrand=ExperimentMicroCal('%sbufferguest6.itc' % datadir, 'buffer_into_titrand', autoitc),
+#                    titrantbuffer=ExperimentMicroCal('%shostbuffer.itc' % datadir, 'titrant_into_buffer', autoitc),
+#                    titranttitrand=ExperimentMicroCal('%shostguest6.itc' % datadir, 'titrant_into_titrand', autoitc))
+experiments = dict(titrantbuffer=ExperimentMicroCal('%shostbuffer.itc' % datadir, 'titrant_into_buffer', autoitc))
 
 
 # for experiment in experiments.values():
@@ -28,8 +29,8 @@ model = MultiExperimentModel(experiments)
 mcmc = model.mcmc
 
 map = pymc.MAP(model)
-map.fit(iterlim=100000, verbose=1)
-model.mcmc.sample(iter=10000, burn=1000, thin=2, progress_bar=True)
+map.fit(iterlim=1000000, verbose=0)
+model.mcmc.sample(iter=50000, burn=20000, thin=20, progress_bar=True)
 
 # Plot individual terms.
 
@@ -139,7 +140,7 @@ def plot_model_traces(heats_per_sample, axis, alpha=0.3, lw=0.2, color='black'):
 
     # Adds one line plot for each individual trace
     for index, trace in enumerate(heats_per_sample):
-        axis.plot(range(1, len(trace) + 1), trace, ls='-', lw=lw, color=color, alpha=alpha)
+        axis.plot(range(1, len(trace) + 1), trace, ls=':', lw=lw, color=color, alpha=alpha)
 
     return
 
@@ -161,13 +162,19 @@ def plot_posterior_predictive_enthalpogram(violin_data, measurement_data, traces
     """
     # Set figure parameters
     fig = plt.figure(**figargs)
-
+    sns.set(style="white")
     # Defining one main plot
     ax1 = plt.axes()
     ax1.set_title(name)
 
+    if nyandles:
+        violin_color = 'orange'
+    else:
+        violin_color = 'lightgray'
+
     # The posterior predictive distribution is plotted as a violin for each injection
-    sns.violinplot(violin_data, color='orange')
+    sns.violinplot(violin_data, color=violin_color)
+    sns.despine(offset=10, trim=True);
 
     # If fitted model traces are supplied, plot them as black lines
     if traces_data is not None:
@@ -176,11 +183,9 @@ def plot_posterior_predictive_enthalpogram(violin_data, measurement_data, traces
     # This is a super secret bonus feature
     if nyandles:
         nyandle(measurement_data, ax1)
-
     # Plot the measurement data as a line graph
     else:
-        ax1.plot(range(1, len(measurement_data) + 1), measurement_data, label='observation', marker='h', c='deepskyblue',
-                 markersize=8, color='w')
+        ax1.plot(range(1, len(measurement_data) + 1), measurement_data, label='observation', marker='8', markersize=8, color='r', linestyle='')
 
     # If name not supplied, just show plot, else save figure under name supplied
     if filename == '':
@@ -193,16 +198,75 @@ def plot_posterior_predictive_enthalpogram(violin_data, measurement_data, traces
     return
 
 
+def plot_cumulative_heat(model_heats, model_concentrations, integrated_heats, stated_concentrations, name, filename='', **figargs):
+    """Plot cumulative heat vs ligand concentration"""
+    fig = plt.figure(**figargs)
+    sns.set(style="white")
+    # Defining one main plot
+    axis = plt.axes()
+    axis.set_title(name)
+    cum_model_heats = numpy.cumsum(model_heats)
+    cum_integrated_heats = numpy.cumsum(integrated_heats)
+    axis.plot(model_concentrations*1000, cum_model_heats, 'o', color='black', label='Model')
+    axis.plot(stated_concentrations*1000, cum_integrated_heats, 'o', color='red', label='Observed')
+    axis.legend(loc='best')
+    axis.set_ylabel(r'Q ($\mu$cal)')
+    axis.set_xlabel(r'[X$_s$] (mM)')
+    if filename:
+        plt.savefig(filename)
+    else:
+        plt.show()
+
+    merged_table=numpy.column_stack((stated_concentrations,integrated_heats,model_concentrations,model_heats))
+    numpy.savetxt("cumulative.txt", merged_table)
+
+@ureg.wraps(ret=None,args=[None, ureg.liter,ureg.liter, None])
+def titrant_concentrations(Xs, DeltaVn, V0, N):
+    Xn=numpy.empty(N)
+    vcum = 0.0  # cumulative injected volume (liter)
+    for n in range(N):
+        # Instantaneous injection model (perfusion)
+        # dilution factor for this injection (dimensionless)
+        vcum += DeltaVn[n]
+        vfactor = vcum / V0  # relative volume factor
+        # total concentration of ligand in sample cell after n injections (converted from mM to M)
+        Xn[n] = 1.e-3 * Xs * (1 - numpy.exp(-vfactor))
+    return Xn
+
+def get_heats_concentrations_from_model(model, experiment):
+    injection_heats, injection_volumes, n, name, temperature, beta, cell_volume = MultiExperimentModel._get_experimental_conditions(experiment)
+    key = name + '_model'
+    deterministic =  model.mcmc.trace(key)[:]
+
+    heats = numpy.mean(deterministic, axis=0)
+
+    syringe_concentration=numpy.mean(model.mcmc.trace('Xs')[:])
+    concentrations = titrant_concentrations(syringe_concentration, injection_volumes,cell_volume, n)
+
+    return heats, concentrations
+
+def get_heats_concentrations_from_experiment(experiment):
+    """Get data from experiment object"""
+    injection_heats, injection_volumes, n, name, temperature, beta, cell_volume = MultiExperimentModel._get_experimental_conditions(experiment)
+    syringe_concentration = next(iter(experiment.syringe_concentration.values()))
+    concentrations = titrant_concentrations(syringe_concentration/(ureg.millimole / ureg.liter), injection_volumes,cell_volume, n)
+
+    return injection_heats,concentrations
+
+
 colors = sns.color_palette("husl", len(traces))
 for index, (name, trace) in enumerate(traces.items()):
     color = colors[index]
-    plot_trace_accor_dist(trace, name, color=color, figsize=(12, 8), tight_layout=True)
+    plot_trace_accor_dist(trace, name, color=color, figsize=(12, 8), tight_layout=True, filename=name+'.png')
 
 for index, (name, observable) in enumerate(observables.items()):
     predictive = predictions[name + "_predictive"]
     deterministic = deterministics[name + "_model"]
-    plot_posterior_predictive_enthalpogram(predictive, observable, traces_data=deterministic, name=name, tight_layout=True)
+    plot_posterior_predictive_enthalpogram(predictive, observable, traces_data=deterministic, name=name, tight_layout=True, filename=name+'.png')
 
+heats, concentrations = get_heats_concentrations_from_model(model, model.experiments['titrantbuffer'])
+integrated_heats, stated_concentrations = get_heats_concentrations_from_experiment(model.experiments['titrantbuffer'])
+plot_cumulative_heat(heats,concentrations,integrated_heats, stated_concentrations,'titrant_buffer', filename=name+'_cum.png')
 
 # Graph out the model
 # pymc.graph.dag(model.mcmc)
