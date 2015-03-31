@@ -217,7 +217,7 @@ def plot_cumulative_heat(model_heats, model_concentrations, integrated_heats, st
     else:
         plt.show()
 
-    merged_table=numpy.column_stack((stated_concentrations,integrated_heats,model_concentrations,model_heats))
+    merged_table=numpy.column_stack((stated_concentrations,cum_integrated_heats,model_concentrations,cum_model_heats))
     numpy.savetxt("cumulative.txt", merged_table)
 
 @ureg.wraps(ret=None,args=[None, ureg.liter,ureg.liter, None])

@@ -147,10 +147,120 @@ def tellinghuisen_dilution_twocomponent_injection_heats(V0, DeltaVn, Xs, L_phi, 
     return q_n
 
 
-@ureg.wraps(ret=ureg.microcalorie, args=[ureg.liter, ureg.liter, None, None, None, None, ureg.mole/ureg.kilocal], strict=True)
-def titrant_dilution_injection_heats(V0, DeltaVn, Xs, chi, H_0, N, beta):
+def fa(x): return x
+
+
+def fb(x): return 1 - fa(x)
+
+
+def fc(x): return 1 / fa(x)
+
+
+def fd(x): return 1 / fb(x)
+
+
+def fe(x): return numpy.log(fa(x))
+
+
+def ff(x): return numpy.log(fb(x))
+
+
+def fg(x): return numpy.log(fc(x))
+
+
+def fh(x): return numpy.log(fd(x))
+
+
+def fi(x): return fa(x) * fb(x)
+
+
+def fj(x): return 1 - fi(x)
+
+
+def fk(x): return 1 / fi(x)
+
+
+def fl(x): return 1 / fj(x)
+
+
+def fm(x): return numpy.log(fi(x))
+
+
+def fn(x): return numpy.log(fj(x))
+
+
+def fo(x): return numpy.log(fk(x))
+
+
+def fp(x): return numpy.log(fl(x))
+
+
+@ureg.wraps(ret=ureg.microcalorie, args=[ureg.liter, ureg.liter, None, None, None, None, None, ureg.mole/ureg.kilocal], strict=True)
+def titrant_dilution_injection_heats(V0, DeltaVn, Xs, chi, DeltaH, H_0, N, beta):
     """
     Expected heats of injection for two-component binding model.
+
+    ARGUMENTS
+    V0 - cell volume (liter)
+    DeltaVn - injection volumes (liter)
+    Xs - Syringe concentration (millimolar)
+    chi - exchange parameter (kcal/mol), (called beta according to Atkins, chi according to Dill)
+    DeltaH - Generic dilution enthalpy
+    H_0 - mechanical heat of injection (ucal)
+    N - number of injections
+    beta - 1/kBT (mol/kcal)
+    Returns
+    -------
+    expected injection heats (ucal)
+
+
+    """
+    # Xn[n] is the ligand concentration in sample cell after n+1 injections
+    Xn = numpy.zeros(N)
+    # X_frac is the mole fraction of X * (1 - mole fraction of x) in the sample cell
+    X_frac = numpy.zeros(N)
+    X_mfrac = numpy.zeros(N)
+    kt = 1/beta
+    buffer_mass = 18.01528 # g / mol
+    buffer_density = 999.97 # g / liter
+    buffer_concentration = buffer_density / buffer_mass # mol /liter
+
+    # Equation 8 of Tellinghuisen Calibration in isothermal titration calorimetry:
+    # heat and cell volume from heat of dilution of NaCl(aq).
+    # http://dx.doi.org/10.1016/j.ab.2006.10.015
+    vcum = 0.0  # cumulative injected volume (liter)
+    for n in range(N):
+        # Instantaneous injection model (perfusion)
+        # dilution factor for this injection (dimensionless)
+        vcum += DeltaVn[n]
+        vfactor = vcum / V0  # relative volume factor
+        # total concentration of ligand in sample cell after n injections (converted from mM to M)
+        Xn[n] = 1.e-3 * Xs * (1 - numpy.exp(-vfactor))
+        X_frac[n] = mole_fraction(Xn[n], buffer_concentration) # (x * (1-x))
+        X_mfrac[n] = x_times_onemx(X_frac[n])
+
+    # Compute expected injection heats.
+    # q_n_model[n] is the expected heat from injection n
+    q_n = numpy.zeros([N])
+    # Instantaneous injection model (perfusion)
+    # first injection
+    # From units of cal/mole to ucal
+    # page 149 of Atkins physical chemistry, 8th edition, eq. 5.30 H^E = n* chi *RT * x_a * x_b
+
+
+    q_n[0] = 1.e9 * V0 *  ( DeltaH * (fa(X_frac[0])) +  (buffer_concentration + Xn[0]) * chi * kt * (X_mfrac[0])) +  H_0
+    for n in range(1, N):
+        # subsequent injections
+        # From units of cal/mole to ucal
+        q_n[n] = 1.e9 * V0 * (DeltaH * (fa(X_frac[n])) + (buffer_concentration + Xn[n]) * chi * kt * (X_mfrac[n])) + ( 2 * H_0 ) - q_n[n-1]
+    return q_n
+
+
+
+@ureg.wraps(ret=ureg.microcalorie, args=[ureg.liter, ureg.liter, None, None, None, None, ureg.mole/ureg.kilocal], strict=True)
+def titrant_exchange_injection_heats(V0, DeltaVn, Xs, chi, H_0, N, beta):
+    """
+    Expected heats of injection for titrant dilution using exchange parameter chi.
 
     ARGUMENTS
     V0 - cell volume (liter)

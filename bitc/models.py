@@ -548,8 +548,14 @@ class MultiExperimentModel(BindingModel):
         if "chi_titrant" not in self.priors:
             self.priors["chi_titrant"] = BindingModel._uniform_prior('chi_titrant', 0., 20., -20.)
 
-        deterministic = pymc.Lambda(name + '_model', lambda V0=cell_volume, DeltaVn=injection_volumes, Xs=self.priors["Xs"], chi=self.priors["chi_titrant"], H_0=self.priors[mech_prior],N=n, beta=beta:
-                            titrant_dilution_injection_heats(V0, DeltaVn, Xs, chi, H_0, N, beta)
+        # Enthalpy of dilution for titrant
+        if "DeltaH_titrant" not in self.priors:
+            self.priors["DeltaH_titrant"] = BindingModel._uniform_prior_with_guesses_and_units('DeltaH_titrant', 0.,
+                                                                                               10., -10.,
+                                                                                               ureg.kilocalorie / ureg.mole)
+
+        deterministic = pymc.Lambda(name + '_model', lambda V0=cell_volume, DeltaVn=injection_volumes, Xs=self.priors["Xs"], chi=self.priors["chi_titrant"],DeltaH=self.priors["DeltaH_titrant"], H_0=self.priors[mech_prior],N=n, beta=beta:
+                            titrant_dilution_injection_heats(V0, DeltaVn, Xs, chi, DeltaH, H_0, N, beta)
                             )
         observed_heat = BindingModel._normal_observation_with_units(name, deterministic, injection_heats, tau, ureg.microcalorie)
 
