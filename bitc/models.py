@@ -250,10 +250,13 @@ class BindingModel(object):
 
         :rtype : pymc.Uniform
         """
+        lower = minimum / unit
+        upper = maximum / unit
+        value = value / unit
         return pymc.Uniform(name,
-                            lower=minimum / unit,
-                            upper=maximum / unit,
-                            value=value / unit
+                            lower=lower.to('dimensionless'),
+                            upper=upper.to('dimensionless'),
+                            value=value.to('dimensionless')
         )
 
     @staticmethod
@@ -536,7 +539,7 @@ class MultiExperimentModel(BindingModel):
             mech_prior = "H_mech"
 
         if mech_prior not in self.priors:
-            self.priors[mech_prior] = BindingModel._uniform_prior_with_guesses_and_units(mech_prior, *BindingModel._deltaH0_guesses(injection_heats), prior_unit=ureg.microcalorie, guess_unit=True)
+            self.priors[mech_prior] = BindingModel._uniform_prior_with_guesses_and_units(mech_prior, *MultiExperimentModel._deltaH0_guesses(injection_heats, injection_volumes), prior_unit=ureg.calorie/ureg.liter, guess_unit=True)
 
         # Concentration of the titrand species
         if "Xs" not in self.priors:
@@ -546,7 +549,7 @@ class MultiExperimentModel(BindingModel):
 
         # exchange parameter for titrant
         if "chi_titrant" not in self.priors:
-            self.priors["chi_titrant"] = BindingModel._uniform_prior('chi_titrant', 0., 20., -20.)
+            self.priors["chi_titrant"] = BindingModel._uniform_prior('chi_titrant', 0., 5., -5.)
 
         # Enthalpy of dilution for titrant
         if "DeltaH_titrant" not in self.priors:
@@ -644,6 +647,19 @@ class MultiExperimentModel(BindingModel):
             mcmc.use_step_method(pymc.Metropolis, parameter)
 
         return mcmc
+
+    @staticmethod
+    def _deltaH0_guesses(q_n,v_n):
+        """
+        Provide guesses for deltaH_0 from the last injection in the list of injection heats
+        """
+        # Assume the last injection has the best guess for H0
+        max_vol = v_n.max()
+        DeltaH_0_guess = q_n[-1]
+        heat_interval = (q_n.max() - q_n.min())
+        DeltaH_0_min = q_n.min() - heat_interval
+        DeltaH_0_max = q_n.max() + heat_interval
+        return DeltaH_0_guess/max_vol, DeltaH_0_max/max_vol, DeltaH_0_min/max_vol
 
     @staticmethod
     def _log_sigma_guesses(experiment, num_injections, standard_unit):

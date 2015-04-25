@@ -3,11 +3,13 @@ Contains Experiment and Injection classes.
 """
 import os
 import logging
+import seaborn as sns
 
 import numpy
 from pint import DimensionalityError
 
 from bitc.units import ureg, Quantity
+
 
 
 
@@ -578,7 +580,7 @@ class ExperimentMicroCal(BaseExperiment):
     def _plot_gaussian_baseline(self, full_x, full_y, sigma, x, y, y_pred):
         from matplotlib.figure import Figure
         from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-
+        sns.set_style('white')
         figure = Figure()
         canvas = FigureCanvas(figure)
         axes = figure.add_subplot(1, 1, 1, axisbg='whitesmoke')
@@ -586,11 +588,11 @@ class ExperimentMicroCal(BaseExperiment):
         # Adds a 95% confidence interval to the plot
         ExperimentMicroCal._plot_confidence_interval(axes, full_x, sigma, y_pred)
         # Entire set of data
-        axes.plot(full_x, full_y, 'o', markersize=2, lw=1, color='deepskyblue', alpha=.5, label='Raw data')
+        axes.plot(full_x, full_y, 'o', markersize=2, lw=1, color='sage', alpha=.5, label='Raw data')
         # Points for fit
         axes.plot(x, y, 'o', color='crimson', markersize=2, alpha=.8, label='Fitted data')
         # Prediction
-        axes.plot(full_x, y_pred, 'o', markersize=1, mec='w', mew=1, color='k', alpha=.5, label='Predicted baseline')
+        axes.plot(full_x, y_pred, ':', color='w', alpha=.5, label='Predicted baseline')
 
         # Plot injection time markers.
         [ymin, ymax] = axes.get_ybound()
@@ -618,24 +620,24 @@ class ExperimentMicroCal(BaseExperiment):
         """Plot the baseline-subtracted data"""
         from matplotlib.figure import Figure
         from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-
+        sns.set_style("white")
         figure = Figure()
         canvas = FigureCanvas(figure)
-        axes1 = figure.add_subplot(1, 1, 1, axisbg='whitesmoke')
+        axes1 = figure.add_subplot(1, 1, 1)
 
         # Points for fit
-        axes1.plot(x, y, 'o', color='deepskyblue', markersize=2, alpha=1, label='Baseline-subtracted data')
+        axes1.plot(x, y, '-o', lw=0.3, color='sage', markersize=1.5, alpha=1, label='Baseline-subtracted data')
         axes1.set_xlabel('time (s)')
         axes1.set_ylabel(r' corr. differential power ($\mu$cal / s)')
         axes1.legend(loc='upper center', bbox_to_anchor=(0.2, 0.95), ncol=1, fancybox=True, shadow=True, markerscale=3, prop={'size': 6})
 
         if raw:
             axes2 = axes1.twinx()
-            axes2.plot(x, self.differential_power, 'o', color='gray', markersize=2, alpha=.3, label='Raw data')
+            axes2.plot(x, self.differential_power, '-o', lw=0.3,color='gray', markersize=1.5, alpha=.2, label='Raw data')
             axes2.set_ylabel(r'raw differential power ($\mu$cal / s)')
             axes2.legend(loc='upper center', bbox_to_anchor=(0.8, 0.95), ncol=1, fancybox=True, shadow=True, markerscale=3, prop={'size': 6})
             if baseline:
-                axes2.plot(x, self.baseline_power, '-', color='black', alpha=.3, label='baseline')
+                axes2.plot(x, self.baseline_power, '-', lw=0.3, color='crimson', alpha=.3, label='baseline')
 
         axes1.set_title(self.data_filename)
         canvas.print_figure(self.name + '-subtracted.png', dpi=500)
@@ -667,7 +669,7 @@ class ExperimentMicroCal(BaseExperiment):
         fit_indices = numpy.array(fit_indices)
         return fit_indices, x, y
 
-    def fit_gaussian_process_baseline(self, frac=0.3, theta0=4.7, nugget=1.0, plot=True):
+    def fit_gaussian_process_baseline(self, frac=0.05, theta0=4.7, nugget=1.0, plot=True):
         """
         Gaussian Process fit of baseline.
 

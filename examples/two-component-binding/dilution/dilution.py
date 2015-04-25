@@ -8,6 +8,8 @@ import numpy
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.mlab as mlab
+import matplotlib.image as image
+
 
 sns.despine(left=True)
 
@@ -29,8 +31,8 @@ model = MultiExperimentModel(experiments)
 mcmc = model.mcmc
 
 map = pymc.MAP(model)
-map.fit(iterlim=1000000, verbose=0)
-model.mcmc.sample(iter=50000, burn=20000, thin=20, progress_bar=True)
+map.fit(iterlim=5000000, verbose=0)
+model.mcmc.sample(iter=50000, burn=5000, thin=25, progress_bar=True)
 
 # Plot individual terms.
 
@@ -81,7 +83,7 @@ def plot_trace_accor_dist(trace, name, color='white', filename='', **figargs):
     # Set figure parameters
     fig = plt.figure(**figargs)
 
-    # Obtain a grid of plots
+   # Obtain a grid of plots
     ax1, ax2, ax3 = _one_two_subplot_grid()
 
     # Titles for plots
@@ -186,6 +188,7 @@ def plot_posterior_predictive_enthalpogram(violin_data, measurement_data, traces
     # Plot the measurement data as a line graph
     else:
         ax1.plot(range(1, len(measurement_data) + 1), measurement_data, label='observation', marker='8', markersize=8, color='r', linestyle='')
+
 
     # If name not supplied, just show plot, else save figure under name supplied
     if filename == '':
