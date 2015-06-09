@@ -3,12 +3,14 @@
 PyMC models to describe ITC binding experiments
 """
 
+import numpy
+import pymc
+
 import copy
 import logging
 from math import exp, log
 
-import numpy
-import pymc
+from bitc.units import ureg, Quantity
 import scipy.integrate
 
 from bitc.units import ureg, Quantity
@@ -23,7 +25,6 @@ class RescalingStep(pymc.StepMethod):
 
     """
     Rescaling StepMethod for sampling correlated changes in ligand and receptor concentration
-
     """
 
     def __init__(self, dictionary, beta, max_scale=1.03, interval=100, verbose=0):
@@ -162,7 +163,6 @@ class BindingModel(object):
     def _add_unit_to_guesses(value, maximum, minimum, unit):
         """
         Add units to inital guesses for priors
-
         :param value: mean value of the guess
         :type value: float
         :param maximum: maximum for the guess
@@ -236,7 +236,6 @@ class BindingModel(object):
     def _uniform_prior(name, value, maximum, minimum):
         """Define a uniform prior without units
            Added for consistency with other Bindingmodel
-
         :rtype : pymc.Uniform
         """
         return pymc.Uniform(name,
@@ -248,7 +247,6 @@ class BindingModel(object):
     @staticmethod
     def _uniform_prior_with_units(name, value, maximum, minimum, unit):
         """Define a uniform prior, while stripping units
-
         :rtype : pymc.Uniform
         """
         return pymc.Uniform(name,
@@ -262,7 +260,6 @@ class BindingModel(object):
         """
         Take initial values, add units or convert units to the right type,
         returns a pymc uniform prior
-
         :rtype : pymc.Uniform
         """
         # Guess has units
@@ -363,7 +360,6 @@ class TwoComponentBindingModel(BindingModel):
     def expected_injection_heats(V0, DeltaVn, P0, Ls, DeltaG, DeltaH, DeltaH_0, beta, N):
         """
         Expected heats of injection for two-component binding model.
-
         ARGUMENTS
         V0 - cell volume (liter)
         DeltaVn - injection volumes (liter)
@@ -374,12 +370,9 @@ class TwoComponentBindingModel(BindingModel):
         DeltaH_0 - heat of injection (cal)
         beta - inverse temperature * gas constant (mole / kcal)
         N - number of injections
-
         Returns
         -------
         expected injection heats -
-
-
         """
         # TODO Units that go into this need to be verified
         # TODO update docstring with new input
@@ -517,7 +510,6 @@ class CompetitiveBindingModel(BindingModel):
     def __init__(self, experiments, receptor, concentration_uncertainty=0.10):
         """
         ARGUMENTS
-
         experiments (list of Experiment) -
         instrument Instrument that experiment was carried out in (has to be one)
         receptor (string) - name of receptor species
@@ -634,54 +626,35 @@ class CompetitiveBindingModel(BindingModel):
     def equilibrium_concentrations(Ka_n, C0_R, C0_Ln, V, c0=None):
         """
         Compute the equilibrium concentrations of each complex species for N ligands competitively binding to a receptor.
-
         ARGUMENTS
-
         Ka_n (numpy N-array of float) - Ka_n[n] is the association constant for receptor and ligand species n (1/M)
         x_R (float) - the total number of moles of receptor in the sample volume
         x_n (numpy N-array of float) - x_n[n] is the total number of moles of ligand species n in the sample volume
         V (float) - the total sample volume (L)
-
         RETURNS
-
         C_n (numpy N-array of float) - C_n[n] is the concentration of complex of receptor with ligand species n
-
         EXAMPLES
-
         >>> V = 1.4303e-3 # volume (L)
         >>> x_R = V * 510.e-3 # receptor
         >>> x_Ln = numpy.array([V * 8.6e-6, 200.e-6 * 55.e-6]) # ligands
         >>> Ka_n = numpy.array([1./(400.e-9), 1./(2.e-11)]) # association constants
         >>> from bitc.models import CompetitiveBindingModel
         >>> C_PLn = CompetitiveBindingModel.equilibrium_concentrations(Ka_n, x_R, x_Ln, V)
-
+        
         NOTES
-
         Each complex concentration C_n must obey the relation
-
         Ka_n[n] = C_RLn[n] / (C_R * C_Ln[n])           for n = 1..N
-
         with conservation of mass constraints
-
         V * (C_Ln[n] + C_RLn[n]) = x_Ln[n]             for n = 1..N
-
         and
-
         V * (C_R + C_RLn[:].sum()) = x_R
-
         along with the constraints
-
         0 <= V * C_RLn[n] <= min(x_Ln[n], x_R)         for n = 1..N
         V * C_RLn[:].sum() <= x_R
-
         We can rearrange these expressions to give
-
         V * C_R * C_Ln[n] * Ka_n[n] - V * C_RLn[n] = 0
-
         and eliminate C_Ln[n] and C_R to give
-
         V * (x_R/V - C_RLn[:].sum()) * (x_Ln[n]/V - C_RLn[n]) * Ka_n[n] - V * C_RLn[n] = 0    for n = 1..N
-
         """
 
         x_R = C0_R * V
