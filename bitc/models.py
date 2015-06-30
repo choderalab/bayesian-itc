@@ -230,6 +230,10 @@ class BindingModel(object):
         """Define a set of normally distributed observations, while stripping units
         :rtype : pymc.Normal
         """
+        # TODO: Ingore N_ignore first injection heats in the likelihood calculation,
+        #       where N_ignore is a variable passed here somehow.
+        # TODO: Make sure that q_n_model and tau are arrays?
+        # TODO: Edit this to ignore N first injection heats in q_n_model and tau?
         return pymc.Normal(name, mu=q_n_model, tau=tau, observed=True, value=q_ns / unit)
 
     @staticmethod
