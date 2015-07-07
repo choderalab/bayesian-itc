@@ -183,87 +183,116 @@ for experiment, experiment_name in zip(experiments, file_basenames):
 # if integrated_heats_file:
 #     experiment.read_integrated_heats(integrated_heats_file)
 
-# MCMC inference
-if not validated['mcmc']:
-    sys.exit(0)
+# MCMC sampling
+if validated['mcmc']:
+  # Construct a Model from Experiment object.
+  import traceback
+  if validated['--model'] == 'TwoComponent':
 
-# Construct a Model from Experiment object.
-import traceback
-if validated['--model'] == 'TwoComponent':
+      models = list()
+      try:
+          for experiment in experiments:
+              models.append(Model(experiment))
+      except Exception as e:
+              logging.error(str(e))
+              logging.error(traceback.format_exc())
+              raise Exception("MCMC model could not me constructed!\n" + str(e))
 
-    models = list()
-    try:
-        for experiment in experiments:
-            models.append(Model(experiment))
-    except Exception as e:
-            logging.error(str(e))
-            logging.error(traceback.format_exc())
-            raise Exception("MCMC model could not me constructed!\n" + str(e))
+      # First fit the model.
+      # TODO This should be incorporated in the model. Perhaps as a model.getSampler() method?
 
-    # First fit the model.
-    # TODO This should be incorporated in the model. Perhaps as a model.getSampler() method?
+      for model in models:
+          logging.info("Fitting model...")
+          map = pymc.MAP(model)
+          map.fit(iterlim=nfit)
+          logging.info(map)
 
-    for model in models:
-        logging.info("Fitting model...")
-        map = pymc.MAP(model)
-        map.fit(iterlim=nfit)
-        logging.info(map)
+          logging.info("Sampling...")
+          model.mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
+          #pymc.Matplot.plot(mcmc)
 
-        logging.info("Sampling...")
-        model.mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
-        #pymc.Matplot.plot(mcmc)
+          # Plot individual terms.
+          if sum(model.experiment.cell_concentration.values()) > Quantity('0.0 molar'):
+              pymc.Matplot.plot(model.mcmc.trace('P0')[:], '%s-P0' % model.experiment.name)
+          if sum(model.experiment.syringe_concentration.values()) > Quantity('0.0 molar'):
+              pymc.Matplot.plot(model.mcmc.trace('Ls')[:], '%s-Ls' % model.experiment.name)
+          pymc.Matplot.plot(model.mcmc.trace('DeltaG')[:], '%s-DeltaG' % model.experiment.name)
+          pymc.Matplot.plot(model.mcmc.trace('DeltaH')[:], '%s-DeltaH' % model.experiment.name)
+          pymc.Matplot.plot(model.mcmc.trace('DeltaH_0')[:], '%s-DeltaH_0' % model.experiment.name)
+          pymc.Matplot.plot(numpy.exp(model.mcmc.trace('log_sigma')[:]), '%s-sigma' % model.experiment.name)
 
-        # Plot individual terms.
-        if sum(model.experiment.cell_concentration.values()) > Quantity('0.0 molar'):
-            pymc.Matplot.plot(model.mcmc.trace('P0')[:], '%s-P0' % model.experiment.name)
-        if sum(model.experiment.syringe_concentration.values()) > Quantity('0.0 molar'):
-            pymc.Matplot.plot(model.mcmc.trace('Ls')[:], '%s-Ls' % model.experiment.name)
-        pymc.Matplot.plot(model.mcmc.trace('DeltaG')[:], '%s-DeltaG' % model.experiment.name)
-        pymc.Matplot.plot(model.mcmc.trace('DeltaH')[:], '%s-DeltaH' % model.experiment.name)
-        pymc.Matplot.plot(model.mcmc.trace('DeltaH_0')[:], '%s-DeltaH_0' % model.experiment.name)
-        pymc.Matplot.plot(numpy.exp(model.mcmc.trace('log_sigma')[:]), '%s-sigma' % model.experiment.name)
+          #  TODO: Plot fits to enthalpogram.
+          #experiment.plot(model=model, filename='%s-enthalpogram.png' %  experiment_name) # todo fix this
 
-        #  TODO: Plot fits to enthalpogram.
-        #experiment.plot(model=model, filename='%s-enthalpogram.png' %  experiment_name) # todo fix this
+          # Compute confidence intervals in thermodynamic parameters.
+          outfile = open('%s.confidence-intervals.out' % model.experiment.name, 'a+')
+          outfile.write('%s\n' % model.experiment.name)
+          [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('DeltaG')[:] )
+          outfile.write('DG:     %8.2f +- %8.2f kcal/mol     [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
+          [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('DeltaH')[:] )
+          outfile.write('DH:     %8.2f +- %8.2f kcal/mol     [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
+          [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('DeltaH_0')[:] )
+          outfile.write('DH0:    %8.2f +- %8.2f ucal         [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
+          [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('Ls')[:] )
+          outfile.write('Ls:     %8.2f +- %8.2f uM           [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
+          [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('P0')[:] )
+          outfile.write('P0:     %8.2f +- %8.2f uM           [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
+          [x, dx, xlow, xhigh] = compute_normal_statistics(numpy.exp(model.mcmc.trace('log_sigma')[:]) )
+          outfile.write('sigma:  %8.5f +- %8.5f ucal/s^(1/2) [%8.5f, %8.5f] \n' % (x, dx, xlow, xhigh))
+          outfile.write('\n')
+          outfile.close()
 
-        # Compute confidence intervals in thermodynamic parameters.
-        outfile = open('%s.confidence-intervals.out' % model.experiment.name, 'a+')
-        outfile.write('%s\n' % model.experiment.name)
-        [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('DeltaG')[:] )
-        outfile.write('DG:     %8.2f +- %8.2f kcal/mol     [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('DeltaH')[:] )
-        outfile.write('DH:     %8.2f +- %8.2f kcal/mol     [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('DeltaH_0')[:] )
-        outfile.write('DH0:    %8.2f +- %8.2f ucal         [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('Ls')[:] )
-        outfile.write('Ls:     %8.2f +- %8.2f uM           [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_normal_statistics(model.mcmc.trace('P0')[:] )
-        outfile.write('P0:     %8.2f +- %8.2f uM           [%8.2f, %8.2f] \n' % (x, dx, xlow, xhigh))
-        [x, dx, xlow, xhigh] = compute_normal_statistics(numpy.exp(model.mcmc.trace('log_sigma')[:]) )
-        outfile.write('sigma:  %8.5f +- %8.5f ucal/s^(1/2) [%8.5f, %8.5f] \n' % (x, dx, xlow, xhigh))
-        outfile.write('\n')
-        outfile.close()
+          model.mcmc.db.close()
 
-elif validated['--model'] == 'Competitive':
-    if not validated['--receptor']:
-        raise ValueError('Need to specify a receptor for Competitive model')
-    else:
-        receptor = validated['--receptor']
-    try:
-        for experiment in experiments:
-            model = Model(experiments, receptor)
-    except Exception as e:
-        logging.error(str(e))
-        logging.error(traceback.format_exc())
-        raise Exception("MCMC model could not me constructed!\n" + str(e))
+  elif validated['--model'] == 'Competitive':
+      if not validated['--receptor']:
+          raise ValueError('Need to specify a receptor for Competitive model')
+      else:
+          receptor = validated['--receptor']
+      try:
+          for experiment in experiments:
+              model = Model(experiments, receptor)
+      except Exception as e:
+          logging.error(str(e))
+          logging.error(traceback.format_exc())
+          raise Exception("MCMC model could not me constructed!\n" + str(e))
 
-    logging.info("Fitting model...")
-    map = pymc.MAP(model, verbose=10)
-    map.fit(iterlim=nfit, verbose=10)
-    logging.info(map)
+      logging.info("Fitting model...")
+      map = pymc.MAP(model, verbose=10)
+      map.fit(iterlim=nfit, verbose=10)
+      logging.info(map)
 
-    logging.info("Sampling...")
-    model.mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
-    pymc.Matplot.plot(model.mcmc, "MCMC.png")
+      logging.info("Sampling...")
+      model.mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
+      pymc.Matplot.plot(model.mcmc, "MCMC.png")
 
-pymc.graph.dag(model.mcmc)
+  pymc.graph.dag(model.mcmc)
+
+if validated['--calc_logp']:
+  import traceback
+  if validated['--model'] == 'TwoComponent':
+
+      models = list()
+      try:
+          for experiment in experiments:
+              models.append(Model(experiment))
+      except Exception as e:
+              logging.error(str(e))
+              logging.error(traceback.format_exc())
+              raise Exception("MCMC model could not me constructed!\n" + str(e))
+
+      for model in models:
+          pass
+          
+          # TODO: Check that the h5 file exists.
+          # The file name should be: dbname = validated['--calc_logp']
+          # Raise an exception if the file does not exist.
+          # TODO: Read in the samples from h5 file
+          # This should help: https://pymc-devs.github.io/pymc/database.html
+
+          # Set the values of the model parameter to the the values
+          # in the trace of the parameters
+          # Figure out what the logp variable is.
+          # For each paraemeter set, save the logp values into a list
+          # Output the mean and standard deviation of logp
+

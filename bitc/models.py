@@ -452,7 +452,12 @@ class TwoComponentBindingModel(BindingModel):
     def _create_metropolis_sampler(self, Ls_stated, P0_stated, experiment):
         """Create an MCMC sampler for the two component model.
         """
-        mcmc = pymc.MCMC(self, db='ram')
+        dbname = experiment.name+'.h5'
+        import os
+        if os.path.isfile(dbname):
+          mcmc = pymc.MCMC(self, db='ram')
+        else:
+          mcmc = pymc.MCMC(self, db='hdf5', dbname=dbname, dbmode='a')
         mcmc.use_step_method(pymc.Metropolis, self.DeltaG)
         mcmc.use_step_method(pymc.Metropolis, self.DeltaH)
         mcmc.use_step_method(pymc.Metropolis, self.DeltaH_0)

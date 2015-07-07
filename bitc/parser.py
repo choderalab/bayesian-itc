@@ -67,6 +67,7 @@ Options:
                      # list and ensure it contains existing files
                      '<datafiles>': And(list, lambda inpfiles: [os.path.isfile(inpfile) for inpfile in inpfiles], Use(lambda inpfiles: [os.path.abspath(inpfile) for inpfile in inpfiles])),
                      'mcmc': bool,  # True or False are accepted
+                     '--calc_logp': Or(None, And(str, len)),
                      '--report': Or(None, Use(lambda f: open(f, 'w'))),
                      # Don't use, or open file with writing permissions
                      '--log': Or(None, str),  # Don't use, or str
