@@ -117,6 +117,9 @@ if validated['mcmc']:
     nthin = validated['--nthin']    # thinning period
     Model = known_models[validated['--model']]  # Model type for mcmc
 
+if validated['--calc_logp']:
+    Model = known_models[validated['--model']]  # Model type for mcmc
+
 instruments = list()
 
 # todo fix this flag for multiple files
@@ -282,6 +285,7 @@ if validated['--calc_logp']:
               raise Exception("MCMC model could not me constructed!\n" + str(e))
 
       for model in models:
+          print model
           pass
           
           # TODO: Check that the h5 file exists.
