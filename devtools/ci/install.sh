@@ -9,7 +9,7 @@ fi
 bash ${MINICONDA} -b
 PIP_ARGS="-U"
 
-export PATH=$HOME/miniconda/bin:$PATH
+export PATH=$HOME/miniconda2/bin:$PATH
 
 sudo apt-get update
 
