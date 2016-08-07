@@ -45,29 +45,29 @@ class Instrument(object):
         """Grab the calibrated volume from a .itc file
         The volume is assumed to be the fourth   line in the block that starts with a #.
         This format is valid for at least the Auto-iTC200 and VPITC."""
-        try:
-            if type(filename) == str:
-                dotitc = open(filename, 'r')
-            else:
-                dotitc = filename
 
-            logger.info("Reading volumes from a .itc file.")
-            lines = dotitc.readlines()
-            hash_count = 1
-            for line in lines:
-                # Fourth line of hash block has volume
-                if hash_count == 4:
-                    logger.info("Read current field as V0: %s" % line)
-                    self.V0 = float(line[2:]) * ureg.milliliter - self.V_correction
+        if type(filename) == str:
+            dotitc = open(filename, 'r')
+        else:
+            dotitc = filename
 
-                if re.match('#', line):
-                    hash_count += 1
-                # First line in % block describes device
-                elif re.match('%', line) and self.description == "":
-                    logger.debug("Read current field as instrument description: %s" % line)
-                    self.description = line[2:]
-        finally:
-            dotitc.close()
+        logger.info("Reading volumes from a .itc file.")
+        lines = dotitc.readlines()
+        hash_count = 1
+        for line in lines:
+            # Fourth line of hash block has volume
+            if hash_count == 4:
+                logger.info("Read current field as V0: %s" % line)
+                self.V0 = float(line[2:]) * ureg.milliliter - self.V_correction
+
+            if re.match('#', line):
+                hash_count += 1
+            # First line in % block describes device
+            elif re.match('%', line) and self.description == "":
+                logger.debug("Read current field as instrument description: %s" % line)
+                self.description = line[2:]
+
+        dotitc.close()
 
 
 class VPITC(Instrument):
