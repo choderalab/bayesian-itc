@@ -5,10 +5,6 @@ addons:
     sources:
     - ubuntu-toolchain-r-test
 
-branches:
-  only:
-    - master
-
 install:
   - bash -x devtools/travis-ci/install.sh
   - export PYTHONUNBUFFERED=true
