@@ -6,7 +6,7 @@ addons:
     - ubuntu-toolchain-r-test
 
 install:
-  - bash -x devtools/travis-travis-ci/install.sh
+  - bash -x devtools/travis-ci/install.sh
   - export PYTHONUNBUFFERED=true
 
 script:
