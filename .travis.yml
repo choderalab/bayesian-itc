@@ -1,21 +1,37 @@
-language: python
+language: c
+sudo: false
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
 
 branches:
   only:
     - master
 
 install:
-  - source devtools/ci/install.sh
+  - bash -x devtools/travis-ci/install.sh
   - export PYTHONUNBUFFERED=true
 
 script:
+
+  # Create an environment for testing
+  - conda create --yes -n test python=$python
+  - source activate test
+  # Add omnia channel for packages
+  - conda config --add channels omnia
+
+  # Install package dependencies
+  - conda install --yes --file devtools/ci/requirements.txt
   - python setup.py install
+
+  # Test the package
   - nosetests -v
 
 env:
   matrix:
     - python=2.7  CONDA_PY=27
-    - python=3.3  CONDA_PY=33
+    - python=3.5  CONDA_PY=35
     - python=3.4  CONDA_PY=34
 
 after_success:
