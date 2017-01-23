@@ -10,7 +10,7 @@ branches:
     - master
 
 install:
-  - bash -x devtools/travis-ci/install.sh
+  - bash -x devtools/travis-travis-ci/install.sh
   - export PYTHONUNBUFFERED=true
 
 script:
@@ -22,7 +22,7 @@ script:
   - conda config --add channels omnia
 
   # Install package dependencies
-  - conda install --yes --file devtools/ci/requirements.txt
+  - conda install --yes --file devtools/travis-ci/requirements.txt
   - python setup.py install
 
   # Test the package
@@ -35,4 +35,4 @@ env:
     - python=3.4  CONDA_PY=34
 
 after_success:
-  - bash -x devtools/ci/after_success.sh
+  - bash -x devtools/travis-ci/after_success.sh
