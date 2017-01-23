@@ -8,6 +8,7 @@ addons:
 install:
   - bash -x devtools/travis-ci/install.sh
   - export PYTHONUNBUFFERED=true
+  - export PATH=$HOME/miniconda3/bin:$PATH
 
 script:
 
