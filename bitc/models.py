@@ -435,8 +435,6 @@ class TwoComponentBindingModel(BindingModel):
         """
         return numpy.exp(-2.0 * log_sigma)
 
-
-
     def _create_rescaling_sampler(self, Ls_stated, P0_stated, experiment):
         """Create an MCMC sampler for the two component model.
            Uses rescalingstep only when concentrations exist for both P and L."""

@@ -328,7 +328,7 @@ class BaseExperiment(object):
 
         assert isinstance(heats_file, str)
         # Need python engine for skip_footer
-        dataframe = pd.read_table(heats_file, skip_footer=1, engine='python')
+        dataframe = pd.read_table(heats_file, skip_footer=1, engine='python', sep='\s+', header=0)
         heats = numpy.array(dataframe['DH'])
         return Quantity(heats, unit)
 
@@ -540,12 +540,6 @@ class ExperimentMicroCal(BaseExperiment):
             else:
                 injection.last_index = nmeasurements - 1
 
-        # Fit baseline.
-        self.fit_gaussian_process_baseline()
-
-        # Integrate heat evolved from each injection.
-        self.integrate_heat()
-
         return
 
     def write_power(self, filename):
@@ -667,11 +661,18 @@ class ExperimentMicroCal(BaseExperiment):
         fit_indices = numpy.array(fit_indices)
         return fit_indices, x, y
 
-    def fit_gaussian_process_baseline(self, frac=0.3, theta0=4.7, nugget=1.0, plot=True):
+    def fit_gaussian_process_baseline(self, fit_fraction=0.2, theta0=5.0, nugget=1.0, plot=True):
         """
         Gaussian Process fit of baseline.
 
-        frac = fraction of baseline to use for fit
+        fit_fraction : float, default 0.2
+            fraction of baseline to use for fitting the GP.
+        theta0 : float 5.0, default 5.0
+            The parameters in the autocorrelation model.
+        nugget : float, default 1.0
+            Introduce a nugget effect to allow smooth predictions from noisy data.
+        plot : bool, default True
+            Generate plots of the baseline fit
 
         :return:
         :rtype:
@@ -680,7 +681,7 @@ class ExperimentMicroCal(BaseExperiment):
 
         # Retrieve a reduced set of data
         # (data up until first injection and x percent before every injection)
-        fit_indices, x, y = self._retrieve_fit_indices(frac)
+        fit_indices, x, y = self._retrieve_fit_indices(fit_fraction)
 
         # sklearn requires a 2d array, so make it pseudo 2d
         full_x = numpy.atleast_2d(self.filter_period_end_time).T
@@ -689,6 +690,8 @@ class ExperimentMicroCal(BaseExperiment):
         full_y = numpy.array(self.differential_power).T
         y = numpy.array(y).T
 
+        # TODO look into GaussianProcessRegressor http://bit.ly/2kpUs0b
+        # current API will be deprecated as of scikit learn 0.8
         gp = gaussian_process.GaussianProcess(regr='quadratic',
                                               corr='squared_exponential',
                                               theta0=theta0,
