@@ -8,7 +8,7 @@ import pymc
 import traceback
 from bitc.experiments import ExperimentMicroCal, ExperimentYaml
 from bitc.instruments import known_instruments, Instrument
-from bitc.models import known_models
+from bitc.models import TwoComponentBindingModel, CompetitiveBindingModel
 from bitc.parser import bitc_mcmc_parser
 from bitc.units import Quantity
 
@@ -16,6 +16,7 @@ try:
     import seaborn
 except ImportError:
     pass
+
 
 def compute_normal_statistics(x_t):
 
@@ -65,8 +66,6 @@ def plot_two_component_model_results(model):
     outfile.write('\n')
     outfile.close()
 
-
-
 user_input = bitc_mcmc_parser()
 
 # Process the arguments
@@ -100,13 +99,13 @@ logging.debug("Received this input from the user:")
 logging.debug(str(user_input))
 
 # Check if model has all necessary info
-if user_input['<model>'] == 'Competitive':
+if user_input['competitive']:
     if not user_input['--receptor']:
         raise ValueError('Need to specify a receptor for Competitive model')
 
 # Files for processing
-datafile = user_input['<datafile>']  # .itc file to process
-datafile_basename, datafile_extension = splitext(basename(datafile))
+datafiles = user_input['<datafile>']  # .itc file to process
+datafile_basename, datafile_extension = splitext(basename(datafiles[0]))
 
 if not user_input['--name']:
     # Name of the experiment, and output files
@@ -119,7 +118,6 @@ nfit = user_input['--nfit']      # number of iterations for maximum a posteriori
 niters = user_input['--niters']  # number of iterations
 nburn = user_input['--nburn']    # number of burn-in iterations
 nthin = user_input['--nthin']    # thinning period
-Model = known_models[user_input['<model>']]  # Model type for mcmc
 
 if user_input['--instrument']:
     # Use an instrument from the brochure
@@ -129,15 +127,15 @@ else:
     if datafile_extension in ['.yaml', '.yml']:
         import yaml
 
-        with open(datafile, 'r') as yamlfile:
+        with open(datafiles[0], 'r') as yamlfile:
             yamldict = yaml.load(yamlfile)
             instrument_name = yamldict['instrument']
             if instrument_name in known_instruments.keys():
                 instrument = known_instruments[instrument_name]
             else:
-                raise ValueError("Unknown instrument {} specified in {}".format(instrument_name, datafile))
+                raise ValueError("Unknown instrument {} specified in {}".format(instrument_name, datafiles[0]))
     elif datafile_extension in ['.itc']:
-        instrument = Instrument(itcfile=datafile)
+        instrument = Instrument(itcfile=datafiles[0])
     else:
         raise ValueError("The instrument needs to be specified on the commandline for non-standard files")
 
@@ -148,35 +146,49 @@ logging.debug(str(locals()))
 # Close all figure windows.
 import pylab
 pylab.close('all')
-logging.info("Reading ITC data from %s" % datafile)
+logging.info("Reading ITC data from %s" % datafiles)
 
-if datafile_extension in ['.yaml', '.yml']:
-    experiment = ExperimentYaml(datafile, experiment_name, instrument)
-elif datafile_extension in ['.itc']:
-    experiment = ExperimentMicroCal(datafile, experiment_name, instrument)
-else:
-    raise ValueError('Unknown file type. Check your file extension')
+def input_to_experiment(datafile, heatsfile):
+    """
+    Create an Experiment object from the datafile and the heats file
+    :param datafile:
+    :param heatsfile:
+    :return:
+    """
+    datafile_basename, datafile_extension = splitext(basename(datafile))
+    if datafile_extension in ['.yaml', '.yml']:
+        experiment = ExperimentYaml(datafile, experiment_name, instrument)
+    elif datafile_extension in ['.itc']:
+        experiment = ExperimentMicroCal(datafile, experiment_name, instrument)
+    else:
+        raise ValueError('Unknown file type. Check your file extension')
 
-# Read the integrated heats
-experiment.read_integrated_heats(user_input['<heatsfile>'])
+    # Read the integrated heats
+    experiment.read_integrated_heats(heatsfile)
+    return experiment
 
 # Construct a Model from Experiment object.
 
 
-if user_input['<model>'] == 'TwoComponent':
+if user_input['twocomponent']:
+    experiment = input_to_experiment(user_input['<datafile>'][0], user_input['<heatsfile>'][0])
+
     models = list()
     try:
-        model = Model(experiment)
+        model = TwoComponentBindingModel(experiment)
 
     except Exception as e:
             logging.error(str(e))
             logging.error(traceback.format_exc())
             raise Exception("MCMC model could not me constructed!\n" + str(e))
 
-elif user_input['<model>'] == 'Competitive':
+elif user_input['competitive']:
+    experiments = list()
+    for datafile, heatsfile in zip(user_input['<datafile>'], user_input['<heatsfile>']):
+        experiments.append(input_to_experiment(datafile, heatsfile))
     receptor = user_input['--receptor']
     try:
-        model = Model(experiment, receptor)
+        model = CompetitiveBindingModel(experiments, receptor)
     except Exception as e:
         logging.error(str(e))
         logging.error(traceback.format_exc())
@@ -195,5 +207,5 @@ logging.info("Commence MCMC sampling...")
 model.mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True, verbose=user_input['-v'] -3)
 
 
-if user_input['<model>'] == 'TwoComponent':    # Plot individual terms.
+if user_input['twocomponent']:    # Plot individual terms.
     plot_two_component_model_results(model)

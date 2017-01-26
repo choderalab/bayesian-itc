@@ -117,5 +117,5 @@ for experiment, file_extension in zip(experiments, file_extensions):
 
 # Write Origin-style integrated heats.
 for experiment, experiment_name in zip(experiments, file_basenames):
-    filename = experiment_name + '-integrated.txt'
+    filename = experiment_name + '-integrated.dat'
     experiment.write_integrated_heats(filename)
