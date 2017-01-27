@@ -164,7 +164,7 @@ reference power & %(reference_power).3f $\mu$cal/s \\
         return
 
 # TODO this function name is too vague, rename. Make modular
-def analyze(name, experiment):
+def plot_experiment(name, experiment):
 
     #=============================================================================================
     # Make plots

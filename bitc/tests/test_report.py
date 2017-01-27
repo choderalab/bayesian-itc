@@ -15,7 +15,7 @@ class TestReport(unittest.TestCase):
 class TestAnalyze(unittest.TestCase):
     @unittest.expectedFailure
     def test_analyze(self):
-        # self.assertEqual(expected, analyze(name, experiment))
+        # self.assertEqual(expected, plot_experiment(name, experiment))
         assert False # TODO: implement your test here
 
 if __name__ == '__main__':

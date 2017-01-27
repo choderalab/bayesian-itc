@@ -33,8 +33,8 @@ import numpy
 import logging
 from bitc.units import ureg, Quantity
 import pymc
-from bitc.report import Report, analyze
-from bitc.parser import optparser
+from bitc.report import Report, plot_experiment
+from bitc.parser import bitc_util_parser
 from bitc.experiments import Injection, ExperimentMicroCal, ExperimentYaml
 from bitc.instruments import known_instruments, Instrument
 from bitc.models import RescalingStep, known_models
@@ -65,7 +65,7 @@ def compute_normal_statistics(x_t):
 
     return [x, dx, xlow, xhigh]
 
-validated = optparser()
+validated = bitc_util_parser()
 
 # Process the arguments
 working_directory = validated['--workdir']
@@ -170,8 +170,9 @@ logging.debug(str(experiments))
 # Only need to perform analysis for a .itc file.
 for experiment, file_extension in zip(experiments, file_extensions):
     if file_extension in ['.itc']:
+        experiment.fit_gaussian_process_baseline(fit_fraction=0.2, theta0=5.0, nugget=1.0, plot=True)
         #  TODO work on a markdown version for generating reports. Perhaps use sphinx
-        analyze(experiment_name, experiment)
+        plot_experiment(experiment_name, experiment)
 
 # Write Origin-style integrated heats.
 for experiment, experiment_name in zip(experiments, file_basenames):
