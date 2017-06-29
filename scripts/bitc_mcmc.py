@@ -175,7 +175,7 @@ if user_input['twocomponent']:
 
     models = list()
     try:
-        model = TwoComponentBindingModel(experiment)
+        model = TwoComponentBindingModel(experiment, cell_concentration=user_input['--cc'], syringe_concentration=user_input['--cs'], dcell=user_input['--dc'], dsyringe=user_input['--ds'])
 
     except Exception as e:
             logging.error(str(e))

@@ -284,7 +284,15 @@ class TwoComponentBindingModel(BindingModel):
     A binding model with two components (e.g. Protein and Ligand)
     """
 
-    def __init__(self, experiment):
+    def __init__(self, experiment, cell_concentration=None, syringe_concentration=None, dcell=0.1, dsyringe=0.1):
+        """
+        Initialize a TwoComponentBindingModel
+        :param experiment: ExperimentMicrocal or ExperimentYAML object
+        :param cell_concentration: override for cell/protein concentration to be used (float in mM)
+        :param syringe_concentration: override for syringe/ligand concentration to be used (float in mM)
+        :param dcell: relative uncertainty in cell concentration, default 0.1
+        :param dsyringe: relative uncertainty in syringe concentration, default 0.1
+        """
 
         # Determine number of observations.
         self.N = experiment.number_of_injections
@@ -309,17 +317,24 @@ class TwoComponentBindingModel(BindingModel):
         if not len(experiment.syringe_concentration) == 1:
             raise ValueError('TwoComponent model only supports one component in the syringe, found %d' % len(experiment.syringe_concentration))
 
-        Ls_stated = self._get_syringe_concentration(experiment)
+        if syringe_concentration is None:
+            Ls_stated = self._get_syringe_concentration(experiment)
+        else:
+            Ls_stated = syringe_concentration * ureg.millimole / ureg.liter
         # Uncertainty
-        dLs = 0.10 * Ls_stated
+        dLs = dsyringe * Ls_stated
 
         #Cell concentrations
         if not len(experiment.cell_concentration) == 1:
             raise ValueError('TwoComponent model only supports one component in the cell, found %d' % len(experiment.cell_concentration))
 
-        P0_stated = self._get_cell_concentration(experiment)
+        if cell_concentration is None:
+            P0_stated = self._get_cell_concentration(experiment)
+        else:
+            P0_stated = cell_concentration * ureg.millimole / ureg.liter
+
         # Uncertainty
-        dP0 = 0.10 * P0_stated
+        dP0 = dcell * P0_stated
 
         # Define priors for concentrations.
         self.P0 = BindingModel._lognormal_concentration_prior('P0', P0_stated, dP0, ureg.millimolar)
