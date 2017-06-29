@@ -129,8 +129,7 @@ Options:
 
 
 def bitc_mcmc_parser(argv=sys.argv[1:]):
-    __usage__ = """
-    Analyze ITC data using Markov chain Monte Carlo (MCMC). Uses MicroCal .itc files, or custom format .yml files for modeling experiments.
+    __usage__ = """Analyze ITC data using Markov chain Monte Carlo (MCMC). Uses MicroCal .itc files, or custom format .yml files for modeling experiments.
     When running the program you can select one of two options:
 
     competitive
@@ -140,7 +139,7 @@ def bitc_mcmc_parser(argv=sys.argv[1:]):
       A twocomponent binding model. Analyzes only a single experiment
 
     Usage:
-      bitc_mcmc.py twocomponent <datafile> <heatsfile> [-v | -vv | -vvv] [options]
+      bitc_mcmc.py twocomponent <datafile> <heatsfile> [-v | -vv | -vvv] [--cc=<c_cell>] [--cs=<c_syringe> ] [--dc=<dc_cell>] [--ds=<dc_syringe>] [options] 
       bitc_mcmc.py competitive (<datafile> <heatsfile>)... (-r <receptor> | --receptor <receptor>) [-v | -vv | -vvv] [options]
       bitc_mcmc.py (-h | --help)
       bitc_mcmc.py --license
@@ -151,6 +150,10 @@ def bitc_mcmc_parser(argv=sys.argv[1:]):
       --version                              Show version
       --license                              Show license
       -l <logfile>, --log=<logfile>          File to write logs to. Will be placed in workdir.
+      --cc <c_cell>                          Concentration of component in cell in mM. Defaults to value in input file
+      --cs <c_syringe>                       Concentration of component in syringe in mM. Defaults to value in input file
+      --dc <dc_cell>                         Relative uncertainty in cell concentration      [default: 0.1]
+      --ds <dc_syringe>                      Relative uncertainty in syringe concentration   [default: 0.1]
       -v,                                    Verbose output level. Multiple flags increase verbosity.
       -w <workdir>, --workdir <workdir>      Directory for output files                      [default: ./]
       -r <receptor> | --receptor <receptor>  The name of the receptor for a competitive binding model.
@@ -192,6 +195,11 @@ def bitc_mcmc_parser(argv=sys.argv[1:]):
                                         Use(lambda inpfiles: [os.path.abspath(inpfile) for inpfile in inpfiles])),
                      # Don't use, or open file with writing permissions
                      '--log': Or(None, str),  # Don't use, or str
+                     '--cc': Or(None, And(Use(float), lambda n:  n > 0.0)), # Not specified, or a float greater than 0
+                     '--cs': Or(None, And(Use(float), lambda n:  n > 0.0)),  # Not specified, or a float
+                     '--dc': And(Use(float), lambda n:  n > 0.0),  # a float greater than 0
+                     '--ds': And(Use(float), lambda n:  n > 0.0),  # a float greater than 0
+
                      })
 
     return schema.validate(arguments)
