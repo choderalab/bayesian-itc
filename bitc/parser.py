@@ -19,6 +19,7 @@ Bayesian analysis of ITC data. Uses MicroCal .itc files, or custom format .yml f
 Usage:
   ITC.py <datafiles>... [-w <workdir> | --workdir=<workdir>] [-n <name> | --name=<name>] [-q <file> | --heats=<file>] [-i <ins> | --instrument=<ins> ] [-v | -vv | -vvv] [-r <file> | --report=<file>] [ -l <logfile> | --log=<logfile>]
   ITC.py mcmc <datafiles>...  (-m <model> | --model=<model>) [-w <workdir> | --workdir=<workdir>] [ -r <receptor> | --receptor=<receptor>] [-n <name> | --name=<name>] [-q <file> | --heats=<file>] [-i <ins> | --instrument=<ins> ] [ -l <logfile> | --log=<logfile>] [-v | -vv | -vvv] [--report=<file>] [options]
+  ITC.py <datafiles>... --calc_logp=<file> (-m <model> | --model=<model>) [-w <workdir> | --workdir=<workdir>] [ -r <receptor> | --receptor=<receptor>] [-n <name> | --name=<name>] [-q <file> | --heats=<file>] [-i <ins> | --instrument=<ins> ] [ -l <logfile> | --log=<logfile>] [-v | -vv | -vvv] [--report=<file>] [options]
   ITC.py (-h | --help)
   ITC.py --license
   ITC.py --version
@@ -41,6 +42,7 @@ Options:
   --nburn=<n>                            No. of Burn-in iterations for mcmc sampling     [default: 1000]
   --nthin=<n>                            Thinning period for mcmc sampling               [default: 5]
   --report=<file>                        Output file with summary in markdown
+  --calc_logp=<file>                     Calculates the log posterior based on samples in the file
 """
     arguments = docopt(__usage__, argv=argv, version='ITC.py, pre-alpha')
     schema = Schema({'--heats': Or(None, And(str, os.path.isfile, Use(os.path.abspath))),  # str, verify that it exists
@@ -68,6 +70,7 @@ Options:
                      '<datafiles>': And(list, lambda inpfiles: [os.path.isfile(inpfile) for inpfile in inpfiles],
                                         Use(lambda inpfiles: [os.path.abspath(inpfile) for inpfile in inpfiles])),
                      'mcmc': bool,  # True or False are accepted
+                     '--calc_logp': Or(None, And(str, len)),
                      '--report': Or(None, Use(lambda f: open(f, 'w'))),
                      # Don't use, or open file with writing permissions
                      '--log': Or(None, str),  # Don't use, or str

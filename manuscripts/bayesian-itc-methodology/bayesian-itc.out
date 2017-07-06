@@ -1,0 +1,27 @@
+\BOOKMARK [0][-]{section*.3}{Bayesian analysis of isothermal titration calorimetry data}{}% 3
+\BOOKMARK [1][-]{section*.1}{Abstract}{section*.2}% 1
+\BOOKMARK [1][-]{section*.2}{Abstract}{section*.2}% 2
+\BOOKMARK [1][-]{section*.4}{Introduction}{section*.3}% 4
+\BOOKMARK [1][-]{section*.5}{Isothermal titration calorimetry}{section*.3}% 5
+\BOOKMARK [2][-]{section*.6}{Evolved heat due to binding}{section*.5}% 6
+\BOOKMARK [1][-]{section*.7}{Bayesian formulation}{section*.3}% 7
+\BOOKMARK [2][-]{section*.8}{Prior for thermodynamic parameters}{section*.7}% 8
+\BOOKMARK [2][-]{section*.9}{Measurement error in evolved heat}{section*.7}% 9
+\BOOKMARK [2][-]{section*.10}{Errors in sample preparation}{section*.7}% 10
+\BOOKMARK [2][-]{section*.11}{Volume displacement by shaft and stirring paddle of syringe assembly}{section*.7}% 11
+\BOOKMARK [2][-]{section*.12}{The ``first injection anomaly''}{section*.7}% 12
+\BOOKMARK [2][-]{section*.13}{Other effects}{section*.7}% 13
+\BOOKMARK [1][-]{section*.14}{Sampling from the posterior}{section*.3}% 14
+\BOOKMARK [1][-]{section*.15}{Analysis}{section*.3}% 15
+\BOOKMARK [2][-]{section*.16}{Confidence intervals}{section*.15}% 16
+\BOOKMARK [2][-]{section*.17}{Joint distributions}{section*.15}% 17
+\BOOKMARK [1][-]{section*.18}{Experimental design}{section*.3}% 18
+\BOOKMARK [1][-]{section*.19}{Illustrative applications}{section*.3}% 19
+\BOOKMARK [2][-]{section*.20}{Simple 1:1 complexation of Mg2+ to EDTA}{section*.19}% 20
+\BOOKMARK [1][-]{section*.21}{Discussion}{section*.3}% 21
+\BOOKMARK [1][-]{section*.22}{Acknowledgments}{section*.3}% 22
+\BOOKMARK [1][-]{section*.23}{Binding models}{section*.3}% 23
+\BOOKMARK [2][-]{section*.24}{Simple two-component binding}{section*.23}% 24
+\BOOKMARK [2][-]{section*.25}{Multiple independent binding sites of equal affinity}{section*.23}% 25
+\BOOKMARK [2][-]{section*.26}{N-component competitive binding}{section*.23}% 26
+\BOOKMARK [2][-]{section*.27}{Cooperative binding with a Hill coefficient}{section*.23}% 27

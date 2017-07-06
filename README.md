@@ -117,13 +117,19 @@ Below are some examples of using the old `bitc_util.py` script.
 
 An example for a two-component binding model
 ```
-bitc_util.py mcmc bitc/testdata/sample.itc -w workdir -v -m TwoComponent --niters=20000 --nburn=1000 --nthin=10 --nfit=100
+python scripts/bitc_util.py mcmc bitc/testdata/sample.itc -w workdir -v -m TwoComponent --niters=20000 --nburn=1000 --nthin=10 --nfit=100
+```
+
+UNDER CONSTRUCTION: Calculate the mean and standard deviation of the log likelihood of your data given previously saved samples from a posterior.
+
+```
+python scripts/bitc_util.py bitc/testdata/sample.itc -w workdir -v -m TwoComponent --calc_logp workdir/sample.h5
 ```
 
 Analyze `.itc` files without mcmc
 
 ```
-bitc_util.py bitc/testdata/sample.itc bitc/testdata/sample2.itc -w workdir
+python scripts/bitc_util.py bitc/testdata/sample.itc bitc/testdata/sample2.itc -w workdir
 ```
 
 An example for a competitive binding model.
