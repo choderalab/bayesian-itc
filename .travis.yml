@@ -1,35 +1,49 @@
+os:
+  - linux
+  - osx
+
 language: c
 sudo: false
-addons:
-  apt:
-    sources:
-    - ubuntu-toolchain-r-test
+
+branches:
+  only:
+    - master
 
 install:
-  - bash -x devtools/travis-ci/install.sh
+  - source devtools/travis-ci/install.sh
   - export PYTHONUNBUFFERED=true
-  - export PATH=$HOME/miniconda3/bin:$PATH
+
+before_script:
+  # Mimic X display
+  - "export DISPLAY=:99.0"
+  - #"sh -e /etc/init.d/xvfb start"
+  - sleep 3 # give xvfb some time to start
 
 script:
-
-  # Create an environment for testing
+  # Add org channel and force update
+  - conda config --add channels omnia --add channels conda-forge
+  - conda update --yes --all
+  # Create a test environment
   - conda create --yes -n test python=$python
+  # Activate the test environment
   - source activate test
-  # Add omnia channel for packages
-  - conda config --add channels omnia
-
-  # Install package dependencies
-  - conda install --yes --file devtools/travis-ci/requirements.txt
-  - python setup.py install
-
+  # Build the recipe
+  - conda build devtools/conda-recipe
+  # Install the package
+  - conda install --yes --use-local ${PACKAGENAME}-dev
+  # Install testing dependencies
+  - conda install --yes --quiet nose nose-timer
   # Test the package
-  - nosetests -v
+  - cd devtools && nosetests $PACKAGENAME --nocapture --verbosity=2 --with-timer -a '!slow' && cd ..
 
 env:
   matrix:
     - python=2.7  CONDA_PY=27
     - python=3.5  CONDA_PY=35
-    - python=3.4  CONDA_PY=34
+    - python=3.6  CONDA_PY=36
+  global:
+    - MPLBACKEND="Agg"
+    - PACKAGENAME="bitc"
 
 after_success:
   - bash -x devtools/travis-ci/after_success.sh

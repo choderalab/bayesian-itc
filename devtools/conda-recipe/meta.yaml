@@ -1,0 +1,39 @@
+package:
+  name: bitc-dev
+  version: 0.0.0
+
+source:
+  path: ../..
+
+requirements:
+  build:
+    - setuptools
+    - python
+    - numpy
+    - nose
+    - pandas
+    - pymc
+    - pint
+    - docopt
+    - schema
+    - scikit-learn
+
+  run:
+    - python
+    - numpy
+    - nose
+    - pandas
+    - pymc
+    - pint
+    - docopt
+    - schema
+    - scikit-learn
+
+test:
+  imports:
+    - bitc
+
+about:
+  home: https://github.com/choderalab/bayesian-itc/
+  license: GNU General Public License v3 or later (GPLv3+)
+  summary: Python tools for the analysis and modeling of isothermal titration calorimetry (ITC) experiments (development snapshot)
