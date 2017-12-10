@@ -7,6 +7,8 @@ from os.path import relpath, join
 import subprocess
 
 from setuptools import setup
+from basesetup import (find_packages, write_version_py, build_ext,
+                       StaticLibrary, CompilerDetection)
 
 DOCLINES = __doc__.split("\n")
 
@@ -117,8 +119,8 @@ setup(
     url='https://github.com/choderalab/bayesian-itc',
     platforms=['Linux', 'Mac OS-X', 'Unix'],
     classifiers=CLASSIFIERS.splitlines(),
-    package_dir={'bitc': 'bitc'},
-    packages=['bitc'],
+    package_dir={'bitc' : 'bitc', 'bitc.scripts' : 'scripts'},
+    packages=find_packages(),
     package_data={'bitc': find_package_data('examples', 'bitc')},  # NOTE: examples installs to bitc.egg/examples/, NOT bitc.egg/bitc/examples/.  You need to do utils.get_data_filename("../examples/*/setup/").
     zip_safe=False,
     install_requires=[
