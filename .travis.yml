@@ -43,7 +43,7 @@ env:
     - python=3.6  CONDA_PY=36
   global:
     - MPLBACKEND="Agg"
-    - PACKAGENAME="bayesitc"
+    - PACKAGENAME="bitc"
 
 after_success:
   - bash -x devtools/travis-ci/after_success.sh
