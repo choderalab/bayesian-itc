@@ -9,7 +9,7 @@ import traceback
 from bayesitc.experiments import ExperimentMicroCal, ExperimentYaml
 from bayesitc.instruments import known_instruments, Instrument
 from bayesitc.models import TwoComponentBindingModel, CompetitiveBindingModel
-from bayesitc.parser import bitc_mcmc_parser
+from bayesitc.parser import bayesitc_mcmc_parser
 from bayesitc.units import Quantity
 
 try:
@@ -66,7 +66,7 @@ def plot_two_component_model_results(model):
     outfile.write('\n')
     outfile.close()
 
-user_input = bitc_mcmc_parser()
+user_input = bayesitc_mcmc_parser()
 
 # Process the arguments
 working_directory = user_input['--workdir']

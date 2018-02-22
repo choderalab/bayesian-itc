@@ -34,7 +34,7 @@ import logging
 from bayesitc.units import ureg, Quantity
 import pymc
 from bayesitc.report import Report, plot_experiment
-from bayesitc.parser import bitc_util_parser
+from bayesitc.parser import bayesitc_util_parser
 from bayesitc.experiments import Injection, ExperimentMicroCal, ExperimentYaml
 from bayesitc.instruments import known_instruments, Instrument
 from bayesitc.models import RescalingStep, known_models
@@ -65,7 +65,7 @@ def compute_normal_statistics(x_t):
 
     return [x, dx, xlow, xhigh]
 
-validated = bitc_util_parser()
+validated = bayesitc_util_parser()
 
 # Process the arguments
 working_directory = validated['--workdir']
