@@ -13,9 +13,11 @@ if [[ $MINICONDA_MD5 != $(md5sum $MINICONDA | cut -d ' ' -f 1) ]]; then
 fi
 bash $MINICONDA -b -p $MINICONDA_HOME
 
-export PATH=$HOME/miniconda3/bin:$PATH
-
 # Configure miniconda
 export PIP_ARGS="-U"
 export PATH=$MINICONDA_HOME/bin:$PATH
 conda update --yes conda
+conda install -c https://conda.anaconda.org/omnia --yes "conda-build<3.0.0" jinja2 anaconda-client pip
+
+# Restore original directory
+popd
