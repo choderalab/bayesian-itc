@@ -12,4 +12,4 @@ class TestImports(unittest.TestCase):
         """Test the importing of all libraries."""
         module_names = ['models', 'experiments', 'instruments', 'report', 'units']
         for mod in module_names:
-            self._imports('bitc.' + mod)
+            self._imports('bayesitc.' + mod)

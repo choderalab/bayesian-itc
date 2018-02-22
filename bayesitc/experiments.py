@@ -7,7 +7,7 @@ import logging
 import numpy
 from pint import DimensionalityError
 
-from bitc.units import ureg, Quantity
+from bayesitc.units import ureg, Quantity
 
 
 

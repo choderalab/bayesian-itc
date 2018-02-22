@@ -4,15 +4,15 @@ import sys
 from docopt import docopt
 from schema import Schema, And, Or, Use
 
-from bitc.instruments import known_instruments
-from bitc.models import known_models
+from bayesitc.instruments import known_instruments
+from bayesitc.models import known_models
 
 
 #  TODO add options for multiple types of output files
 #  TODO implement license
 
 
-def bitc_util_parser(argv=sys.argv[1:]):
+def bayesitc_util_parser(argv=sys.argv[1:]):
     __usage__ = """
 Bayesian analysis of ITC data. Uses MicroCal .itc files, or custom format .yml files for analysing experiments.
 
@@ -81,10 +81,10 @@ def integrate_parser(argv=sys.argv[1:]):
 Integrate ITC data using Gaussian process regression. Uses MicroCal .itc files, or custom format .yml files for analysing experiments.
 
 Usage:
-  bitc_integrate.py <datafiles>... [-w <workdir> | --workdir=<workdir>] [-v | -vv | -vvv] [options]
-  bitc_integrate.py (-h | --help)
-  bitc_integrate.py --license
-  bitc_integrate.py --version
+  bayesitc_integrate.py <datafiles>... [-w <workdir> | --workdir=<workdir>] [-v | -vv | -vvv] [options]
+  bayesitc_integrate.py (-h | --help)
+  bayesitc_integrate.py --license
+  bayesitc_integrate.py --version
 
 Options:
   -h, --help                             Show this screen
@@ -102,7 +102,7 @@ Options:
   --plot                                 Generate plots of the baseline fit
 """
 
-    arguments = docopt(__usage__, argv=argv, version='bitc_integrate.py, pre-alpha')
+    arguments = docopt(__usage__, argv=argv, version='bayesitc_integrate.py, pre-alpha')
     schema = Schema({'--help': bool,  # True or False are accepted
                      '--license': bool,  # True or False are accepted
                      # integer between 0 and 3
@@ -128,7 +128,7 @@ Options:
     return schema.validate(arguments)
 
 
-def bitc_mcmc_parser(argv=sys.argv[1:]):
+def bayesitc_mcmc_parser(argv=sys.argv[1:]):
     __usage__ = """Analyze ITC data using Markov chain Monte Carlo (MCMC). Uses MicroCal .itc files, or custom format .yml files for modeling experiments.
     When running the program you can select one of two options:
 
@@ -139,11 +139,11 @@ def bitc_mcmc_parser(argv=sys.argv[1:]):
       A twocomponent binding model. Analyzes only a single experiment
 
     Usage:
-      bitc_mcmc.py twocomponent <datafile> <heatsfile> [-v | -vv | -vvv] [--cc=<c_cell>] [--cs=<c_syringe> ] [--dc=<dc_cell>] [--ds=<dc_syringe>] [options] 
-      bitc_mcmc.py competitive (<datafile> <heatsfile>)... (-r <receptor> | --receptor <receptor>) [-v | -vv | -vvv] [options]
-      bitc_mcmc.py (-h | --help)
-      bitc_mcmc.py --license
-      bitc_mcmc.py --version
+      bayesitc_mcmc.py twocomponent <datafile> <heatsfile> [-v | -vv | -vvv] [--cc=<c_cell>] [--cs=<c_syringe> ] [--dc=<dc_cell>] [--ds=<dc_syringe>] [options]
+      bayesitc_mcmc.py competitive (<datafile> <heatsfile>)... (-r <receptor> | --receptor <receptor>) [-v | -vv | -vvv] [options]
+      bayesitc_mcmc.py (-h | --help)
+      bayesitc_mcmc.py --license
+      bayesitc_mcmc.py --version
 
     Options:
       -h, --help                             Show this screen
@@ -164,7 +164,7 @@ def bitc_mcmc_parser(argv=sys.argv[1:]):
       --nburn=<n>                            No. of Burn-in iterations for mcmc sampling     [default: 500000]
       --nthin=<n>                            Thinning period for mcmc sampling               [default: 500]
 """
-    arguments = docopt(__usage__, argv=argv, version='bitc_mcmc.py, pre-alpha')
+    arguments = docopt(__usage__, argv=argv, version='bayesitc_mcmc.py, pre-alpha')
     schema = Schema({'--help': bool,  # True or False are accepted
                      '--license': bool,  # True or False are accepted
                      # integer between 0 and 3

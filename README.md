@@ -5,10 +5,10 @@ A python library for the Bayesian analysis of isothermal titration calorimetry e
 
 ## Manifest
 
-* `scripts/bitc_integrate.py`, a command line utility that integrates data from .itc files using Gaussian process regression.
-* `scripts/bitc_mcmc.py`, a command line utility to run MCMC using one of two available models.
-* `bitc/` - the library with underlying tools.
-* `scripts/bitc_util.py`, a deprecated command line utility that can be used to both integrate, and analyze data
+* `scripts/bayesitc_integrate.py`, a command line utility that integrates data from .itc files using Gaussian process regression.
+* `scripts/bayesitc_mcmc.py`, a command line utility to run MCMC using one of two available models.
+* `bayesitc/` - the library with underlying tools.
+* `scripts/bayesitc_util.py`, a deprecated command line utility that can be used to both integrate, and analyze data
 
 
 ## Requirements
@@ -28,16 +28,16 @@ scikit-learn
 
 ### Integrating ITC peaks.
 
-The `bitc_integrate.py` script can integrate the data from .itc files using [Gaussian process regression](http://scikit-learn.org/stable/modules/gaussian_process.html). Below are the options that the program accepts.
+The `bayesitc_integrate.py` script can integrate the data from .itc files using [Gaussian process regression](http://scikit-learn.org/stable/modules/gaussian_process.html). Below are the options that the program accepts.
 
 ```
 Integrate ITC data using Gaussian process regression. Uses MicroCal .itc files, or custom format .yml files for analysing experiments.
 
 Usage:
-  bitc_integrate.py <datafiles>... [-w <workdir> | --workdir=<workdir>] [-v | -vv | -vvv] [options]
-  bitc_integrate.py (-h | --help)
-  bitc_integrate.py --license
-  bitc_integrate.py --version
+  bayesitc_integrate.py <datafiles>... [-w <workdir> | --workdir=<workdir>] [-v | -vv | -vvv] [options]
+  bayesitc_integrate.py (-h | --help)
+  bayesitc_integrate.py --license
+  bayesitc_integrate.py --version
 
 Options:
   -h, --help                             Show this screen
@@ -55,19 +55,19 @@ Options:
   --plot                                 Generate plots of the baseline fit
 
 ```
-Sample files have been included to test if the library is functional. You can find them under `bitc/testdata`.
+Sample files have been included to test if the library is functional. You can find them under `bayesitc/testdata`.
 
 
 This example command shows how to integrate a `.itc` file using default settings
 ```
-bitc_integrate.py bitc/testdata/sample.itc -w workdir -v
+bayesitc_integrate.py bayesitc/testdata/sample.itc -w workdir -v
 ```
 .
 
 
 ### Bayesian inference using Markov chain Monte Carlo
 
-The `bitc_mcmc.py` script runs Markov chain Monte Carlo (MCMC) on the supplied data, using a predefined model.
+The `bayesitc_mcmc.py` script runs Markov chain Monte Carlo (MCMC) on the supplied data, using a predefined model.
 Below are the options that the program accepts.
 
 ```
@@ -81,11 +81,11 @@ twocomponent
   A twocomponent binding model. Analyzes only a single experiment
 
 Usage:
-  bitc_mcmc.py twocomponent <datafile> <heatsfile> [-v | -vv | -vvv] [options]
-  bitc_mcmc.py competitive (<datafile> <heatsfile>)... (-r <receptor> | --receptor <receptor>) [-v | -vv | -vvv] [options]
-  bitc_mcmc.py (-h | --help)
-  bitc_mcmc.py --license
-  bitc_mcmc.py --version
+  bayesitc_mcmc.py twocomponent <datafile> <heatsfile> [-v | -vv | -vvv] [options]
+  bayesitc_mcmc.py competitive (<datafile> <heatsfile>)... (-r <receptor> | --receptor <receptor>) [-v | -vv | -vvv] [options]
+  bayesitc_mcmc.py (-h | --help)
+  bayesitc_mcmc.py --license
+  bayesitc_mcmc.py --version
 
 Options:
   -h, --help                             Show this screen
@@ -103,30 +103,30 @@ Options:
   --nthin=<n>                            Thinning period for mcmc sampling               [default: 500]
 ```
 
-Sample files have been included to test if the library is functional. You can find them under `bitc/testdata`.
+Sample files have been included to test if the library is functional. You can find them under `bayesitc/testdata`.
 
 For example, here is how to run MCMC on an experiment using a two-component binding model:
 
 ```
-python .\scripts\bitc_mcmc.py twocomponent bitc/testdata/sample.itc bitc/testdata/sample-integrated.dat
+python .\scripts\bayesitc_mcmc.py twocomponent bayesitc/testdata/sample.itc bayesitc/testdata/sample-integrated.dat
 ```
 
 ### Legacy examples:
 
-Below are some examples of using the old `bitc_util.py` script.
+Below are some examples of using the old `bayesitc_util.py` script.
 
 An example for a two-component binding model
 ```
-bitc_util.py mcmc bitc/testdata/sample.itc -w workdir -v -m TwoComponent --niters=20000 --nburn=1000 --nthin=10 --nfit=100
+bayesitc_util.py mcmc bayesitc/testdata/sample.itc -w workdir -v -m TwoComponent --niters=20000 --nburn=1000 --nthin=10 --nfit=100
 ```
 
 Analyze `.itc` files without mcmc
 
 ```
-bitc_util.py bitc/testdata/sample.itc bitc/testdata/sample2.itc -w workdir
+bayesitc_util.py bayesitc/testdata/sample.itc bayesitc/testdata/sample2.itc -w workdir
 ```
 
 An example for a competitive binding model.
 ```
-bitc_util.py mcmc bitc/testdata/acetyl_pepstatin.yml testdata/kni10033.yml bitc/testdata/kni10075.yml -w workdir -v -m Competitive -r "HIV protease" --niters=20000 --nburn=1000 --nthin=10 --nfit=100
+bayesitc_util.py mcmc bayesitc/testdata/acetyl_pepstatin.yml testdata/kni10033.yml bayesitc/testdata/kni10075.yml -w workdir -v -m Competitive -r "HIV protease" --niters=20000 --nburn=1000 --nthin=10 --nfit=100
 ```

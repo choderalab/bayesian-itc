@@ -6,11 +6,11 @@ from os.path import basename, splitext
 import numpy
 import pymc
 import traceback
-from bitc.experiments import ExperimentMicroCal, ExperimentYaml
-from bitc.instruments import known_instruments, Instrument
-from bitc.models import TwoComponentBindingModel, CompetitiveBindingModel
-from bitc.parser import bitc_mcmc_parser
-from bitc.units import Quantity
+from bayesitc.experiments import ExperimentMicroCal, ExperimentYaml
+from bayesitc.instruments import known_instruments, Instrument
+from bayesitc.models import TwoComponentBindingModel, CompetitiveBindingModel
+from bayesitc.parser import bayesitc_mcmc_parser
+from bayesitc.units import Quantity
 
 try:
     import seaborn
@@ -66,7 +66,7 @@ def plot_two_component_model_results(model):
     outfile.write('\n')
     outfile.close()
 
-user_input = bitc_mcmc_parser()
+user_input = bayesitc_mcmc_parser()
 
 # Process the arguments
 working_directory = user_input['--workdir']

@@ -31,13 +31,13 @@ import os
 from os.path import basename, splitext
 import numpy
 import logging
-from bitc.units import ureg, Quantity
+from bayesitc.units import ureg, Quantity
 import pymc
-from bitc.report import Report, plot_experiment
-from bitc.parser import bitc_util_parser
-from bitc.experiments import Injection, ExperimentMicroCal, ExperimentYaml
-from bitc.instruments import known_instruments, Instrument
-from bitc.models import RescalingStep, known_models
+from bayesitc.report import Report, plot_experiment
+from bayesitc.parser import bayesitc_util_parser
+from bayesitc.experiments import Injection, ExperimentMicroCal, ExperimentYaml
+from bayesitc.instruments import known_instruments, Instrument
+from bayesitc.models import RescalingStep, known_models
 import sys
 
 try:
@@ -65,7 +65,7 @@ def compute_normal_statistics(x_t):
 
     return [x, dx, xlow, xhigh]
 
-validated = bitc_util_parser()
+validated = bayesitc_util_parser()
 
 # Process the arguments
 working_directory = validated['--workdir']
@@ -133,9 +133,9 @@ else:
                 yamldict = yaml.load(yamlfile)
                 instrument_name = yamldict['instrument']
                 if instrument_name in known_instruments.keys():
-                    import bitc.instruments
-                    # Get the instrument class from bitc.instruments and instance it
-                    instruments.append(getattr(bitc.instruments, instrument_name)())
+                    import bayesitc.instruments
+                    # Get the instrument class from bayesitc.instruments and instance it
+                    instruments.append(getattr(bayesitc.instruments, instrument_name)())
 
         elif file_extension in ['.itc']:
             instruments.append(Instrument(itcfile=filename))
