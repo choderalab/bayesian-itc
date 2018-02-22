@@ -11,7 +11,7 @@ import numpy
 import pymc
 import scipy.integrate
 
-from bitc.units import ureg, Quantity
+from bayesitc.units import ureg, Quantity
 
 # Use module name for logger
 logger = logging.getLogger(__name__)
@@ -665,7 +665,7 @@ class CompetitiveBindingModel(BindingModel):
         >>> x_R = V * 510.e-3 # receptor
         >>> x_Ln = numpy.array([V * 8.6e-6, 200.e-6 * 55.e-6]) # ligands
         >>> Ka_n = numpy.array([1./(400.e-9), 1./(2.e-11)]) # association constants
-        >>> from bitc.models import CompetitiveBindingModel
+        >>> from bayesitc.models import CompetitiveBindingModel
         >>> C_PLn = CompetitiveBindingModel.equilibrium_concentrations(Ka_n, x_R, x_Ln, V)
 
         NOTES
