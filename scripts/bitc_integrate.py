@@ -6,10 +6,10 @@ import logging
 import os
 from os.path import basename, splitext
 
-from bitc.experiments import ExperimentMicroCal, ExperimentYaml
-from bitc.instruments import known_instruments, Instrument
-from bitc.parser import integrate_parser
-from bitc.report import plot_experiment
+from bayesitc.experiments import ExperimentMicroCal, ExperimentYaml
+from bayesitc.instruments import known_instruments, Instrument
+from bayesitc.parser import integrate_parser
+from bayesitc.report import plot_experiment
 
 user_input = integrate_parser()
 
@@ -67,10 +67,10 @@ else:
                 yamldict = yaml.load(yamlfile)
                 instrument_name = yamldict['instrument']
                 if instrument_name in known_instruments.keys():
-                    import bitc.instruments
+                    import bayesitc.instruments
 
-                    # Get the instrument class from bitc.instruments and instance it
-                    instruments.append(getattr(bitc.instruments, instrument_name)())
+                    # Get the instrument class from bayesitc.instruments and instance it
+                    instruments.append(getattr(bayesitc.instruments, instrument_name)())
 
         elif file_extension in ['.itc']:
             instruments.append(Instrument(itcfile=filename))
