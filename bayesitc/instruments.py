@@ -3,7 +3,7 @@
 import re
 import logging
 
-from bitc.units import ureg
+from bayesitc.units import ureg
 
 logger = logging.getLogger(__name__)
 
