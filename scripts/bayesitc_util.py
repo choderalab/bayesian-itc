@@ -171,6 +171,12 @@ logging.debug(str(experiments))
 for experiment, file_extension in zip(experiments, file_extensions):
     if file_extension in ['.itc']:
         experiment.fit_gaussian_process_baseline(fit_fraction=0.2, theta0=5.0, nugget=1.0, plot=True)
+
+        # Integrate heats
+        if not hasattr(experiment.injections[0], 'evolved_heat'):
+            logging.info('Integrating heats...')
+            experiment.integrate_heat()
+
         #  TODO work on a markdown version for generating reports. Perhaps use sphinx
         plot_experiment(experiment_name, experiment)
 
