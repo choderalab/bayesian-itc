@@ -328,7 +328,7 @@ class BaseExperiment(object):
 
         assert isinstance(heats_file, str)
         # Need python engine for skip_footer
-        dataframe = pd.read_table(heats_file, skip_footer=1, engine='python', sep='\s+', header=0)
+        dataframe = pd.read_table(heats_file, skipfooter=1, engine='python', sep='\s+', header=0)
         heats = numpy.array(dataframe['DH'])
         return Quantity(heats, unit)
 
@@ -575,10 +575,15 @@ class ExperimentMicroCal(BaseExperiment):
 
         figure = Figure()
         canvas = FigureCanvas(figure)
-        axes = figure.add_subplot(1, 1, 1, axisbg='whitesmoke')
+        try:
+            # old API
+            axes = figure.add_subplot(1, 1, 1, axisbg='whitesmoke')
+        except AttributeError:
+            # new API
+            axes = figure.add_subplot(1, 1, 1, facecolor='whitesmoke')
 
         # Adds a 95% confidence interval to the plot
-        ExperimentMicroCal._plot_confidence_interval(axes, full_x, sigma, y_pred)
+        #ExperimentMicroCal._plot_confidence_interval(axes, full_x, sigma, y_pred) # DEBUG: Fix this
         # Entire set of data
         axes.plot(full_x, full_y, 'o', markersize=2, lw=1, color='deepskyblue', alpha=.5, label='Raw data')
         # Points for fit
@@ -615,7 +620,12 @@ class ExperimentMicroCal(BaseExperiment):
 
         figure = Figure()
         canvas = FigureCanvas(figure)
-        axes1 = figure.add_subplot(1, 1, 1, axisbg='whitesmoke')
+        try:
+            # old API
+            axes1 = figure.add_subplot(1, 1, 1, axisbg='whitesmoke')
+        except AttributeError:
+            # new API
+            axes1 = figure.add_subplot(1, 1, 1, facecolor='whitesmoke')
 
         # Points for fit
         axes1.plot(x, y, 'o', color='deepskyblue', markersize=2, alpha=1, label='Baseline-subtracted data')
@@ -690,18 +700,32 @@ class ExperimentMicroCal(BaseExperiment):
         full_y = numpy.array(self.differential_power).T
         y = numpy.array(y).T
 
-        # TODO look into GaussianProcessRegressor http://bit.ly/2kpUs0b
-        # current API will be deprecated as of scikit learn 0.8
-        gp = gaussian_process.GaussianProcess(regr='quadratic',
-                                              corr='squared_exponential',
-                                              theta0=theta0,
-                                              nugget=nugget,
-                                              random_start=100)
-
-        # Fit only based on the reduced set of the data
-        gp.fit(x, y)
-        y_pred, mean_squared_error = gp.predict(full_x, eval_MSE=True)
-        sigma = numpy.sqrt(mean_squared_error)
+        try:
+            # current API will be deprecated as of scikit learn 0.8
+            gp = gaussian_process.GaussianProcess(regr='quadratic',
+                                                  corr='squared_exponential',
+                                                  theta0=theta0,
+                                                  nugget=nugget,
+                                                  random_start=100)
+            # Fit only based on the reduced set of the data
+            gp.fit(x, y)
+            y_pred, mean_squared_error = gp.predict(full_x, eval_MSE=True)
+            sigma = numpy.sqrt(mean_squared_error)
+        except AttributeError:
+            # newer scikit-learn
+            kernel = gaussian_process.kernels.RBF(length_scale=theta0)
+            #from sklearn.gaussian_process.kernels import ConstantKernel, RBF
+            #kernel = y.std() * RBF(length_scale=theta0)
+            #gp = gaussian_process.GaussianProcessRegressor(kernel=kernel,
+            #                                               alpha=nugget*1e-6,
+            #                                               n_restarts_optimizer=100)
+            gp = gaussian_process.GaussianProcessRegressor(kernel=kernel,
+                                                           alpha=1e-3 * y.std(),
+                                                           n_restarts_optimizer=100)
+            # Fit only based on the reduced set of the data
+            gp.fit(x, y)
+            y_pred, mean_squared_error = gp.predict(full_x, return_std=True)
+            sigma = numpy.sqrt(mean_squared_error)
 
         self.baseline_power = Quantity(y_pred, 'microcalories per second')
         self.baseline_fit_data = {'x': full_x, 'y': y_pred, 'indices': fit_indices}
