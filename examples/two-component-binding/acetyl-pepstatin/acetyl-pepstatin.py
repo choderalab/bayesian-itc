@@ -19,20 +19,19 @@ experiment.runs.append(run)
 
 run = Run()
 run.title = "Direct titration of acetyl pepstatin"
-run.syringe.append('acetyl pepstatin' : 200 * Units.uM)
-run.cell.append('HIV-1 protease' : 20 * Units.uM)
+run.syringe['acetyl pepstatin'] = 200 * Units.uM
+run.cell['HIV-1 protease'] = 20 * Units.uM
 run.injection_volume = 10 * Units.uL
 run.heat_per_injection = [7.347, 7.219, 7.024, 6.537, 5.470, 3.911, 2.258, 1.231, 0.744, 0.497, 0.302, 0.160, 0.087, 0.062, 0.062, 0.040, 0.017, -0.013, -0.013]
 experiment.runs.append(run)
 
 run = Run()
 run.title = "Competition of acetyl pepstatin by KNI-764"
-run.syringe.append('KNI-764' : 250 * Units.uM)
-run.cell.append('HIV-1 protease' : 20 * Units.uM)
-run.cell.append('acetyl pepstatin' : 200 * Units.uM)
+run.syringe['KNI-764'] = 250 * Units.uM
+run.cell['HIV-1 protease'] = 20 * Units.uM
+run.cell['acetyl pepstatin'] = 200 * Units.uM
 run.injection_volume = 10 * Units.uL
 experiment.runs.append(run)
 
 # Run the analysis.
 analyze(experiment)
-
