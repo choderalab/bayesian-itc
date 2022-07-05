@@ -151,7 +151,6 @@ logging.debug(str(locals()))
 # Close all figure windows.
 import pylab
 pylab.close('all')
-logging.info("Reading ITC data from %s" % filename)
 
 # TODO make this a parallel loop?
 experiments = list()
@@ -171,6 +170,12 @@ logging.debug(str(experiments))
 for experiment, file_extension in zip(experiments, file_extensions):
     if file_extension in ['.itc']:
         experiment.fit_gaussian_process_baseline(fit_fraction=0.2, theta0=5.0, nugget=1.0, plot=True)
+
+        # Integrate heats
+        if not hasattr(experiment.injections[0], 'evolved_heat'):
+            logging.info('Integrating heats...')
+            experiment.integrate_heat()
+
         #  TODO work on a markdown version for generating reports. Perhaps use sphinx
         plot_experiment(experiment_name, experiment)
 
@@ -245,6 +250,9 @@ if validated['--model'] == 'TwoComponent':
         outfile.write('\n')
         outfile.close()
 
+        pymc.graph.dag(model.mcmc)
+
+
 elif validated['--model'] == 'Competitive':
     if not validated['--receptor']:
         raise ValueError('Need to specify a receptor for Competitive model')
@@ -267,4 +275,4 @@ elif validated['--model'] == 'Competitive':
     model.mcmc.sample(iter=niters, burn=nburn, thin=nthin, progress_bar=True)
     pymc.Matplot.plot(model.mcmc, "MCMC.png")
 
-pymc.graph.dag(model.mcmc)
+    pymc.graph.dag(model.mcmc)

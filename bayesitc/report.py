@@ -183,20 +183,29 @@ def plot_experiment(name, experiment):
     pylab.subplot(411)
 
     # plot baseline fit
-    pylab.hold(True)
+    try:
+        pylab.hold(True) # old API
+    except AttributeError:
+        pass # new API
     pylab.plot(experiment.filter_period_end_time / ureg.second, experiment.baseline_power / (ureg.microcalorie/ureg.second), 'g-')  # plot baseline fit
 
     # differential power
     pylab.plot(experiment.filter_period_end_time / ureg.second, experiment.differential_power / (ureg.microcalorie/ureg.second), 'k.', markersize=1)
     # plot red vertical line to mark injection times
-    pylab.hold(True)
+    try:
+        pylab.hold(True) # old API
+    except AttributeError:
+        pass # new API
     [xmin, xmax, ymin, ymax] = pylab.axis()
 
     for injection in experiment.injections:
         last_index = injection.first_index # timepoint at start of syringe injection
         t = experiment.filter_period_end_time[last_index] / ureg.second
         pylab.plot([t, t], [ymin, ymax], 'r-')
-    pylab.hold(False)
+    try:
+        pylab.hold(True) # old API
+    except AttributeError:
+        pass # new API
     xlabel = pylab.xlabel('time / s')
     xlabel.set_fontsize(fontsize)
     ylabel = pylab.ylabel('differential power / ucal/s')
@@ -214,7 +223,10 @@ def plot_experiment(name, experiment):
 
     # Plot enthalpogram.
     pylab.subplot(412)
-    pylab.hold(True)
+    try:
+        pylab.hold(True) # old API
+    except AttributeError:
+        pass # new API
     for injection in experiment.injections:
         # determine initial and final samples for injection i
         first_index = injection.first_index # index of timepoint for first filtered differential power measurement
@@ -229,14 +241,20 @@ def plot_experiment(name, experiment):
     # adjust axes to match first plot
     [xmin_new, xmax_new, ymin, ymax] = pylab.axis()
     pylab.axis([xmin, xmax, ymin, ymax])
-    pylab.hold(False)
+    try:
+        pylab.hold(True) # old API
+    except AttributeError:
+        pass # new API
     #pylab.title('evolved heat per injection')
     xlabel = pylab.xlabel('time / s')
     xlabel.set_fontsize(fontsize)
     ylabel = pylab.ylabel('evolved heat / ucal')
     ylabel.set_fontsize(fontsize)
     # plot zero
-    pylab.hold(True)
+    try:
+        pylab.hold(True) # old API
+    except AttributeError:
+        pass # new API
     pylab.plot(experiment.filter_period_end_time / ureg.second, 0.0*experiment.filter_period_end_time / (ureg.microcalorie/ureg.second), 'g-') # plot zero line
 
 
@@ -248,12 +266,18 @@ def plot_experiment(name, experiment):
 
     # Plot cell temperature.
     pylab.subplot(413)
-    pylab.hold(True)
+    try:
+        pylab.hold(True) # old API
+    except AttributeError:
+        pass # new API
     pylab.plot(experiment.filter_period_end_time / ureg.second, experiment.cell_temperature/ureg.kelvin - 273.15, 'r.', markersize=1)
     # adjust axes to match first plot
     [xmin_new, xmax_new, ymin, ymax] = pylab.axis()
     pylab.axis([xmin, xmax, ymin, ymax])
-    pylab.hold(False)
+    try:
+        pylab.hold(True) # old API
+    except AttributeError:
+        pass # new API
     #pylab.title('evolved heat per injection')
     xlabel = pylab.xlabel('time / s')
     xlabel.set_fontsize(fontsize)
@@ -268,12 +292,18 @@ def plot_experiment(name, experiment):
 
     # Plot adiabatic jacket temperature.
     pylab.subplot(414)
-    pylab.hold(True)
+    try:
+        pylab.hold(True) # old API
+    except AttributeError:
+        pass # new API
     pylab.plot(experiment.filter_period_end_time / ureg.second, experiment.jacket_temperature/ureg.kelvin - 273.15, 'b.', markersize=1)
     # adjust axes to match first plot
     [xmin_new, xmax_new, ymin, ymax] = pylab.axis()
     pylab.axis([xmin, xmax, ymin, ymax])
-    pylab.hold(False)
+    try:
+        pylab.hold(True) # old API
+    except AttributeError:
+        pass # new API
     #pylab.title('evolved heat per injection')
     xlabel = pylab.xlabel('time / s')
     xlabel.set_fontsize(fontsize)
